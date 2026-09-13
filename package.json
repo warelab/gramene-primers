@@ -1,0 +1,83 @@
+{
+  "name": "gramene-primers",
+  "version": "0.1.0",
+  "description": "Embeddable React component and headless client for Gramene PCR/qPCR primer design, genome specificity and pan-genome coverage checks.",
+  "type": "module",
+  "main": "./dist/gramene-primers.cjs",
+  "module": "./dist/gramene-primers.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/gramene-primers.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/gramene-primers.cjs"
+      }
+    },
+    "./style.css": "./dist/gramene-primers.css",
+    "./dist/*": "./dist/*",
+    "./package.json": "./package.json"
+  },
+  "sideEffects": [
+    "*.css"
+  ],
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "rm -rf dist && vite build && node scripts/copy-dts.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:it": "vitest run --config vitest.it.config.ts",
+    "fixtures": "vitest run test/fixtures.gen.test.ts",
+    "lint:pkg": "node scripts/lint-pkg.mjs",
+    "pack:local": "npm run build && npm pack",
+    "prepublishOnly": "npm run build && npm run typecheck && npm test && npm run lint:pkg"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^24.13.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "axe-core": "^4.13.0",
+    "jsdom": "^27.4.0",
+    "publint": "^0.3.24",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.6",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^4.1.11"
+  },
+  "author": "Andrew Olson",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/warelab/gramene-primers.git"
+  },
+  "keywords": [
+    "primer3",
+    "pcr",
+    "qpcr",
+    "primer-design",
+    "pan-genome",
+    "gramene",
+    "react-component",
+    "bioinformatics"
+  ]
+}

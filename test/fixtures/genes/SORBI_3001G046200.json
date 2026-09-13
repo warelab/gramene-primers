@@ -1,0 +1,187 @@
+{
+  "_id": "SORBI_3001G046200",
+  "name": "SORBI_3001G046200",
+  "description": "hypothetical protein",
+  "biotype": "protein_coding",
+  "taxon_id": 4558006,
+  "system_name": "sorghum_bicolor",
+  "location": {
+    "region": "1",
+    "start": 3406158,
+    "end": 3409981,
+    "strand": 1,
+    "map": "GCA_000003195.3"
+  },
+  "gene_structure": {
+    "exons": [
+      {
+        "id": "OQU90789-1",
+        "start": 1,
+        "end": 3795
+      },
+      {
+        "id": "OQU90793-1",
+        "start": 1,
+        "end": 532
+      },
+      {
+        "id": "OQU90793-2",
+        "start": 1070,
+        "end": 3824
+      },
+      {
+        "id": "OQU90792-2",
+        "start": 1558,
+        "end": 3804
+      },
+      {
+        "id": "OQU90790-1",
+        "start": 1,
+        "end": 3796
+      },
+      {
+        "id": "OQU90791-2",
+        "start": 1558,
+        "end": 3810
+      },
+      {
+        "id": "KXG37307-2",
+        "start": 750,
+        "end": 3780
+      }
+    ],
+    "transcripts": [
+      {
+        "exons": [
+          "OQU90789-1"
+        ],
+        "length": 3795,
+        "cds": {
+          "start": 1,
+          "end": 615
+        },
+        "translation": {
+          "id": "OQU90789",
+          "length": 205
+        },
+        "id": "SORBI_3001G046200.2"
+      },
+      {
+        "exons": [
+          "OQU90793-1",
+          "OQU90793-2"
+        ],
+        "length": 3287,
+        "exon_junctions": [
+          532
+        ],
+        "cds": {
+          "start": 1,
+          "end": 567
+        },
+        "translation": {
+          "id": "OQU90793",
+          "length": 189
+        },
+        "id": "SORBI_3001G046200.4"
+      },
+      {
+        "exons": [
+          "OQU90793-1",
+          "OQU90792-2"
+        ],
+        "length": 2779,
+        "exon_junctions": [
+          532
+        ],
+        "cds": {
+          "start": 1,
+          "end": 543
+        },
+        "translation": {
+          "id": "OQU90792",
+          "length": 181
+        },
+        "id": "SORBI_3001G046200.5"
+      },
+      {
+        "exons": [
+          "OQU90790-1"
+        ],
+        "length": 3796,
+        "cds": {
+          "start": 1,
+          "end": 615
+        },
+        "translation": {
+          "id": "OQU90790",
+          "length": 205
+        },
+        "id": "SORBI_3001G046200.3"
+      },
+      {
+        "exons": [
+          "OQU90793-1",
+          "OQU90791-2"
+        ],
+        "length": 2785,
+        "exon_junctions": [
+          532
+        ],
+        "cds": {
+          "start": 1,
+          "end": 543
+        },
+        "translation": {
+          "id": "OQU90791",
+          "length": 181
+        },
+        "id": "SORBI_3001G046200.6"
+      },
+      {
+        "exons": [
+          "OQU90793-1",
+          "KXG37307-2"
+        ],
+        "length": 3563,
+        "exon_junctions": [
+          532
+        ],
+        "cds": {
+          "start": 1,
+          "end": 573
+        },
+        "translation": {
+          "id": "KXG37307",
+          "length": 191
+        },
+        "id": "SORBI_3001G046200.1"
+      }
+    ],
+    "canonical_transcript": "SORBI_3001G046200.2"
+  },
+  "homology": {
+    "homologous_genes": {
+      "ortholog_one2one": [
+        "3381.casb020g291930.635",
+        "IS19953.001G047800",
+        "IS3614-3.001G044200",
+        "IS8525.001G048800",
+        "IS929.001G050900",
+        "PI532566.001G230200",
+        "SbPI156178.01G042500.v1.1",
+        "SbPI329501.07G188500.v2.1",
+        "SbPI534133.07G192300.v1.1",
+        "SbPI570071.01G042400.v1.1",
+        "SbPI656044.01G041400.v1.1",
+        "SbRio.01G047600.v2.1",
+        "SbiGRIF16309.01g006060",
+        "SbiGrassl.01g006190",
+        "SbiLeoti.01g006350",
+        "SbiPI229841.01g006360",
+        "SbiPI329250.01g006100",
+        "SbiPI510757.01g006250"
+      ]
+    }
+  }
+}

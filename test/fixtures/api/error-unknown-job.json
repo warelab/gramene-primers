@@ -1,0 +1,19 @@
+{
+  "captured_at": "2026-09-13T05:27:31.843Z",
+  "base": "http://127.0.0.1:50111/sorghum_v11",
+  "method": "GET",
+  "path": "/primers/check/0123456789abcdef0123456789abcdef",
+  "request": null,
+  "status": 404,
+  "headers": {
+    "cache-control": "no-store",
+    "retry-after": null
+  },
+  "body": {
+    "message": "unknown or expired check job",
+    "code": "UNKNOWN_JOB",
+    "details": {
+      "job_id": "0123456789abcdef0123456789abcdef"
+    }
+  }
+}

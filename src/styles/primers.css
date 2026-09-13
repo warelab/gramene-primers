@@ -1,0 +1,1824 @@
+/*
+ * gramene-primers stylesheet (spec §C.5)
+ * - Every class is gpr-*, every custom property --gpr-*, every rule is scoped under .gpr-root.
+ * - No !important. The element reset uses `.gpr-root <element>` (specificity 0,1,1), which beats
+ *   Bootstrap 4 reboot element rules (0,0,1); component rules use `.gpr-root .gpr-*` (0,2,0).
+ * - Themes: .gpr-theme-light, .gpr-theme-dark, .gpr-theme-auto (prefers-color-scheme).
+ * - Injected at runtime as <style id="gramene-primers-styles">, or import "gramene-primers/style.css".
+ */
+
+/* ---- tokens ------------------------------------------------------------- */
+.gpr-root {
+  --gpr-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --gpr-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --gpr-font-size: 14px;
+  --gpr-radius: 6px;
+  --gpr-gap: 12px;
+
+  --gpr-bg: #ffffff;
+  --gpr-surface: #f6f8fa;
+  --gpr-surface-2: #eaeef2;
+  --gpr-fg: #1f2328;
+  --gpr-muted: #57606a;
+  --gpr-border: #d0d7de;
+  --gpr-accent: #0b5cad;
+  --gpr-accent-fg: #ffffff;
+  --gpr-accent-soft: #ddeaf8;
+  --gpr-focus: #1a73e8;
+  --gpr-danger: #b42318;
+  --gpr-danger-soft: #fdecea;
+  --gpr-warn: #7a4a00;
+  --gpr-warn-soft: #fff3d1;
+  --gpr-ok: #0a6b47;
+  --gpr-ok-soft: #e0f4ea;
+  --gpr-info: #1a5a86;
+  --gpr-info-soft: #e3f1fb;
+  --gpr-selected: #fff3b0;
+
+  /* gene features (colours from gramene-search sequences.css) */
+  --gpr-utr5: #aaccaf;
+  --gpr-cds: #a7b4d3;
+  --gpr-utr3: #c5a3bf;
+  --gpr-intron: #aaaaaa;
+  --gpr-exon-alt: #8796bd;
+  --gpr-mask: #7a6a53;
+  --gpr-target: #d55e00;
+  --gpr-included: #009e73;
+  --gpr-excluded: #b42318;
+  --gpr-primer-left: #0072b2;
+  --gpr-primer-right: #cc79a7;
+  --gpr-fp-left-bg: #d3e7f6;
+  --gpr-fp-right-bg: #f5dfec;
+  --gpr-masked-fg: #8a8f96;
+
+  /* pan-genome statuses (Okabe-Ito) */
+  --gpr-st-perfect: #009e73;
+  --gpr-st-mismatch: #56b4e9;
+  --gpr-st-multiple: #e69f00;
+  --gpr-st-none: #d55e00;
+  --gpr-st-error: #555555;
+  --gpr-st-db: #8c8c8c;
+
+  box-sizing: border-box;
+  container-type: inline-size;
+  container-name: gpr;
+  color: var(--gpr-fg);
+  background-color: var(--gpr-bg);
+  font-family: var(--gpr-font);
+  font-size: var(--gpr-font-size);
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  -webkit-text-size-adjust: 100%;
+}
+
+.gpr-root.gpr-theme-light {
+  color-scheme: light;
+}
+
+.gpr-root.gpr-theme-dark {
+  color-scheme: dark;
+  --gpr-bg: #0f1419;
+  --gpr-surface: #161b22;
+  --gpr-surface-2: #212833;
+  --gpr-fg: #e6edf3;
+  --gpr-muted: #9da7b3;
+  --gpr-border: #3b4450;
+  --gpr-accent: #58a6ff;
+  --gpr-accent-fg: #0b1220;
+  --gpr-accent-soft: #14304d;
+  --gpr-focus: #79b8ff;
+  --gpr-danger: #ff8078;
+  --gpr-danger-soft: #3a1714;
+  --gpr-warn: #e3b341;
+  --gpr-warn-soft: #3a2c0c;
+  --gpr-ok: #56d364;
+  --gpr-ok-soft: #0f2e1d;
+  --gpr-info: #79c0ff;
+  --gpr-info-soft: #10273d;
+  --gpr-selected: #3d3614;
+  --gpr-exon-alt: #6f7fa8;
+  --gpr-fp-left-bg: #173b57;
+  --gpr-fp-right-bg: #4a2240;
+  --gpr-masked-fg: #7d8590;
+  --gpr-st-error: #9a9a9a;
+  --gpr-st-db: #6e7681;
+}
+
+@media (prefers-color-scheme: dark) {
+  .gpr-root.gpr-theme-auto {
+    color-scheme: dark;
+    --gpr-bg: #0f1419;
+    --gpr-surface: #161b22;
+    --gpr-surface-2: #212833;
+    --gpr-fg: #e6edf3;
+    --gpr-muted: #9da7b3;
+    --gpr-border: #3b4450;
+    --gpr-accent: #58a6ff;
+    --gpr-accent-fg: #0b1220;
+    --gpr-accent-soft: #14304d;
+    --gpr-focus: #79b8ff;
+    --gpr-danger: #ff8078;
+    --gpr-danger-soft: #3a1714;
+    --gpr-warn: #e3b341;
+    --gpr-warn-soft: #3a2c0c;
+    --gpr-ok: #56d364;
+    --gpr-ok-soft: #0f2e1d;
+    --gpr-info: #79c0ff;
+    --gpr-info-soft: #10273d;
+    --gpr-selected: #3d3614;
+    --gpr-exon-alt: #6f7fa8;
+    --gpr-fp-left-bg: #173b57;
+    --gpr-fp-right-bg: #4a2240;
+    --gpr-masked-fg: #7d8590;
+    --gpr-st-error: #9a9a9a;
+    --gpr-st-db: #6e7681;
+  }
+}
+
+/* ---- defensive reset (beats Bootstrap 4 reboot element rules) ------------ */
+.gpr-root *,
+.gpr-root *::before,
+.gpr-root *::after {
+  box-sizing: inherit;
+}
+
+.gpr-root button,
+.gpr-root input,
+.gpr-root select,
+.gpr-root textarea {
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: 1.3;
+  color: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+  overflow: visible;
+  box-shadow: none;
+  max-width: 100%;
+}
+
+.gpr-root button {
+  border-radius: var(--gpr-radius);
+}
+
+.gpr-root button:focus,
+.gpr-root input:focus,
+.gpr-root select:focus,
+.gpr-root textarea:focus {
+  outline: none;
+}
+
+.gpr-root textarea {
+  overflow: auto;
+}
+
+.gpr-root table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  margin: 0;
+  background-color: transparent;
+  color: inherit;
+  font-size: inherit;
+}
+
+.gpr-root th,
+.gpr-root td {
+  padding: 0;
+  border: 0;
+  text-align: left;
+  vertical-align: top;
+  font-weight: inherit;
+}
+
+.gpr-root caption {
+  caption-side: top;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+}
+
+.gpr-root label {
+  display: inline;
+  margin: 0;
+  font-weight: inherit;
+  cursor: default;
+}
+
+.gpr-root code,
+.gpr-root pre,
+.gpr-root kbd {
+  font-family: var(--gpr-mono);
+  font-size: 0.92em;
+  color: inherit;
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+  word-wrap: normal;
+  word-break: normal;
+}
+
+.gpr-root pre {
+  margin: 0;
+  overflow: auto;
+  white-space: pre;
+  border: 0;
+}
+
+.gpr-root h3,
+.gpr-root h4 {
+  margin: 0;
+  font-family: inherit;
+  font-weight: 600;
+  line-height: 1.3;
+  color: inherit;
+}
+
+.gpr-root h3 {
+  font-size: 1.05em;
+}
+
+.gpr-root h4 {
+  font-size: 1em;
+}
+
+.gpr-root p,
+.gpr-root ul,
+.gpr-root ol,
+.gpr-root dl,
+.gpr-root dt,
+.gpr-root dd {
+  margin: 0;
+}
+
+.gpr-root ul,
+.gpr-root ol {
+  padding: 0;
+  list-style: none;
+}
+
+.gpr-root fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.gpr-root legend {
+  display: block;
+  float: none;
+  width: auto;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+  white-space: normal;
+}
+
+.gpr-root a {
+  color: var(--gpr-accent);
+  text-decoration: underline;
+  background-color: transparent;
+}
+
+.gpr-root a:hover {
+  color: var(--gpr-accent);
+  text-decoration: underline;
+}
+
+.gpr-root summary {
+  display: list-item;
+  cursor: pointer;
+}
+
+.gpr-root svg {
+  overflow: visible;
+  vertical-align: middle;
+}
+
+.gpr-root strong,
+.gpr-root b {
+  font-weight: 600;
+}
+
+.gpr-root small {
+  font-size: 0.85em;
+}
+
+.gpr-root :focus-visible {
+  outline: 2px solid var(--gpr-focus);
+  outline-offset: 2px;
+}
+
+/* ---- utilities ----------------------------------------------------------- */
+.gpr-root .gpr-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.gpr-root .gpr-sub {
+  color: var(--gpr-muted);
+  font-size: 0.85em;
+  font-weight: 400;
+}
+
+.gpr-root .gpr-block {
+  display: block;
+}
+
+.gpr-root .gpr-hint {
+  color: var(--gpr-muted);
+  font-size: 0.88em;
+}
+
+.gpr-root .gpr-field-error {
+  color: var(--gpr-danger);
+  font-size: 0.88em;
+}
+
+.gpr-root .gpr-readout {
+  font-size: 0.92em;
+  font-variant-numeric: tabular-nums;
+}
+
+.gpr-root .gpr-note {
+  padding: 6px 10px;
+  border-left: 3px solid var(--gpr-info);
+  border-radius: 0 var(--gpr-radius) var(--gpr-radius) 0;
+  background-color: var(--gpr-info-soft);
+  font-size: 0.92em;
+}
+
+.gpr-root .gpr-code {
+  font-family: var(--gpr-mono);
+  font-size: 0.82em;
+  color: var(--gpr-muted);
+}
+
+.gpr-root .gpr-seq {
+  font-family: var(--gpr-mono);
+  font-size: 0.92em;
+  letter-spacing: 0.02em;
+  word-break: break-all;
+  color: var(--gpr-fg);
+}
+
+.gpr-root .gpr-num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.gpr-root .gpr-loc {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.gpr-root .gpr-link {
+  color: var(--gpr-accent);
+}
+
+.gpr-root .gpr-link-button {
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  color: var(--gpr-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.gpr-root .gpr-gene-list {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+}
+
+.gpr-root .gpr-plain-list,
+.gpr-root .gpr-banner-list,
+.gpr-root .gpr-issues {
+  list-style: disc;
+  padding-left: 1.2em;
+}
+
+/* ---- layout -------------------------------------------------------------- */
+.gpr-root .gpr-designer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gpr-gap);
+}
+
+.gpr-root .gpr-header,
+.gpr-root .gpr-mode-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gpr-root .gpr-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--gpr-gap) 18px;
+  align-items: start;
+}
+
+@container gpr (min-width: 960px) {
+  .gpr-root .gpr-layout {
+    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  }
+}
+
+@supports not (container-type: inline-size) {
+  @media (min-width: 1000px) {
+    .gpr-root .gpr-layout {
+      grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+    }
+  }
+}
+
+.gpr-root .gpr-inputs,
+.gpr-root .gpr-results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gpr-gap);
+  min-width: 0;
+}
+
+.gpr-root .gpr-form-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---- tabs ---------------------------------------------------------------- */
+.gpr-root .gpr-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  border-bottom: 1px solid var(--gpr-border);
+}
+
+.gpr-root .gpr-tab {
+  margin-bottom: -1px;
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: var(--gpr-radius) var(--gpr-radius) 0 0;
+  background-color: transparent;
+  color: var(--gpr-muted);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.gpr-root .gpr-tab:hover {
+  color: var(--gpr-fg);
+  background-color: var(--gpr-surface);
+}
+
+.gpr-root .gpr-tab[aria-selected="true"] {
+  color: var(--gpr-fg);
+  background-color: var(--gpr-bg);
+  border-color: var(--gpr-border);
+  border-bottom: 1px solid var(--gpr-bg);
+}
+
+.gpr-root .gpr-tab[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.gpr-root .gpr-tabpanel {
+  padding-top: 8px;
+}
+
+.gpr-root .gpr-result-tabs {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- form controls ------------------------------------------------------- */
+.gpr-root .gpr-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px 10px;
+  border: 1px solid var(--gpr-border);
+  border-radius: var(--gpr-radius);
+  background-color: var(--gpr-surface);
+}
+
+.gpr-root .gpr-subfieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gpr-root .gpr-legend {
+  padding: 0 4px;
+  margin-left: -4px;
+  font-weight: 600;
+}
+
+.gpr-root .gpr-legend-small {
+  padding: 0;
+  margin: 0 0 2px;
+  font-size: 0.9em;
+  color: var(--gpr-muted);
+}
+
+.gpr-root .gpr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.gpr-root .gpr-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5em, 1fr));
+  gap: 8px;
+}
+
+.gpr-root .gpr-triple-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.gpr-root .gpr-label {
+  font-size: 0.92em;
+  font-weight: 500;
+}
+
+.gpr-root .gpr-label-inline {
+  font-size: 1em;
+  font-weight: 400;
+}
+
+.gpr-root .gpr-input,
+.gpr-root .gpr-select,
+.gpr-root .gpr-textarea {
+  display: block;
+  width: 100%;
+  min-height: 30px;
+  height: auto;
+  padding: 4px 8px;
+  border: 1px solid var(--gpr-border);
+  border-radius: var(--gpr-radius);
+  background-color: var(--gpr-bg);
+  color: var(--gpr-fg);
+}
+
+.gpr-root .gpr-input-short {
+  display: inline-block;
+  width: 7em;
+}
+
+.gpr-root .gpr-select-small {
+  display: inline-block;
+  width: auto;
+  min-height: 26px;
+  padding: 2px 6px;
+}
+
+.gpr-root .gpr-textarea {
+  min-height: 8em;
+  font-family: var(--gpr-mono);
+  font-size: 0.9em;
+  word-break: break-all;
+  resize: vertical;
+}
+
+.gpr-root .gpr-input:focus-visible,
+.gpr-root .gpr-select:focus-visible,
+.gpr-root .gpr-textarea:focus-visible {
+  outline: 2px solid var(--gpr-focus);
+  outline-offset: 0;
+  border-color: var(--gpr-focus);
+}
+
+.gpr-root .gpr-input[aria-invalid="true"],
+.gpr-root .gpr-select[aria-invalid="true"],
+.gpr-root .gpr-textarea[aria-invalid="true"] {
+  border-color: var(--gpr-danger);
+}
+
+.gpr-root .gpr-input:disabled,
+.gpr-root .gpr-select:disabled,
+.gpr-root .gpr-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.gpr-root .gpr-field[data-state="changed"] .gpr-input {
+  border-color: var(--gpr-accent);
+  background-color: var(--gpr-accent-soft);
+}
+
+.gpr-root .gpr-check-row,
+.gpr-root .gpr-radio-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+}
+
+.gpr-root .gpr-check-hint,
+.gpr-root .gpr-preset-desc {
+  flex-basis: 100%;
+  padding-left: 22px;
+}
+
+.gpr-root .gpr-checkbox,
+.gpr-root .gpr-radio {
+  position: relative;
+  top: 2px;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--gpr-accent);
+}
+
+.gpr-root .gpr-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gpr-root .gpr-inline .gpr-select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.gpr-root .gpr-flank-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gpr-root .gpr-range {
+  flex: 1 1 auto;
+  min-width: 0;
+  accent-color: var(--gpr-accent);
+}
+
+.gpr-root .gpr-gene-summary {
+  font-size: 0.95em;
+}
+
+.gpr-root .gpr-gene-name {
+  font-weight: 600;
+}
+
+.gpr-root .gpr-mask-source-name {
+  color: var(--gpr-fg);
+}
+
+.gpr-root .gpr-interval-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+
+.gpr-root .gpr-interval-label {
+  min-width: 7.5em;
+  font-size: 0.92em;
+  font-weight: 500;
+}
+
+.gpr-root .gpr-interval-end {
+  min-width: 5em;
+}
+
+.gpr-root .gpr-interval-error {
+  flex-basis: 100%;
+}
+
+.gpr-root .gpr-range-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.gpr-root .gpr-range-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 2px 1px 8px;
+  border: 1px solid var(--gpr-accent);
+  border-radius: 999px;
+  background-color: var(--gpr-accent-soft);
+  font-size: 0.9em;
+  font-variant-numeric: tabular-nums;
+}
+
+.gpr-root .gpr-range-chip-remove {
+  padding: 0 6px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.gpr-root .gpr-range-chip-remove:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.gpr-root .gpr-range-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.gpr-root .gpr-ranges[data-state="changed"] .gpr-legend-small {
+  color: var(--gpr-accent);
+}
+
+.gpr-root .gpr-details {
+  padding-top: 6px;
+  border-top: 1px solid var(--gpr-border);
+}
+
+.gpr-root .gpr-summary {
+  font-size: 0.92em;
+  font-weight: 600;
+}
+
+.gpr-root .gpr-details[open] > .gpr-summary {
+  margin-bottom: 6px;
+}
+
+.gpr-root .gpr-issues {
+  color: var(--gpr-danger);
+  font-size: 0.88em;
+}
+
+/* ---- buttons ------------------------------------------------------------- */
+.gpr-root .gpr-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 4px 12px;
+  border: 1px solid var(--gpr-border);
+  border-radius: var(--gpr-radius);
+  background-color: var(--gpr-surface-2);
+  color: var(--gpr-fg);
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.gpr-root .gpr-btn:hover:not(:disabled) {
+  border-color: var(--gpr-accent);
+}
+
+.gpr-root .gpr-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.gpr-root .gpr-btn-primary {
+  border-color: var(--gpr-accent);
+  background-color: var(--gpr-accent);
+  color: var(--gpr-accent-fg);
+}
+
+.gpr-root .gpr-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.gpr-root .gpr-btn-small {
+  min-height: 24px;
+  padding: 1px 8px;
+  font-size: 0.88em;
+}
+
+.gpr-root .gpr-btn-quiet {
+  border-color: transparent;
+  background-color: transparent;
+  color: var(--gpr-accent);
+}
+
+.gpr-root .gpr-btn-quiet:hover:not(:disabled) {
+  border-color: var(--gpr-border);
+}
+
+.gpr-root .gpr-copy[data-state="copied"] {
+  border-color: var(--gpr-ok);
+  color: var(--gpr-ok);
+}
+
+.gpr-root .gpr-copy[data-state="failed"] {
+  border-color: var(--gpr-danger);
+  color: var(--gpr-danger);
+}
+
+.gpr-root .gpr-button-row,
+.gpr-root .gpr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.gpr-root .gpr-disclosure {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.gpr-root .gpr-disclosure::before {
+  content: "▸";
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+
+.gpr-root .gpr-disclosure[aria-expanded="true"]::before {
+  transform: rotate(90deg);
+}
+
+/* ---- results column ------------------------------------------------------ */
+.gpr-root .gpr-empty {
+  padding: 24px;
+  border: 1px dashed var(--gpr-border);
+  border-radius: var(--gpr-radius);
+  color: var(--gpr-muted);
+  text-align: center;
+}
+
+.gpr-root .gpr-status-line {
+  color: var(--gpr-muted);
+  font-size: 0.92em;
+}
+
+.gpr-root .gpr-status-done {
+  color: var(--gpr-ok);
+}
+
+.gpr-root .gpr-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gpr-root .gpr-warnings-title {
+  font-size: 0.92em;
+  font-weight: 600;
+}
+
+.gpr-root .gpr-warning-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gpr-root .gpr-warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  padding: 5px 10px;
+  border-left: 3px solid var(--gpr-warn);
+  border-radius: 0 var(--gpr-radius) var(--gpr-radius) 0;
+  background-color: var(--gpr-warn-soft);
+}
+
+.gpr-root .gpr-warning-glyph {
+  color: var(--gpr-warn);
+}
+
+.gpr-root .gpr-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  border: 1px solid var(--gpr-border);
+  border-left-width: 4px;
+  border-radius: var(--gpr-radius);
+}
+
+.gpr-root .gpr-banner-error {
+  border-color: var(--gpr-danger);
+  background-color: var(--gpr-danger-soft);
+}
+
+.gpr-root .gpr-banner-warn {
+  border-color: var(--gpr-warn);
+  background-color: var(--gpr-warn-soft);
+}
+
+.gpr-root .gpr-banner-title {
+  font-weight: 600;
+}
+
+.gpr-root .gpr-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.gpr-root .gpr-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.85em;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.gpr-root .gpr-chip-glyph {
+  font-weight: 700;
+}
+
+.gpr-root .gpr-chip-ok {
+  color: var(--gpr-ok);
+  background-color: var(--gpr-ok-soft);
+}
+
+.gpr-root .gpr-chip-warn {
+  color: var(--gpr-warn);
+  background-color: var(--gpr-warn-soft);
+}
+
+.gpr-root .gpr-chip-bad {
+  color: var(--gpr-danger);
+  background-color: var(--gpr-danger-soft);
+}
+
+.gpr-root .gpr-chip-info {
+  color: var(--gpr-info);
+  background-color: var(--gpr-info-soft);
+}
+
+.gpr-root .gpr-chip-muted {
+  color: var(--gpr-muted);
+  background-color: var(--gpr-surface);
+  border-style: dashed;
+}
+
+.gpr-root .gpr-badge {
+  display: inline-block;
+  padding: 0 6px;
+  border: 1px solid var(--gpr-border);
+  border-radius: 4px;
+  background-color: var(--gpr-surface-2);
+  color: var(--gpr-muted);
+  font-size: 0.78em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.gpr-root .gpr-badge-warn {
+  border-color: var(--gpr-warn);
+  background-color: var(--gpr-warn-soft);
+  color: var(--gpr-warn);
+}
+
+.gpr-root .gpr-badge-junction {
+  border-color: var(--gpr-accent);
+  background-color: var(--gpr-accent-soft);
+  color: var(--gpr-accent);
+}
+
+.gpr-root .gpr-verdicts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+/* ---- tables -------------------------------------------------------------- */
+.gpr-root .gpr-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.gpr-root .gpr-table {
+  width: 100%;
+  font-size: 0.92em;
+  font-variant-numeric: tabular-nums;
+}
+
+.gpr-root .gpr-table th,
+.gpr-root .gpr-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--gpr-border);
+  vertical-align: top;
+}
+
+.gpr-root .gpr-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--gpr-surface);
+  color: var(--gpr-muted);
+  font-size: 0.92em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.gpr-root .gpr-table tbody th {
+  font-weight: 500;
+}
+
+.gpr-root .gpr-caption {
+  padding: 4px 0 6px;
+  color: var(--gpr-fg);
+  font-weight: 600;
+  text-align: left;
+}
+
+.gpr-root .gpr-pair-row[data-state="selected"] > th,
+.gpr-root .gpr-pair-row[data-state="selected"] > td {
+  background-color: var(--gpr-selected);
+}
+
+.gpr-root .gpr-detail-row > td {
+  background-color: var(--gpr-surface);
+}
+
+.gpr-root .gpr-primer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 15em;
+}
+
+.gpr-root .gpr-primer-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gpr-root .gpr-rank {
+  min-width: 2em;
+  padding: 0 6px;
+  border: 1px solid var(--gpr-border);
+  border-radius: 999px;
+  background-color: var(--gpr-bg);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.gpr-root .gpr-rank[aria-pressed="true"] {
+  border-color: var(--gpr-accent);
+  background-color: var(--gpr-accent);
+  color: var(--gpr-accent-fg);
+}
+
+.gpr-root .gpr-not-checkable {
+  color: var(--gpr-warn);
+}
+
+.gpr-root .gpr-sort {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.gpr-root .gpr-pair-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.gpr-root .gpr-detail-table {
+  width: auto;
+}
+
+.gpr-root .gpr-dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 3px 12px;
+}
+
+.gpr-root .gpr-dl-row {
+  display: contents;
+}
+
+.gpr-root .gpr-dl dt {
+  color: var(--gpr-muted);
+  font-weight: 500;
+}
+
+.gpr-root .gpr-mm {
+  font-family: var(--gpr-mono);
+  font-size: 0.85em;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.gpr-root .gpr-mm-base {
+  color: var(--gpr-muted);
+}
+
+.gpr-root .gpr-mm-hit {
+  color: var(--gpr-danger);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+/* ---- amplicon ------------------------------------------------------------ */
+.gpr-root .gpr-amplicon {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gpr-root .gpr-amplicon-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.gpr-root .gpr-amplicon-seq {
+  max-height: 24em;
+  padding: 8px;
+  overflow: auto;
+  border: 1px solid var(--gpr-border);
+  border-radius: var(--gpr-radius);
+  background-color: var(--gpr-bg);
+  font-family: var(--gpr-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre;
+}
+
+.gpr-root .gpr-amplicon-line {
+  white-space: pre;
+}
+
+.gpr-root .gpr-amplicon-pos {
+  margin-right: 1ch;
+  color: var(--gpr-muted);
+  user-select: none;
+}
+
+.gpr-root .gpr-fp-left {
+  background-color: var(--gpr-fp-left-bg);
+  box-shadow: inset 0 -2px 0 var(--gpr-primer-left);
+}
+
+.gpr-root .gpr-fp-right {
+  background-color: var(--gpr-fp-right-bg);
+  box-shadow: inset 0 -2px 0 var(--gpr-primer-right);
+}
+
+.gpr-root .gpr-seq-masked {
+  color: var(--gpr-masked-fg);
+  text-decoration: underline dotted;
+}
+
+.gpr-root .gpr-junction-bar,
+.gpr-root .gpr-junction-sample {
+  display: inline-block;
+  width: 0;
+  height: 1.2em;
+  margin: 0 -1px;
+  border-left: 2px solid var(--gpr-target);
+  vertical-align: text-bottom;
+}
+
+.gpr-root .gpr-junction-sample {
+  margin: 0 4px;
+}
+
+.gpr-root .gpr-amplicon-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  color: var(--gpr-muted);
+  font-size: 0.85em;
+}
+
+/* ---- template map -------------------------------------------------------- */
+.gpr-root .gpr-map {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--gpr-border);
+  border-radius: var(--gpr-radius);
+  background-color: var(--gpr-bg);
+}
+
+.gpr-root .gpr-map-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.gpr-root .gpr-map-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.gpr-root .gpr-map-view {
+  color: var(--gpr-muted);
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+}
+
+.gpr-root .gpr-map-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: hidden;
+  font-family: var(--gpr-font);
+  user-select: none;
+}
+
+.gpr-root .gpr-map-axis,
+.gpr-root .gpr-map-tick {
+  stroke: var(--gpr-muted);
+  stroke-width: 1;
+}
+
+.gpr-root .gpr-map-tick-label {
+  fill: var(--gpr-muted);
+  font-size: 10px;
+}
+
+.gpr-root .gpr-map-intron {
+  stroke: var(--gpr-intron);
+  stroke-width: 2;
+}
+
+.gpr-root .gpr-map-cds {
+  fill: var(--gpr-cds);
+}
+
+.gpr-root .gpr-map-utr5 {
+  fill: var(--gpr-utr5);
+}
+
+.gpr-root .gpr-map-utr3 {
+  fill: var(--gpr-utr3);
+}
+
+.gpr-root .gpr-map-nc {
+  fill: var(--gpr-intron);
+}
+
+.gpr-root .gpr-map-exon {
+  fill: var(--gpr-cds);
+}
+
+.gpr-root .gpr-map-exon-alt {
+  fill: var(--gpr-exon-alt);
+}
+
+.gpr-root .gpr-map-cds-band {
+  fill: var(--gpr-fg);
+  opacity: 0.6;
+}
+
+.gpr-root .gpr-map-junction {
+  stroke: var(--gpr-target);
+  stroke-width: 1.5;
+}
+
+.gpr-root .gpr-map-hatch-line {
+  stroke: var(--gpr-mask);
+  stroke-width: 2;
+}
+
+.gpr-root .gpr-map-exhatch-line {
+  stroke: var(--gpr-excluded);
+  stroke-width: 2;
+}
+
+.gpr-root .gpr-map-mask {
+  stroke: var(--gpr-mask);
+  stroke-width: 0.5;
+}
+
+.gpr-root .gpr-map-included {
+  fill: none;
+  stroke: var(--gpr-included);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 2;
+}
+
+.gpr-root .gpr-map-target {
+  fill: var(--gpr-target);
+  opacity: 0.85;
+}
+
+.gpr-root .gpr-map-excluded {
+  stroke: var(--gpr-excluded);
+  stroke-width: 0.5;
+}
+
+.gpr-root .gpr-map-product {
+  stroke: var(--gpr-muted);
+  stroke-width: 1;
+}
+
+.gpr-root .gpr-map-primer {
+  fill: var(--gpr-primer-left);
+  stroke: var(--gpr-bg);
+  stroke-width: 0.5;
+}
+
+.gpr-root .gpr-map-primer-right {
+  fill: var(--gpr-primer-right);
+}
+
+.gpr-root .gpr-map-notch {
+  stroke: var(--gpr-fg);
+  stroke-width: 2;
+}
+
+.gpr-root .gpr-map-pair-label {
+  fill: var(--gpr-muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.gpr-root .gpr-map-pair-hit {
+  fill: transparent;
+  stroke: none;
+}
+
+.gpr-root .gpr-map-pair[role="button"] {
+  cursor: pointer;
+}
+
+.gpr-root .gpr-map-pair:hover .gpr-map-pair-hit {
+  fill: var(--gpr-surface-2);
+}
+
+.gpr-root .gpr-map-pair[data-state="selected"] .gpr-map-pair-hit {
+  fill: var(--gpr-selected);
+  stroke: var(--gpr-warn);
+  stroke-width: 1;
+}
+
+.gpr-root .gpr-map-pair[data-state="selected"] .gpr-map-pair-label {
+  fill: var(--gpr-fg);
+}
+
+.gpr-root .gpr-map-pair:focus {
+  outline: none;
+}
+
+.gpr-root .gpr-map-pair:focus-visible .gpr-map-pair-hit {
+  stroke: var(--gpr-focus);
+  stroke-width: 2;
+}
+
+.gpr-root .gpr-map-guide {
+  stroke: var(--gpr-focus);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  pointer-events: none;
+}
+
+.gpr-root .gpr-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--gpr-muted);
+  font-size: 0.82em;
+}
+
+.gpr-root .gpr-map-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gpr-root .gpr-map-swatch {
+  flex: none;
+}
+
+/* ---- pan-genome matrix --------------------------------------------------- */
+.gpr-root .gpr-pangenome {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gpr-root .gpr-matrix-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.gpr-root .gpr-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 0.85em;
+}
+
+.gpr-root .gpr-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gpr-root .gpr-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6em;
+  height: 1.4em;
+  padding: 0 3px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.gpr-root .gpr-status-single_perfect {
+  background-color: var(--gpr-st-perfect);
+  color: #ffffff;
+}
+
+.gpr-root .gpr-status-single_mismatch {
+  background-color: var(--gpr-st-mismatch);
+  color: #06243a;
+}
+
+.gpr-root .gpr-status-multiple {
+  background-color: var(--gpr-st-multiple);
+  color: #2b1d00;
+}
+
+.gpr-root .gpr-status-no_amplicon {
+  background-color: var(--gpr-st-none);
+  color: #ffffff;
+}
+
+.gpr-root .gpr-status-db_unavailable {
+  border-color: var(--gpr-st-db);
+  background: repeating-linear-gradient(45deg, var(--gpr-surface-2) 0 4px, var(--gpr-st-db) 4px 6px);
+  color: var(--gpr-fg);
+}
+
+.gpr-root .gpr-status-error {
+  background-color: var(--gpr-st-error);
+  color: #ffffff;
+}
+
+.gpr-root .gpr-status-pending {
+  border: 1px dotted var(--gpr-muted);
+  background-color: transparent;
+  color: var(--gpr-muted);
+}
+
+.gpr-root .gpr-matrix-wrap {
+  max-height: 32em;
+  overflow: auto;
+}
+
+.gpr-root .gpr-matrix {
+  width: auto;
+  border-collapse: separate;
+  border-spacing: 2px;
+}
+
+.gpr-root .gpr-matrix th,
+.gpr-root .gpr-matrix td {
+  border-bottom: 0;
+}
+
+.gpr-root .gpr-matrix .gpr-cell {
+  position: relative;
+  min-width: 3.4em;
+  height: 2em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.gpr-root .gpr-matrix .gpr-cell[data-state="open"] {
+  box-shadow: 0 0 0 2px var(--gpr-fg);
+}
+
+.gpr-root .gpr-matrix .gpr-cell:focus-visible {
+  outline: 3px solid var(--gpr-focus);
+  outline-offset: 1px;
+}
+
+.gpr-root .gpr-cell-glyph {
+  font-weight: 700;
+}
+
+.gpr-root .gpr-cell-text {
+  margin-left: 3px;
+  font-size: 0.78em;
+}
+
+.gpr-root .gpr-status-single_mismatch .gpr-cell-text {
+  position: absolute;
+  top: 0;
+  right: 3px;
+  margin: 0;
+  font-size: 0.72em;
+}
+
+/* Truncation marker: the search hit a result cap, so the status is not definitive. */
+.gpr-root .gpr-cell-flag {
+  margin-left: 2px;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+}
+
+.gpr-root .gpr-matrix .gpr-cell[data-truncated="true"] {
+  outline: 2px dashed var(--gpr-fg);
+  outline-offset: -3px;
+}
+
+.gpr-root .gpr-matrix-genome {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background-color: var(--gpr-bg);
+  white-space: nowrap;
+}
+
+.gpr-root .gpr-matrix-corner {
+  left: 0;
+  z-index: 2;
+}
+
+.gpr-root .gpr-matrix-pair {
+  text-align: center;
+}
+
+.gpr-root .gpr-cell-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--gpr-border);
+  border-radius: var(--gpr-radius);
+  background-color: var(--gpr-surface);
+}
+
+/* ---- specificity results -------------------------------------------------- */
+.gpr-root .gpr-specificity {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gpr-root .gpr-result-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--gpr-border);
+}
+
+.gpr-root .gpr-result-pair .gpr-h4 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.gpr-root .gpr-isoforms {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* ---- check panel, explain, export ----------------------------------------- */
+.gpr-root .gpr-check-panel,
+.gpr-root .gpr-explain,
+.gpr-root .gpr-export {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--gpr-border);
+  border-radius: var(--gpr-radius);
+}
+
+.gpr-root .gpr-explain[data-state="open"] {
+  background-color: var(--gpr-surface);
+}
+
+.gpr-root .gpr-estimate {
+  font-size: 0.92em;
+}
+
+.gpr-root .gpr-estimate[data-state="over"] {
+  color: var(--gpr-danger);
+  font-weight: 600;
+}
+
+.gpr-root .gpr-progress-block,
+.gpr-root .gpr-status-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gpr-root .gpr-progress {
+  position: relative;
+  height: 10px;
+  overflow: hidden;
+  border: 1px solid var(--gpr-border);
+  border-radius: 999px;
+  background-color: var(--gpr-surface-2);
+}
+
+.gpr-root .gpr-progress[data-state="queued"] {
+  background: repeating-linear-gradient(90deg, var(--gpr-surface-2) 0 8px, var(--gpr-accent-soft) 8px 16px);
+  background-size: 32px 100%;
+  animation: gpr-queued 1.2s linear infinite;
+}
+
+@keyframes gpr-queued {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 32px 0;
+  }
+}
+
+.gpr-root .gpr-progress-bar {
+  height: 100%;
+  background-color: var(--gpr-accent);
+  transition: width 0.3s ease;
+}
+
+.gpr-root .gpr-genome-picker {
+  background-color: var(--gpr-bg);
+}
+
+.gpr-root .gpr-picker-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.gpr-root .gpr-picker-filter {
+  flex: 1 1 10em;
+  width: auto;
+}
+
+.gpr-root .gpr-genome-list {
+  max-height: 14em;
+  padding: 4px 8px;
+  overflow-y: auto;
+  border: 1px solid var(--gpr-border);
+  border-radius: var(--gpr-radius);
+  columns: 16em auto;
+  column-gap: 16px;
+}
+
+.gpr-root .gpr-genome-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  padding: 1px 0;
+  break-inside: avoid;
+}
+
+.gpr-root .gpr-genome-item[data-state="unavailable"] {
+  color: var(--gpr-muted);
+}
+
+.gpr-root .gpr-explain-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gpr-root .gpr-explain-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14em, 1fr));
+  gap: 8px;
+}
+
+.gpr-root .gpr-explain-side {
+  padding: 6px 8px;
+  border: 1px solid var(--gpr-border);
+  border-radius: var(--gpr-radius);
+  background-color: var(--gpr-bg);
+}
+
+.gpr-root .gpr-explain-side[data-state="blocked"] {
+  border-color: var(--gpr-danger);
+}
+
+.gpr-root .gpr-explain-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-left: 1.1em;
+  list-style: disc;
+  font-size: 0.92em;
+}
+
+.gpr-root .gpr-explain-label {
+  font-weight: 600;
+}
+
+.gpr-root .gpr-explain-count {
+  color: var(--gpr-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.gpr-root .gpr-explain-suggestion {
+  display: block;
+  color: var(--gpr-accent);
+}
+
+.gpr-root .gpr-export-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gpr-root .gpr-export-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--gpr-border);
+}
+
+.gpr-root .gpr-export-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* ---- motion ---------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .gpr-root .gpr-btn,
+  .gpr-root .gpr-progress-bar,
+  .gpr-root .gpr-disclosure::before {
+    transition: none;
+  }
+
+  .gpr-root .gpr-progress[data-state="queued"] {
+    animation: none;
+  }
+}
+
+/* `hidden` must win over the display rules above (Bootstrap uses !important; this relies on source order). */
+.gpr-root [hidden] {
+  display: none;
+}

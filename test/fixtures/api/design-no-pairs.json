@@ -1,0 +1,218 @@
+{
+  "captured_at": "2026-09-13T05:27:32.298Z",
+  "base": "http://127.0.0.1:50111/sorghum_v11",
+  "method": "POST",
+  "path": "/primers/design",
+  "request": {
+    "mode": "transcript",
+    "gene_id": "SORBI_3001G000200",
+    "params": {
+      "opt_tm": 78,
+      "min_tm": 76,
+      "max_tm": 80
+    }
+  },
+  "status": 200,
+  "headers": {
+    "cache-control": "no-store",
+    "retry-after": null
+  },
+  "body": {
+    "template": {
+      "mode": "transcript",
+      "system_name": "sorghum_bicolor",
+      "gene_id": "SORBI_3001G000200",
+      "transcript_id": "SORBI_3001G000200.1",
+      "region": "1",
+      "start": 11180,
+      "end": 14899,
+      "strand": -1,
+      "length": 1982,
+      "seq": "GCACAGCGCAGCGCCCGCTAGCTGTAGCTGTAGCCTCTGCGGTTGGAGCTGACCCGCCCAACCTAACAACCGCTCGGTGGCATCTTCCTCCCGGGATCCCGGTTCCTCCCTCCCTATCTCCCTCGATCCAGCTCAGCTCAGCTCTCTTCCTCCCGCCCCCCCGTACGACCTTACTCTTCTTGATCCGTTCATTCATACATACTTGTTGAGAGGAAGAGGATCGGTCTGCTGCTACTAGCTGCGGATAGTTGTGGTTCTAGTAGCAGGTAAAAGAAGGCAAGGGAAGGGAAGGGAATCCATGAAGAAATGGGGCAACAGCGGGCAAGCCGCCGATTCCTTCTACCAGGTCCGCCCCGATTGCAGCCAAAACGTCCCCAACACCAAGTTCAAGATCAAGGCGGGGAAGACACTGAGCGTTCGGAAATGGCATGCTGCCTTCACGCGTGACGGATGCCTGGATATCGCCTCTGTTCTCAGCCGCATACAGAGAGGGGGTGTGCACCCCGCAATCAGGGGAGAGGTTTGGGAGTTCTTGCTCGGCTGCTTTGACCCTGGCAGCACCTTCGATGAGAGGGACCAGATTAGGGAGCGGAGAAGGATGCAGTATGCCAGATGGAAGGAAGAATGCAAAGAAATGGATTCTCATGTTGGCAGTGGTAAAATTATCACTGCCCCGGTTATAACTGAGGATGGATTCCCTATCAAGGATCCATTGGTATTACTGGAGGCTACTTCAGACACGCAAGGTACTTCTACCACCACCACCACCAATGGCAGCAGTGGAAATGGAATTGATGTTGATAACAACTCCATGAACCTTGTCTTGGATAAACAAATCATTGGCTGGAAGCTTACATTACATCAAATAGGCCTTGATGTTCTGCGCACTGACCGCACCATGGTATTTTACGAGAACAAAGATAATCTTTCAAAGTTGTGGGATATTCTTGCTGTCTATGCATGGATCGACAAAGAAGTTGGTTATTGTCAAGGGATGAGTGATTTATGTTCACCCATGATAGTGCTACTCAACGATGAAGCAGATGCATTTTGGTGCTTTGAGAGATTGATGCGTAGGCTGCGAGGCAATTTCAGATGTACACAGCAGTCAGTTGGGGTGGAAAACCAGCTTCAGCATCTTGCTTCTATCATTCAGGTGCTTGATCCAAAGTTGCATGGCCACCTAGAAACACTTGGCGGGGGTGACTATCTCTTTGCATTCCGCATGTTCATGGTATTGTTCCGGCGAGAACTATCATTTGGGGATTCCTTGTACCTTTGGGAGATGATGTGGGCTCTAGAATATGATCCTGACATTTGCTCCACTTATGAAGAGACTGGGGCTGCAGTCCACAAAATTGAAGGATTTAAACCAAAGGTAAAATCAATACGTCAGTTTGGCAAGTACGAGAGGGAGAATATGAAGAACAGGGCAAATGGTGGCGATGGACCTGTCCCTATTTCGGTTTTCCTGGTTGCTAGTGTCCTGAAAGAGAACAGTCCAAAGCTTCTGCAAGAGGCTCGAGGGATTGATGACATTATTAGGATATTGAATGATGTTAACGGGAATCTGGACGCGAAAAGGGCTTGTGTTGTTGCACTGAAGCTTCATAGGAAGTACCACAAAAAGTTGCAGGAAAAGAAATCCTAACATCATATGGCGAGATACCGAGATTGCACGCAACACAGGGTTGCAAAGATCCTAACATCATATGGCGAGATACGTACCGAGATTGCACGCCAATATTCGCCATACTGGGTTGCAAAGAGCAGCAGCATATCTAGAGATTTTAGGGTAATTGTTGGCATGAGTATTACCCCATGTTTTTGTTCCTTCCACTTAGAGCATGTCTAAGAGTCTTTTCAAATTTCACACTTTGAATCATCATTTGGAAAATCATCTGTATAAAATTGTTTTCTATATATTTTCACTCTCTAACAACTTTTTAATATATTGTGTATACTCTAGAGAGCTATTTTTG",
+      "masked": false,
+      "mask_source": null,
+      "mask": [],
+      "masked_fraction": 0,
+      "features": {
+        "gene": null,
+        "exons": [
+          {
+            "id": "EER93047-1",
+            "start": 1,
+            "end": 397,
+            "genomic": {
+              "start": 14503,
+              "end": 14899
+            }
+          },
+          {
+            "id": "EER93047-2",
+            "start": 398,
+            "end": 493,
+            "genomic": {
+              "start": 14321,
+              "end": 14416
+            }
+          },
+          {
+            "id": "EER93047-3",
+            "start": 494,
+            "end": 597,
+            "genomic": {
+              "start": 14017,
+              "end": 14120
+            }
+          },
+          {
+            "id": "EER93047-4",
+            "start": 598,
+            "end": 869,
+            "genomic": {
+              "start": 13637,
+              "end": 13908
+            }
+          },
+          {
+            "id": "EER93047-5",
+            "start": 870,
+            "end": 992,
+            "genomic": {
+              "start": 13278,
+              "end": 13400
+            }
+          },
+          {
+            "id": "EER93047-6",
+            "start": 993,
+            "end": 1081,
+            "genomic": {
+              "start": 13094,
+              "end": 13182
+            }
+          },
+          {
+            "id": "EER93047-7",
+            "start": 1082,
+            "end": 1187,
+            "genomic": {
+              "start": 12895,
+              "end": 13000
+            }
+          },
+          {
+            "id": "EER93047-8",
+            "start": 1188,
+            "end": 1285,
+            "genomic": {
+              "start": 12689,
+              "end": 12786
+            }
+          },
+          {
+            "id": "EER93047-9",
+            "start": 1286,
+            "end": 1546,
+            "genomic": {
+              "start": 11892,
+              "end": 12152
+            }
+          },
+          {
+            "id": "EER93047-10",
+            "start": 1547,
+            "end": 1630,
+            "genomic": {
+              "start": 11649,
+              "end": 11732
+            }
+          },
+          {
+            "id": "EER93047-11",
+            "start": 1631,
+            "end": 1982,
+            "genomic": {
+              "start": 11180,
+              "end": 11531
+            }
+          }
+        ],
+        "cds": {
+          "start": 299,
+          "end": 1651
+        },
+        "junctions": [
+          397,
+          493,
+          597,
+          869,
+          992,
+          1081,
+          1187,
+          1285,
+          1546,
+          1630
+        ]
+      }
+    },
+    "pairs": [],
+    "explain": {
+      "left": {
+        "raw": "considered 13059, GC content failed 2759, low tm 10227, long poly-x seq 73, ok 0",
+        "considered": 13059,
+        "GC content failed": 2759,
+        "low tm": 10227,
+        "long poly-x seq": 73,
+        "ok": 0
+      },
+      "right": {
+        "raw": "considered 13062, GC content failed 2923, low tm 10063, long poly-x seq 76, ok 0",
+        "considered": 13062,
+        "GC content failed": 2923,
+        "low tm": 10063,
+        "long poly-x seq": 76,
+        "ok": 0
+      },
+      "pair": {
+        "raw": "considered 0, ok 0",
+        "considered": 0,
+        "ok": 0
+      }
+    },
+    "settings": {
+      "preset": "qpcr",
+      "junction_spanning": true,
+      "avoid_repeats": false,
+      "repeat_mask_mode": null,
+      "params": {
+        "opt_size": 20,
+        "min_size": 18,
+        "max_size": 24,
+        "opt_tm": 78,
+        "min_tm": 76,
+        "max_tm": 80,
+        "min_gc": 35,
+        "max_gc": 65,
+        "max_tm_diff": 2,
+        "max_poly_x": 4,
+        "product_size_ranges": [
+          [
+            70,
+            150
+          ]
+        ],
+        "num_return": 5,
+        "min_3_prime_overlap_of_junction": 4,
+        "min_5_prime_overlap_of_junction": 7
+      }
+    },
+    "engine": {
+      "primer3": "2.6.1"
+    },
+    "warnings": [
+      {
+        "code": "NO_PAIRS",
+        "message": "Primer3 found no acceptable primer pairs; see explain for the reasons candidates were rejected"
+      }
+    ]
+  }
+}

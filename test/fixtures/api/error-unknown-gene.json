@@ -1,0 +1,22 @@
+{
+  "captured_at": "2026-09-13T05:27:32.437Z",
+  "base": "http://127.0.0.1:50111/sorghum_v11",
+  "method": "POST",
+  "path": "/primers/design",
+  "request": {
+    "mode": "gene",
+    "gene_id": "NOPE"
+  },
+  "status": 404,
+  "headers": {
+    "cache-control": "no-store",
+    "retry-after": null
+  },
+  "body": {
+    "message": "gene \"NOPE\" was not found",
+    "code": "UNKNOWN_GENE",
+    "details": {
+      "gene_id": "NOPE"
+    }
+  }
+}

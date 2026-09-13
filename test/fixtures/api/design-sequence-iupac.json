@@ -1,0 +1,311 @@
+{
+  "captured_at": "2026-09-13T05:27:32.277Z",
+  "base": "http://127.0.0.1:50111/sorghum_v11",
+  "method": "POST",
+  "path": "/primers/design",
+  "request": {
+    "mode": "sequence",
+    "system_name": "sorghum_bicolor",
+    "sequence": ">iupac\nATCAAGGATCCATTGGTATTACTGGAGGCTACTTCAGACACGCAAGGTACTTCTACCACCACCACCACCAATGGCAGCAGTGGAAATGGAATTGATGTTGATAACAACTCCATGAACCTTRYCTTGGATAAACAAATCATTGGCTGGAAGCTTACATTACATCAAATAGGCCTTGATGTTCTGCGCACTGACCGCACCATGGTATTTTACGAGAACAAAGATAATCTTTCAAAGTTGTGGGATATTCTTGCTGTCTATGCATGGATCGACAAAGAAGTTGGTTATTGTCAAGGGATGAGTGATTTATGTTCACCCATGATAGTGCTACTCAACGATGAAGCAGATGCATTTTGGTGCTTTGAGAGATTGATGCGTAGGCTGCGAGGCAATTTCAGATGTA\n"
+  },
+  "status": 200,
+  "headers": {
+    "cache-control": "no-store",
+    "retry-after": null
+  },
+  "body": {
+    "template": {
+      "mode": "sequence",
+      "system_name": "sorghum_bicolor",
+      "gene_id": null,
+      "transcript_id": null,
+      "region": null,
+      "start": null,
+      "end": null,
+      "strand": null,
+      "length": 400,
+      "seq": "ATCAAGGATCCATTGGTATTACTGGAGGCTACTTCAGACACGCAAGGTACTTCTACCACCACCACCACCAATGGCAGCAGTGGAAATGGAATTGATGTTGATAACAACTCCATGAACCTTNNCTTGGATAAACAAATCATTGGCTGGAAGCTTACATTACATCAAATAGGCCTTGATGTTCTGCGCACTGACCGCACCATGGTATTTTACGAGAACAAAGATAATCTTTCAAAGTTGTGGGATATTCTTGCTGTCTATGCATGGATCGACAAAGAAGTTGGTTATTGTCAAGGGATGAGTGATTTATGTTCACCCATGATAGTGCTACTCAACGATGAAGCAGATGCATTTTGGTGCTTTGAGAGATTGATGCGTAGGCTGCGAGGCAATTTCAGATGTA",
+      "masked": false,
+      "mask_source": null,
+      "mask": [],
+      "masked_fraction": 0,
+      "features": {}
+    },
+    "pairs": [
+      {
+        "rank": 0,
+        "penalty": 0.07184,
+        "product_size": 345,
+        "product_tm": 83.8334,
+        "compl_any_th": 0,
+        "compl_end_th": 0,
+        "left": {
+          "seq": "CTTCTACCACCACCACCACC",
+          "start": 50,
+          "end": 69,
+          "len": 20,
+          "tm": 59.964,
+          "gc": 60,
+          "self_any_th": 0,
+          "self_end_th": 0,
+          "hairpin_th": 0,
+          "end_stability": 4.61,
+          "penalty": 0.036306,
+          "junction": null,
+          "genomic": null
+        },
+        "right": {
+          "seq": "TGAAATTGCCTCGCAGCCTA",
+          "start": 375,
+          "end": 394,
+          "len": 20,
+          "tm": 60.036,
+          "gc": 50,
+          "self_any_th": 0,
+          "self_end_th": 0,
+          "hairpin_th": 40.61,
+          "end_stability": 3.93,
+          "penalty": 0.035534,
+          "junction": null,
+          "genomic": null
+        },
+        "product": {
+          "start": 50,
+          "end": 394,
+          "genomic": null
+        }
+      },
+      {
+        "rank": 1,
+        "penalty": 0.075592,
+        "product_size": 324,
+        "product_tm": 83.3113,
+        "compl_any_th": 11.82,
+        "compl_end_th": 0.39,
+        "left": {
+          "seq": "ATGGCAGCAGTGGAAATGGA",
+          "start": 71,
+          "end": 90,
+          "len": 20,
+          "tm": 59.96,
+          "gc": 50,
+          "self_any_th": 0,
+          "self_end_th": 0,
+          "hairpin_th": 28.9,
+          "end_stability": 3.41,
+          "penalty": 0.040058,
+          "junction": null,
+          "genomic": null
+        },
+        "right": {
+          "seq": "TGAAATTGCCTCGCAGCCTA",
+          "start": 375,
+          "end": 394,
+          "len": 20,
+          "tm": 60.036,
+          "gc": 50,
+          "self_any_th": 0,
+          "self_end_th": 0,
+          "hairpin_th": 40.61,
+          "end_stability": 3.93,
+          "penalty": 0.035534,
+          "junction": null,
+          "genomic": null
+        },
+        "product": {
+          "start": 71,
+          "end": 394,
+          "genomic": null
+        }
+      },
+      {
+        "rank": 2,
+        "penalty": 0.143237,
+        "product_size": 209,
+        "product_tm": 82.6556,
+        "compl_any_th": 0,
+        "compl_end_th": 0,
+        "left": {
+          "seq": "CACTGACCGCACCATGGTAT",
+          "start": 186,
+          "end": 205,
+          "len": 20,
+          "tm": 60.108,
+          "gc": 55,
+          "self_any_th": 19.28,
+          "self_end_th": 3.17,
+          "hairpin_th": 40.63,
+          "end_stability": 2.73,
+          "penalty": 0.107703,
+          "junction": null,
+          "genomic": null
+        },
+        "right": {
+          "seq": "TGAAATTGCCTCGCAGCCTA",
+          "start": 375,
+          "end": 394,
+          "len": 20,
+          "tm": 60.036,
+          "gc": 50,
+          "self_any_th": 0,
+          "self_end_th": 0,
+          "hairpin_th": 40.61,
+          "end_stability": 3.93,
+          "penalty": 0.035534,
+          "junction": null,
+          "genomic": null
+        },
+        "product": {
+          "start": 186,
+          "end": 394,
+          "genomic": null
+        }
+      },
+      {
+        "rank": 3,
+        "penalty": 0.144009,
+        "product_size": 156,
+        "product_tm": 82.4851,
+        "compl_any_th": 7.69,
+        "compl_end_th": 9.63,
+        "left": {
+          "seq": "CTTCTACCACCACCACCACC",
+          "start": 50,
+          "end": 69,
+          "len": 20,
+          "tm": 59.964,
+          "gc": 60,
+          "self_any_th": 0,
+          "self_end_th": 0,
+          "hairpin_th": 0,
+          "end_stability": 4.61,
+          "penalty": 0.036306,
+          "junction": null,
+          "genomic": null
+        },
+        "right": {
+          "seq": "ATACCATGGTGCGGTCAGTG",
+          "start": 186,
+          "end": 205,
+          "len": 20,
+          "tm": 60.108,
+          "gc": 55,
+          "self_any_th": 28.17,
+          "self_end_th": 0,
+          "hairpin_th": 37.99,
+          "end_stability": 3.66,
+          "penalty": 0.107703,
+          "junction": null,
+          "genomic": null
+        },
+        "product": {
+          "start": 50,
+          "end": 205,
+          "genomic": null
+        }
+      },
+      {
+        "rank": 4,
+        "penalty": 0.14698,
+        "product_size": 341,
+        "product_tm": 83.7732,
+        "compl_any_th": 0,
+        "compl_end_th": 0,
+        "left": {
+          "seq": "TACCACCACCACCACCAATG",
+          "start": 54,
+          "end": 73,
+          "len": 20,
+          "tm": 59.889,
+          "gc": 55,
+          "self_any_th": 0,
+          "self_end_th": 0,
+          "hairpin_th": 0,
+          "end_stability": 2.82,
+          "penalty": 0.111446,
+          "junction": null,
+          "genomic": null
+        },
+        "right": {
+          "seq": "TGAAATTGCCTCGCAGCCTA",
+          "start": 375,
+          "end": 394,
+          "len": 20,
+          "tm": 60.036,
+          "gc": 50,
+          "self_any_th": 0,
+          "self_end_th": 0,
+          "hairpin_th": 40.61,
+          "end_stability": 3.93,
+          "penalty": 0.035534,
+          "junction": null,
+          "genomic": null
+        },
+        "product": {
+          "start": 54,
+          "end": 394,
+          "genomic": null
+        }
+      }
+    ],
+    "explain": {
+      "left": {
+        "raw": "considered 2254, too many Ns 26, GC content failed 202, low tm 1056, high tm 274, ok 696",
+        "considered": 2254,
+        "too many Ns": 26,
+        "GC content failed": 202,
+        "low tm": 1056,
+        "high tm": 274,
+        "ok": 696
+      },
+      "right": {
+        "raw": "considered 2254, too many Ns 26, GC content failed 202, low tm 1110, high tm 219, ok 697",
+        "considered": 2254,
+        "too many Ns": 26,
+        "GC content failed": 202,
+        "low tm": 1110,
+        "high tm": 219,
+        "ok": 697
+      },
+      "pair": {
+        "raw": "considered 5, ok 5",
+        "considered": 5,
+        "ok": 5
+      }
+    },
+    "settings": {
+      "preset": "pcr",
+      "junction_spanning": false,
+      "avoid_repeats": false,
+      "repeat_mask_mode": null,
+      "params": {
+        "opt_size": 20,
+        "min_size": 18,
+        "max_size": 25,
+        "opt_tm": 60,
+        "min_tm": 57,
+        "max_tm": 63,
+        "min_gc": 30,
+        "max_gc": 70,
+        "max_tm_diff": 3,
+        "max_poly_x": 4,
+        "product_size_ranges": [
+          [
+            100,
+            1000
+          ]
+        ],
+        "num_return": 5
+      }
+    },
+    "engine": {
+      "primer3": "2.6.1"
+    },
+    "warnings": [
+      {
+        "code": "IUPAC_CONVERTED",
+        "message": "2 IUPAC ambiguity codes were converted to N"
+      }
+    ]
+  }
+}

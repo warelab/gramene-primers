@@ -1,0 +1,353 @@
+{
+  "captured_at": "2026-09-13T05:29:38.715Z",
+  "base": "http://127.0.0.1:50111/sorghum_v11",
+  "method": "GET",
+  "path": "/primers/check/a064bb5968ab00fad26fed8911f3ed82",
+  "request": null,
+  "status": 200,
+  "headers": {
+    "cache-control": "no-store",
+    "retry-after": null
+  },
+  "body": {
+    "job_id": "a064bb5968ab00fad26fed8911f3ed82",
+    "status": "done",
+    "kind": "specificity",
+    "partial": false,
+    "queue_position": null,
+    "progress": {
+      "done": 2,
+      "total": 2,
+      "stage": "done",
+      "running": []
+    },
+    "created_at": "2026-09-13T05:29:28.688Z",
+    "started_at": "2026-09-13T05:29:29.656Z",
+    "finished_at": "2026-09-13T05:29:36.856Z",
+    "attempts": 1,
+    "request": {
+      "system_name": "sorghum_bicolor",
+      "mode": "transcript",
+      "gene_id": "SORBI_3004G087700",
+      "transcript_id": "SORBI_3004G087700.3",
+      "checks": [
+        "specificity"
+      ],
+      "genomes": [],
+      "params": {
+        "max_product_size": 4000,
+        "ignore_mismatches": 6,
+        "min_total_mismatches": 2,
+        "min_3p_mismatches": 2,
+        "three_prime_window": 5,
+        "include_unlikely": false,
+        "repeat_site_threshold": 5,
+        "max_amplifying_mismatches": 3
+      },
+      "pairs": [
+        {
+          "id": "P1",
+          "left": "CCAACAAAGTCATGGATGCACT",
+          "right": "GTGAACATCATGCTGCCCGATG"
+        }
+      ]
+    },
+    "warnings": [],
+    "estimate": {
+      "cpu_s": 11
+    },
+    "results": {
+      "engine": {
+        "algorithm_version": "2",
+        "blast": "2.13.0",
+        "reference": "blastn-short r1 p-1 ws5 ungapped e30000 searchsp1.5e10",
+        "pangenome": null
+      },
+      "params": {
+        "max_product_size": 4000,
+        "ignore_mismatches": 6,
+        "min_total_mismatches": 2,
+        "min_3p_mismatches": 2,
+        "three_prime_window": 5,
+        "include_unlikely": false,
+        "repeat_site_threshold": 5,
+        "max_amplifying_mismatches": 3
+      },
+      "reference": {
+        "system_name": "sorghum_bicolor",
+        "map_id": "GCA_000003195.3",
+        "total_bases": 708735318
+      },
+      "sensitivity_note": "Sites are detected only if they contain an exact match of at least the word size and an ungapped score of about 11 or more. An indel is found when the primer part on at least one side of it scores that much (both sides are joined into one gapped site); indels near the middle of primers shorter than about 22 nt may be missed. A product amplifies with up to max_amplifying_mismatches (default 3) mismatches per primer, but the pan-genome search (word size 6) guarantees only 2 mismatches for 20-22 nt primers (the reference search at word size 5 guarantees 3), so 3-mismatch products in other genomes can be missed. See primers[].sensitivity.",
+      "primers": {
+        "CCAACAAAGTCATGGATGCACT": {
+          "len": 22,
+          "near_perfect_sites": 0,
+          "repetitive": false,
+          "truncated": false,
+          "sensitivity": {
+            "reference": {
+              "word_size": 5,
+              "guaranteed_max_mismatches": 3
+            }
+          }
+        },
+        "GTGAACATCATGCTGCCCGATG": {
+          "len": 22,
+          "near_perfect_sites": 2,
+          "repetitive": false,
+          "truncated": false,
+          "sensitivity": {
+            "reference": {
+              "word_size": 5,
+              "guaranteed_max_mismatches": 3
+            }
+          }
+        }
+      },
+      "specificity": {
+        "target": "genome",
+        "pairs": [
+          {
+            "id": "P1",
+            "verdict": "off_targets",
+            "on_target_inferred": false,
+            "truncated": false,
+            "on_target": null,
+            "off_target_count": 2,
+            "unlikely_count": 569,
+            "off_targets": [
+              {
+                "region": "5",
+                "start": 66891530,
+                "end": 66892134,
+                "size": 605,
+                "strand": -1,
+                "orientation": "RL",
+                "likelihood": "likely",
+                "left_mm": 2,
+                "right_mm": 0,
+                "left_3p_mm": 1,
+                "right_3p_mm": 0,
+                "left_mm_pos": [
+                  8,
+                  2
+                ],
+                "right_mm_pos": [],
+                "terminal_mismatch": false,
+                "approx": false,
+                "genes": [
+                  {
+                    "id": "SORBI_3005G183900",
+                    "name": "SORBI_3005G183900",
+                    "biotype": "protein_coding",
+                    "strand": -1
+                  }
+                ]
+              },
+              {
+                "region": "4",
+                "start": 7436039,
+                "end": 7436628,
+                "size": 590,
+                "strand": 1,
+                "orientation": "LR",
+                "likelihood": "likely",
+                "left_mm": 3,
+                "right_mm": 2,
+                "left_3p_mm": 1,
+                "right_3p_mm": 1,
+                "left_mm_pos": [
+                  14,
+                  8,
+                  2
+                ],
+                "right_mm_pos": [
+                  17,
+                  4
+                ],
+                "terminal_mismatch": false,
+                "approx": false,
+                "genes": [
+                  {
+                    "id": "SORBI_3004G087800",
+                    "name": "SORBI_3004G087800",
+                    "biotype": "protein_coding",
+                    "strand": 1
+                  }
+                ]
+              }
+            ],
+            "gdna_products": [
+              {
+                "region": "4",
+                "start": 7422291,
+                "end": 7422843,
+                "size": 553,
+                "strand": 1,
+                "orientation": "LR",
+                "likelihood": "likely",
+                "left_mm": 2,
+                "right_mm": 0,
+                "left_3p_mm": 1,
+                "right_3p_mm": 0,
+                "left_mm_pos": [
+                  8,
+                  2
+                ],
+                "right_mm_pos": [],
+                "terminal_mismatch": false,
+                "approx": false,
+                "genes": [
+                  {
+                    "id": "SORBI_3004G087700",
+                    "name": "SORBI_3004G087700",
+                    "biotype": "protein_coding",
+                    "strand": 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "transcriptome": {
+        "target": "cdna",
+        "gene_id": "SORBI_3004G087700",
+        "transcript_id": "SORBI_3004G087700.3",
+        "pairs": [
+          {
+            "id": "P1",
+            "verdict": "off_targets",
+            "truncated": false,
+            "on_target": {
+              "gene_id": "SORBI_3004G087700",
+              "orientation": "LR",
+              "isoforms": [
+                {
+                  "transcript_id": "SORBI_3004G087700.1",
+                  "start": 641,
+                  "end": 918,
+                  "size": 278,
+                  "likelihood": "likely",
+                  "left_mm": 0,
+                  "right_mm": 0
+                },
+                {
+                  "transcript_id": "SORBI_3004G087700.2",
+                  "start": 443,
+                  "end": 720,
+                  "size": 278,
+                  "likelihood": "likely",
+                  "left_mm": 0,
+                  "right_mm": 0
+                },
+                {
+                  "transcript_id": "SORBI_3004G087700.3",
+                  "start": 730,
+                  "end": 1007,
+                  "size": 278,
+                  "likelihood": "likely",
+                  "left_mm": 0,
+                  "right_mm": 0
+                }
+              ],
+              "size_min": 278,
+              "size_max": 278,
+              "likelihood": "likely",
+              "left_mm": 0,
+              "right_mm": 0,
+              "left_3p_mm": 0,
+              "right_3p_mm": 0,
+              "left_mm_pos": [],
+              "right_mm_pos": [],
+              "terminal_mismatch": false,
+              "approx": false
+            },
+            "other_on_target_groups": 0,
+            "off_target_count": 2,
+            "unlikely_count": 4,
+            "off_targets": [
+              {
+                "gene_id": "SORBI_3005G183900",
+                "orientation": "LR",
+                "isoforms": [
+                  {
+                    "transcript_id": "SORBI_3005G183900.1",
+                    "start": 444,
+                    "end": 721,
+                    "size": 278,
+                    "likelihood": "likely",
+                    "left_mm": 1,
+                    "right_mm": 0
+                  },
+                  {
+                    "transcript_id": "SORBI_3005G183900.2",
+                    "start": 422,
+                    "end": 699,
+                    "size": 278,
+                    "likelihood": "likely",
+                    "left_mm": 1,
+                    "right_mm": 0
+                  }
+                ],
+                "size_min": 278,
+                "size_max": 278,
+                "likelihood": "likely",
+                "left_mm": 1,
+                "right_mm": 0,
+                "left_3p_mm": 1,
+                "right_3p_mm": 0,
+                "left_mm_pos": [
+                  3
+                ],
+                "right_mm_pos": [],
+                "terminal_mismatch": false,
+                "approx": false
+              },
+              {
+                "gene_id": "SORBI_3004G087800",
+                "orientation": "LR",
+                "isoforms": [
+                  {
+                    "transcript_id": "SORBI_3004G087800.1",
+                    "start": 772,
+                    "end": 1049,
+                    "size": 278,
+                    "likelihood": "likely",
+                    "left_mm": 1,
+                    "right_mm": 2
+                  }
+                ],
+                "size_min": 278,
+                "size_max": 278,
+                "likelihood": "likely",
+                "left_mm": 1,
+                "right_mm": 2,
+                "left_3p_mm": 0,
+                "right_3p_mm": 1,
+                "left_mm_pos": [
+                  14
+                ],
+                "right_mm_pos": [
+                  17,
+                  4
+                ],
+                "terminal_mismatch": false,
+                "approx": false
+              }
+            ]
+          }
+        ]
+      },
+      "pangenome": null,
+      "warnings": [],
+      "timings_ms": {
+        "reference": 6071,
+        "transcriptome": 1127,
+        "total": 7199
+      }
+    },
+    "error": null
+  }
+}

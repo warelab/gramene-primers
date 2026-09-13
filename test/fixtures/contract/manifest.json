@@ -1,0 +1,137 @@
+{
+  "generator": "gramene-primers test/fixtures.gen.test.ts",
+  "requests": [
+    {
+      "file": "requests/design-gene.json",
+      "method": "POST",
+      "path": "/primers/design",
+      "definition": "PrimerDesignRequest"
+    },
+    {
+      "file": "requests/design-gene-id-only.json",
+      "method": "POST",
+      "path": "/primers/design",
+      "definition": "PrimerDesignRequest"
+    },
+    {
+      "file": "requests/design-gene-overlay-intervals.json",
+      "method": "POST",
+      "path": "/primers/design",
+      "definition": "PrimerDesignRequest"
+    },
+    {
+      "file": "requests/design-transcript.json",
+      "method": "POST",
+      "path": "/primers/design",
+      "definition": "PrimerDesignRequest"
+    },
+    {
+      "file": "requests/design-transcript-single-exon.json",
+      "method": "POST",
+      "path": "/primers/design",
+      "definition": "PrimerDesignRequest"
+    },
+    {
+      "file": "requests/design-transcript-pcr-preset.json",
+      "method": "POST",
+      "path": "/primers/design",
+      "definition": "PrimerDesignRequest"
+    },
+    {
+      "file": "requests/design-transcript-all-params.json",
+      "method": "POST",
+      "path": "/primers/design",
+      "definition": "PrimerDesignRequest"
+    },
+    {
+      "file": "requests/design-region.json",
+      "method": "POST",
+      "path": "/primers/design",
+      "definition": "PrimerDesignRequest"
+    },
+    {
+      "file": "requests/design-region-softmask.json",
+      "method": "POST",
+      "path": "/primers/design",
+      "definition": "PrimerDesignRequest"
+    },
+    {
+      "file": "requests/design-sequence.json",
+      "method": "POST",
+      "path": "/primers/design",
+      "definition": "PrimerDesignRequest"
+    },
+    {
+      "file": "requests/design-sequence-template-only.json",
+      "method": "POST",
+      "path": "/primers/design",
+      "definition": "PrimerDesignRequest"
+    },
+    {
+      "file": "requests/check-gene-specificity.json",
+      "method": "POST",
+      "path": "/primers/check",
+      "definition": "PrimerCheckRequest"
+    },
+    {
+      "file": "requests/check-gene-three-pairs.json",
+      "method": "POST",
+      "path": "/primers/check",
+      "definition": "PrimerCheckRequest"
+    },
+    {
+      "file": "requests/check-gene-pangenome-subset.json",
+      "method": "POST",
+      "path": "/primers/check",
+      "definition": "PrimerCheckRequest"
+    },
+    {
+      "file": "requests/check-gene-pangenome-all.json",
+      "method": "POST",
+      "path": "/primers/check",
+      "definition": "PrimerCheckRequest"
+    },
+    {
+      "file": "requests/check-region-params.json",
+      "method": "POST",
+      "path": "/primers/check",
+      "definition": "PrimerCheckRequest"
+    },
+    {
+      "file": "requests/check-region-large-expected.json",
+      "method": "POST",
+      "path": "/primers/check",
+      "definition": "PrimerCheckRequest"
+    },
+    {
+      "file": "requests/check-transcript.json",
+      "method": "POST",
+      "path": "/primers/check",
+      "definition": "PrimerCheckRequest"
+    },
+    {
+      "file": "requests/check-transcript-pangenome.json",
+      "method": "POST",
+      "path": "/primers/check",
+      "definition": "PrimerCheckRequest"
+    },
+    {
+      "file": "requests/check-sequence-sensitivity.json",
+      "method": "POST",
+      "path": "/primers/check",
+      "definition": "PrimerCheckRequest"
+    },
+    {
+      "file": "requests/check-sequence-raised.json",
+      "method": "POST",
+      "path": "/primers/check",
+      "definition": "PrimerCheckRequest"
+    },
+    {
+      "file": "requests/check-ten-pairs.json",
+      "method": "POST",
+      "path": "/primers/check",
+      "definition": "PrimerCheckRequest"
+    }
+  ]
+}

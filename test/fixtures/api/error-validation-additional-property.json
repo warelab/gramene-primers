@@ -1,0 +1,45 @@
+{
+  "captured_at": "2026-09-13T05:27:32.433Z",
+  "base": "http://127.0.0.1:50111/sorghum_v11",
+  "method": "POST",
+  "path": "/primers/design",
+  "request": {
+    "mode": "gene",
+    "gene_id": "X",
+    "bogus": 1
+  },
+  "status": 400,
+  "headers": {
+    "cache-control": "no-store",
+    "retry-after": null
+  },
+  "body": {
+    "message": "Validation errors",
+    "errors": [
+      {
+        "code": "INVALID_REQUEST_PARAMETER",
+        "errors": [
+          {
+            "code": "OBJECT_ADDITIONAL_PROPERTIES",
+            "params": [
+              "bogus"
+            ],
+            "message": "Additional properties not allowed: bogus",
+            "path": [],
+            "description": "gene: gene_id (+ flank_up/flank_down, transcript_id overlay, system_name must match). transcript: gene_id (+ transcript_id, default canonical; junction_spanning, default true). region: system_name + region. sequence: sequence (FASTA headers allowed; several records are joined into one template with warning MULTIPLE_RECORDS; system_name optional). Omit optional fields rather than sending null."
+          }
+        ],
+        "in": "body",
+        "message": "Invalid parameter (body): Value failed JSON Schema validation",
+        "name": "body",
+        "path": [
+          "paths",
+          "/primers/design",
+          "post",
+          "parameters",
+          "0"
+        ]
+      }
+    ]
+  }
+}

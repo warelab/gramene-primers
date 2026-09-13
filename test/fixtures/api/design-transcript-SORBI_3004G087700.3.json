@@ -1,0 +1,721 @@
+{
+  "captured_at": "2026-09-13T05:27:32.075Z",
+  "base": "http://127.0.0.1:50111/sorghum_v11",
+  "method": "POST",
+  "path": "/primers/design",
+  "request": {
+    "mode": "transcript",
+    "gene_id": "SORBI_3004G087700",
+    "transcript_id": "SORBI_3004G087700.3"
+  },
+  "status": 200,
+  "headers": {
+    "cache-control": "no-store",
+    "retry-after": null
+  },
+  "body": {
+    "template": {
+      "mode": "transcript",
+      "system_name": "sorghum_bicolor",
+      "gene_id": "SORBI_3004G087700",
+      "transcript_id": "SORBI_3004G087700.3",
+      "region": "4",
+      "start": 7421357,
+      "end": 7428285,
+      "strand": 1,
+      "length": 4878,
+      "seq": "TGAACACTTACGCACTAATTCACCTTCCTCTCGACGAGCATTAGCGCGCGCAGGTATTTATACCACATCGCCACTTCCTCGTTCCTCAGACACTAACACCTCTCTCTCCCTTCCTCTTCCTCTTCCTCTTCATCGTCTTCTTCACGGAGATCGGCAAGCTACAAGAGTACTCCAGCTACAGTAGAAAGACAAAGAACAGAGTCAAGCACTCAAGCTCGAGCAGGGAGAAGAACTGGAGAAGTGAACGGGAAAGACAAAGAACGGAGGGGGTTTGACATCAGTCGAGGATGGATTTAGTGCGGATGGGGAGCATCGCCAGCGGGAGCATGCGGCGGACGGCGTCGTCGTGGCGGGGGTCCGGGCGGAGCGACGCCTTCGGCCGGTCCGTGCGGGAGGAGGACGACGAGGAGGCGCTGCGATGGGCGGCCATCGAGAAGCTGCCCACCTACGACCGCATGCGCAAGGGCATCCTCACGGGCGCCGGCGCCGGCGGCGGTATCGAGGAGGTGGACATCCAGGGGCTCGGCATGCAGGAGCGCCAGAACCTCATCGAGCGCCTCGTGCGCACCGCCGAGGAGGACAACGAGCGCTTCCTGCTCAAGCTCCGCGACCGCATGGAGCGAGTTGGGATCGACAATCCGACGATAGAAGTGCGGTTTGAGAACCTGAACATCGACGCCGAGGCCTACGTCGGCAACCGAGGTGTCCCGACGATGACCAACTTCTTCTCCAACAAAGTCATGGATGCACTAAGCGCTATGCACATCGTTTCGAGTGGGAAGAGACCTATCTCTATCCTTCACGATATCAGTGGAATCATAAGACCGGGCAGAATGTCTTTGCTGCTTGGCCCTCCTGGCTCCGGGAAAACAAGTCTGCTTCTGGCTTTGGCAGGAAAACTTGACTCAGCTCTGAAGGTGTCAGGAAGAGTAACCTACAATGGTCATGACATGGATGAATTTGTCCCTCAGAGGACATCGGCATACATCGGGCAGCATGATGTTCACGTCGGCGAAATGACAGTTCGGGAAACACTTGCCTTCTCTGCAAGATGTCAAGGAGTTGGAACACGTTATGACATGCTTACTGAACTTTCAAGAAGGGAGAAAGAAGCCAACATTAAGCCAGATCCTGATATCGATGTTTACATGAAGGCTATCTCCGTGGAAGGACAGGAGAGTGTGGTCACAGATTACATCCTCAAGATTCTGGGTCTGGAGATCTGTGCAGATACAATGGTTGGAGACTCTATGATCAGAGGTATCTCAGGAGGACAAAAGAAGCGTGTTACAACCGGTGAGATGCTTGTTGGTCCAGCTAAGGCGCTATTCATGGATGAAATCTCCACCGGTCTGGACAGCTCCACAACATATCAGATCGTCAACTCTCTAAGGCAGTCGGTCCACATCCTTGGTGGAACTGCACTTATTGCATTGCTTCAGCCTGCGCCTGAAACATACGAGCTCTTCGATGACATTGTCCTCCTCTCTGAGGGCCAAATTGTATACCAGGGTCCTCGGGAGAATGTCCTTGAATTCTTTGAGGCCATGGGCTTCAAATGTCCTGAGAGAAAAGGTGTTGCAGACTTCTTGCAAGAAGTTACATCTAGGAAGGATCAGCACCAGTACTGGTGCAGAAGAGACGAGCGATACAGATACATCTCAGTTAATGACTTTTCAGAGGCATTCAAAGCATTCCACGTTGGGCGTAAGCTGGGATCAGAGCTCATGGAGCCCTTCGATCGCACCAGGAACCATCCTGCAGCTCTCACAACGTCAAAGTATGGTATCAGCAAGATGGAGCTTCTCAGAGCATGCTTCTCTAGGGAGTGGCTACTGATGAAGAGGAACTCATTTGTTTATATCTTCAAAGTAGTCCAGCTCATAATTCTTGGAACCATTGCAATGACGGTCTTCCTGCGCACGACAATGCATCGACGTAGTGTCGAAGATGGTGTGATATTTCTGGGCGCCATGTTCCTTGGACTAGTCACACATTTGTTCAATGGTTTTGCTGAACTCGCCATGAGTATTGCAAAGCTGCCGATATTCTATAAGCAGAGGGACCTCCTCTTCTATCCATCATGGGCATATGCACTGCCTACATGGTTGCTAAAGATACCAATATCATTCTTGGAATGCGCTGTGTGGATTGGCATGACTTACTATGTCATTGGCTTTGATCCAAACATCGAAAGGTTCTTTCGCCATTACCTGCTGCTCGTACTAATCAGCCAGATGGCATCTGGACTTTTCCGGCTTCTTGCTGCACTAGGAAGAGAAATGGTTGTCGCAGACACATTTGGGTCATTCGCGCAGCTTGTTCTTCTGATTCTTGGTGGCTTCTTGATAGCAAGAGATAACATCAAGAAATATTGGATCTGGGGCTATTGGTCCTCCCCTCTGATGTATGCCCAGAATGCCATAGCAGTGAATGAGTTCCTTGGCCATAGCTGGCAGAAGGTTGTCGATAGCACACAAAGCAACGACACACTCGGTGTTGAAATCCTAAAGGCCCGCGGCATCTTTGTCGATCCAAACTGGTATTGGATTGGTGTTGGTGCATTGCTTGGGTATATCATGCTCTTCAACGTACTCTTCGTTCTGTTCCTTGACTGGCTTGGCCCACTTGGACAAGGTCAGGCCGTTGTTTCTGAAGAGGAGCTGCGGGAGAAGCATGTAAACCGTACTGGTGAAAATGTTGAGTTGCTGCCTCTTGGAACAGCTTCCCAGAATTCGCCTTCAGATGGAAGAGGAGAAATTGCTGGAGCTGAAACCAGGAAGAGAGGAATGGTACTTCCATTTATGCCGTTGTCCATCACCTTTGACAATGTCAAATACTCGGTGGACATGCCTCAGGAAATGAAAGACAAAGGTATTACTGAAGACCGTCTACTGCTGCTGAAGGGTGTAAGTGGAGCCTTCAGACCAGGAGTCCTTACAGCACTGATGGGAGTCAGTGGAGCGGGTAAGACTACCCTGATGGATGTGTTGGCGGGAAGGAAAACTGGTGGTTACATTGAAGGAGATATTTCAATCTCTGGATACCCAAAGAAACAAGAGACCTTTGCTCGGATTGCTGGCTACTGTGAGCAAAATGATATCCATTCTCCACATGTCACTGTTTATGAATCCCTCCTGTACTCCGCATGGCTCCGGTTGCCCCATGAAGTGGATTCAGAAGCAAGAAAGATGTTTGTGGAAGAAGTCATGGAACTCGTGGAATTGACACCACTGAGGGGAGCATTGGTAGGACTGCCAGGAGTAAATGGTTTATCCACAGAACAGAGGAAGAGACTCACCATTGCTGTTGAGCTCGTGGCCAACCCATCCATCATATTCATGGATGAACCAACTTCAGGACTAGATGCAAGGGCAGCTGCAATCGTGATGAGGACAGTCCGAAATACGGTGGATACTGGAAGGACGGTTGCCTGCACAATCCACCAGCCTAGCATTGATATCTTTGAAGCTTTCGATGAGCTATTTCTGATGAAACGGGGAGGGGAAGAAATATATGTTGGACCTTTGGGACGCAACTCATGCCATCTGATTGACTACTTTGAGGGAATAGAAGGAGTAAAGAAAATCAAGGATGGTTACAACCCTGCAACATGGATGTTGGAAGTGACCACCTTAGCTCAAGAAGATATCCTTGGAATCAACTTTGCTGAAGTATACAGAAACTCTGACCTGTACCGGAGGAACAAAGCTTTGATTAGTGAACTAAGCACACCACCACCAGGGTCCAAGGACTTGTACTTCCCAACCCAGTATTCACAGTCCTTCCTTACACAATGCATGGCTTGCCTGTGGAAGCAGCACATGTCTTACTGGAGAAATCCATCATATACCGCGACTAGAATCTTCTTCACAACAGTTATTGCTCTCATCTTCGGAACCATCTTCTTAAACTTAGGAAAGAAAATTGGCACCAGGCAGGACCTGTTGTATGCTTTGGGATCCATGTATGCAGCAGTTCTTTTCATTGGAATTCAGAATGGTCAAACTGTGCAGCCAATTGTGGACGTTGAGCGAACAGTTTTCTACCGAGAAAAGGCAGCTGGCATGTACTCTGCTCTACCCTATGCTTTTGCACAGGTCCTTATTGAGATCCCACACATCTTCCTTCAGACAGTCGTGTATGGTCTCATTGTCTACAGCCTGATTGGCTTTGAATGGACAGCTGAGAAGTTCTTCTGGTATATGTTCTTCATGTTCTTCACCTTCATGTACTTCACGTTCTATGGGATGATGGCAGTCGCCATGACACCAAACAGTGACATTGCCGCTATAGTCTCAACTGCATTCTACGCAATATGGAACATCTTTGCCGGCTTCCTTATCCCCCGCCCGAGGATACCAATATGGTGGAGATGGTACTCGTGGGCTTGCCCAGTGGCTTGGACACTATATGGACTTGTTGCCTCACAATTTGGAGACATCACAGACGTCAGGCTGGAAGATGATGAAATAGTGAAAGATTTCGTCAACAGATTCTTTGGATTCCAGCATGACAACTTGGGTTATGTAGCTACTGCTGTTGTTGGATTCACTGTTCTCTTTGCTTTCGTCTTTGCCTTCTCCATCAAAGTCTTCAACTTCCAGAGAAGATAAGAGAGGGTGCCATCTAAAAAAAATTTGTTGTTGCTTCAGCTAACTTTCAGTATATAGGCACTGCAGCAATGTAAAATGATGACCCGTGAGAGAGTATATATGTAGGCTTTGTTTCTTTCTAGGAAGTTAACATCATTTTTTGTTTTCCGACCAGTTTGGCCTGTACTGAACAGAAAGGGGCCTCTGTGTAAAATTGTATGTAGACTGTGCACAATTGAGTTCAATACTTCAATGTAAGATCTCCCATTAAATTTATACCTTT",
+      "masked": false,
+      "mask_source": null,
+      "mask": [],
+      "masked_fraction": 0,
+      "features": {
+        "gene": null,
+        "exons": [
+          {
+            "id": "EES04729-1",
+            "start": 1,
+            "end": 622,
+            "genomic": {
+              "start": 7421357,
+              "end": 7421978
+            }
+          },
+          {
+            "id": "OQU84612-2",
+            "start": 623,
+            "end": 743,
+            "genomic": {
+              "start": 7422184,
+              "end": 7422304
+            }
+          },
+          {
+            "id": "OQU84612-3",
+            "start": 744,
+            "end": 917,
+            "genomic": {
+              "start": 7422422,
+              "end": 7422595
+            }
+          },
+          {
+            "id": "OQU84612-4",
+            "start": 918,
+            "end": 1077,
+            "genomic": {
+              "start": 7422754,
+              "end": 7422913
+            }
+          },
+          {
+            "id": "OQU84612-5",
+            "start": 1078,
+            "end": 1154,
+            "genomic": {
+              "start": 7422996,
+              "end": 7423072
+            }
+          },
+          {
+            "id": "OQU84612-6",
+            "start": 1155,
+            "end": 1205,
+            "genomic": {
+              "start": 7423163,
+              "end": 7423213
+            }
+          },
+          {
+            "id": "OQU84612-7",
+            "start": 1206,
+            "end": 1296,
+            "genomic": {
+              "start": 7423294,
+              "end": 7423384
+            }
+          },
+          {
+            "id": "OQU84612-8",
+            "start": 1297,
+            "end": 1598,
+            "genomic": {
+              "start": 7423479,
+              "end": 7423780
+            }
+          },
+          {
+            "id": "OQU84612-9",
+            "start": 1599,
+            "end": 1880,
+            "genomic": {
+              "start": 7423859,
+              "end": 7424140
+            }
+          },
+          {
+            "id": "OQU84612-10",
+            "start": 1881,
+            "end": 2358,
+            "genomic": {
+              "start": 7424222,
+              "end": 7424699
+            }
+          },
+          {
+            "id": "OQU84612-11",
+            "start": 2359,
+            "end": 2462,
+            "genomic": {
+              "start": 7424770,
+              "end": 7424873
+            }
+          },
+          {
+            "id": "OQU84612-12",
+            "start": 2463,
+            "end": 2625,
+            "genomic": {
+              "start": 7424967,
+              "end": 7425129
+            }
+          },
+          {
+            "id": "OQU84612-13",
+            "start": 2626,
+            "end": 2748,
+            "genomic": {
+              "start": 7425214,
+              "end": 7425336
+            }
+          },
+          {
+            "id": "OQU84612-14",
+            "start": 2749,
+            "end": 2858,
+            "genomic": {
+              "start": 7425424,
+              "end": 7425533
+            }
+          },
+          {
+            "id": "OQU84612-15",
+            "start": 2859,
+            "end": 3191,
+            "genomic": {
+              "start": 7425623,
+              "end": 7425955
+            }
+          },
+          {
+            "id": "OQU84612-16",
+            "start": 3192,
+            "end": 3482,
+            "genomic": {
+              "start": 7426054,
+              "end": 7426344
+            }
+          },
+          {
+            "id": "OQU84612-17",
+            "start": 3483,
+            "end": 3566,
+            "genomic": {
+              "start": 7426435,
+              "end": 7426518
+            }
+          },
+          {
+            "id": "OQU84612-18",
+            "start": 3567,
+            "end": 3700,
+            "genomic": {
+              "start": 7426607,
+              "end": 7426740
+            }
+          },
+          {
+            "id": "OQU84612-19",
+            "start": 3701,
+            "end": 3928,
+            "genomic": {
+              "start": 7426828,
+              "end": 7427055
+            }
+          },
+          {
+            "id": "OQU84612-20",
+            "start": 3929,
+            "end": 4100,
+            "genomic": {
+              "start": 7427149,
+              "end": 7427320
+            }
+          },
+          {
+            "id": "OQU84612-21",
+            "start": 4101,
+            "end": 4355,
+            "genomic": {
+              "start": 7427420,
+              "end": 7427674
+            }
+          },
+          {
+            "id": "OQU84612-22",
+            "start": 4356,
+            "end": 4878,
+            "genomic": {
+              "start": 7427763,
+              "end": 7428285
+            }
+          }
+        ],
+        "cds": {
+          "start": 288,
+          "end": 4616
+        },
+        "junctions": [
+          622,
+          743,
+          917,
+          1077,
+          1154,
+          1205,
+          1296,
+          1598,
+          1880,
+          2358,
+          2462,
+          2625,
+          2748,
+          2858,
+          3191,
+          3482,
+          3566,
+          3700,
+          3928,
+          4100,
+          4355
+        ]
+      }
+    },
+    "pairs": [
+      {
+        "rank": 0,
+        "penalty": 0.06752,
+        "product_size": 73,
+        "product_tm": 81.5827,
+        "compl_any_th": 0,
+        "compl_end_th": 0,
+        "left": {
+          "seq": "TCCCCTCTGATGTATGCCCA",
+          "start": 2397,
+          "end": 2416,
+          "len": 20,
+          "tm": 60.03,
+          "gc": 55,
+          "self_any_th": 0,
+          "self_end_th": 0,
+          "hairpin_th": 0,
+          "end_stability": 5.36,
+          "penalty": 0.030195,
+          "junction": null,
+          "genomic": {
+            "region": "4",
+            "start": 7424808,
+            "end": 7424827,
+            "strand": 1,
+            "blocks": [
+              {
+                "start": 7424808,
+                "end": 7424827
+              }
+            ]
+          }
+        },
+        "right": {
+          "seq": "CGACAACCTTCTGCCAGCTA",
+          "start": 2450,
+          "end": 2469,
+          "len": 20,
+          "tm": 60.037,
+          "gc": 55,
+          "self_any_th": 0,
+          "self_end_th": 0,
+          "hairpin_th": 0,
+          "end_stability": 3.32,
+          "penalty": 0.037326,
+          "junction": {
+            "position": 2462,
+            "overlap_5p": 7,
+            "overlap_3p": 13
+          },
+          "genomic": {
+            "region": "4",
+            "start": 7424861,
+            "end": 7424973,
+            "strand": -1,
+            "blocks": [
+              {
+                "start": 7424861,
+                "end": 7424873
+              },
+              {
+                "start": 7424967,
+                "end": 7424973
+              }
+            ]
+          }
+        },
+        "product": {
+          "start": 2397,
+          "end": 2469,
+          "genomic": {
+            "region": "4",
+            "start": 7424808,
+            "end": 7424973,
+            "strand": 1
+          },
+          "genomic_size": 166
+        }
+      },
+      {
+        "rank": 1,
+        "penalty": 0.141813,
+        "product_size": 122,
+        "product_tm": 83.7054,
+        "compl_any_th": 2.78,
+        "compl_end_th": 0,
+        "left": {
+          "seq": "TAGCTGGCAGAAGGTTGTCG",
+          "start": 2450,
+          "end": 2469,
+          "len": 20,
+          "tm": 60.037,
+          "gc": 55,
+          "self_any_th": 20.86,
+          "self_end_th": 0,
+          "hairpin_th": 0,
+          "end_stability": 4.35,
+          "penalty": 0.037326,
+          "junction": {
+            "position": 2462,
+            "overlap_5p": 13,
+            "overlap_3p": 7
+          },
+          "genomic": {
+            "region": "4",
+            "start": 7424861,
+            "end": 7424973,
+            "strand": 1,
+            "blocks": [
+              {
+                "start": 7424861,
+                "end": 7424873
+              },
+              {
+                "start": 7424967,
+                "end": 7424973
+              }
+            ]
+          }
+        },
+        "right": {
+          "seq": "CAAGCAATGCACCAACACCA",
+          "start": 2552,
+          "end": 2571,
+          "len": 20,
+          "tm": 59.896,
+          "gc": 50,
+          "self_any_th": 8.35,
+          "self_end_th": 0,
+          "hairpin_th": 0,
+          "end_stability": 4.17,
+          "penalty": 0.104487,
+          "junction": null,
+          "genomic": {
+            "region": "4",
+            "start": 7425056,
+            "end": 7425075,
+            "strand": -1,
+            "blocks": [
+              {
+                "start": 7425056,
+                "end": 7425075
+              }
+            ]
+          }
+        },
+        "product": {
+          "start": 2450,
+          "end": 2571,
+          "genomic": {
+            "region": "4",
+            "start": 7424861,
+            "end": 7425075,
+            "strand": 1
+          },
+          "genomic_size": 215
+        }
+      },
+      {
+        "rank": 2,
+        "penalty": 0.146198,
+        "product_size": 132,
+        "product_tm": 81.3079,
+        "compl_any_th": 0,
+        "compl_end_th": 0,
+        "left": {
+          "seq": "TGTGGAAGCAGCACATGTCT",
+          "start": 3811,
+          "end": 3830,
+          "len": 20,
+          "tm": 59.891,
+          "gc": 50,
+          "self_any_th": 0,
+          "self_end_th": 0,
+          "hairpin_th": 0,
+          "end_stability": 3.41,
+          "penalty": 0.109153,
+          "junction": null,
+          "genomic": {
+            "region": "4",
+            "start": 7426938,
+            "end": 7426957,
+            "strand": 1,
+            "blocks": [
+              {
+                "start": 7426938,
+                "end": 7426957
+              }
+            ]
+          }
+        },
+        "right": {
+          "seq": "CCTGCCTGGTGCCAATTTTC",
+          "start": 3923,
+          "end": 3942,
+          "len": 20,
+          "tm": 60.037,
+          "gc": 55,
+          "self_any_th": 0,
+          "self_end_th": 0,
+          "hairpin_th": 40.16,
+          "end_stability": 2.29,
+          "penalty": 0.037046,
+          "junction": {
+            "position": 3928,
+            "overlap_5p": 14,
+            "overlap_3p": 6
+          },
+          "genomic": {
+            "region": "4",
+            "start": 7427050,
+            "end": 7427162,
+            "strand": -1,
+            "blocks": [
+              {
+                "start": 7427050,
+                "end": 7427055
+              },
+              {
+                "start": 7427149,
+                "end": 7427162
+              }
+            ]
+          }
+        },
+        "product": {
+          "start": 3811,
+          "end": 3942,
+          "genomic": {
+            "region": "4",
+            "start": 7426938,
+            "end": 7427162,
+            "strand": 1
+          },
+          "genomic_size": 225
+        }
+      },
+      {
+        "rank": 3,
+        "penalty": 0.146922,
+        "product_size": 132,
+        "product_tm": 85.0352,
+        "compl_any_th": 0,
+        "compl_end_th": 0,
+        "left": {
+          "seq": "GGTGGACATGCCTCAGGAAA",
+          "start": 2843,
+          "end": 2862,
+          "len": 20,
+          "tm": 59.962,
+          "gc": 55,
+          "self_any_th": 0,
+          "self_end_th": 0,
+          "hairpin_th": 37.63,
+          "end_stability": 3.13,
+          "penalty": 0.038166,
+          "junction": {
+            "position": 2858,
+            "overlap_5p": 16,
+            "overlap_3p": 4
+          },
+          "genomic": {
+            "region": "4",
+            "start": 7425518,
+            "end": 7425626,
+            "strand": 1,
+            "blocks": [
+              {
+                "start": 7425518,
+                "end": 7425533
+              },
+              {
+                "start": 7425623,
+                "end": 7425626
+              }
+            ]
+          }
+        },
+        "right": {
+          "seq": "GTCTTACCCGCTCCACTGAC",
+          "start": 2955,
+          "end": 2974,
+          "len": 20,
+          "tm": 60.109,
+          "gc": 60,
+          "self_any_th": 0,
+          "self_end_th": 0,
+          "hairpin_th": 0,
+          "end_stability": 3.51,
+          "penalty": 0.108756,
+          "junction": null,
+          "genomic": {
+            "region": "4",
+            "start": 7425719,
+            "end": 7425738,
+            "strand": -1,
+            "blocks": [
+              {
+                "start": 7425719,
+                "end": 7425738
+              }
+            ]
+          }
+        },
+        "product": {
+          "start": 2843,
+          "end": 2974,
+          "genomic": {
+            "region": "4",
+            "start": 7425518,
+            "end": 7425738,
+            "strand": 1
+          },
+          "genomic_size": 221
+        }
+      },
+      {
+        "rank": 4,
+        "penalty": 0.147765,
+        "product_size": 116,
+        "product_tm": 84.1405,
+        "compl_any_th": 0,
+        "compl_end_th": 0,
+        "left": {
+          "seq": "ACAACCGGTGAGATGCTTGT",
+          "start": 1290,
+          "end": 1309,
+          "len": 20,
+          "tm": 59.891,
+          "gc": 50,
+          "self_any_th": 8.52,
+          "self_end_th": 2.44,
+          "hairpin_th": 0,
+          "end_stability": 3.16,
+          "penalty": 0.108585,
+          "junction": {
+            "position": 1296,
+            "overlap_5p": 7,
+            "overlap_3p": 13
+          },
+          "genomic": {
+            "region": "4",
+            "start": 7423378,
+            "end": 7423491,
+            "strand": 1,
+            "blocks": [
+              {
+                "start": 7423378,
+                "end": 7423384
+              },
+              {
+                "start": 7423479,
+                "end": 7423491
+              }
+            ]
+          }
+        },
+        "right": {
+          "seq": "TGGACCGACTGCCTTAGAGA",
+          "start": 1386,
+          "end": 1405,
+          "len": 20,
+          "tm": 59.961,
+          "gc": 55,
+          "self_any_th": 0,
+          "self_end_th": 0,
+          "hairpin_th": 0,
+          "end_stability": 3.1,
+          "penalty": 0.03918,
+          "junction": null,
+          "genomic": {
+            "region": "4",
+            "start": 7423568,
+            "end": 7423587,
+            "strand": -1,
+            "blocks": [
+              {
+                "start": 7423568,
+                "end": 7423587
+              }
+            ]
+          }
+        },
+        "product": {
+          "start": 1290,
+          "end": 1405,
+          "genomic": {
+            "region": "4",
+            "start": 7423378,
+            "end": 7423587,
+            "strand": 1
+          },
+          "genomic_size": 210
+        }
+      }
+    ],
+    "explain": {
+      "left": {
+        "raw": "considered 33468, GC content failed 5218, low tm 13884, high tm 5530, high hairpin stability 12, long poly-x seq 49, ok 8775",
+        "considered": 33468,
+        "GC content failed": 5218,
+        "low tm": 13884,
+        "high tm": 5530,
+        "high hairpin stability": 12,
+        "long poly-x seq": 49,
+        "ok": 8775
+      },
+      "right": {
+        "raw": "considered 33462, GC content failed 5398, low tm 13873, high tm 5446, high hairpin stability 4, long poly-x seq 50, ok 8691",
+        "considered": 33462,
+        "GC content failed": 5398,
+        "low tm": 13873,
+        "high tm": 5446,
+        "high hairpin stability": 4,
+        "long poly-x seq": 50,
+        "ok": 8691
+      },
+      "pair": {
+        "raw": "considered 209991, unacceptable product size 9795, no overlap of required point 200188, ok 8",
+        "considered": 209991,
+        "unacceptable product size": 9795,
+        "no overlap of required point": 200188,
+        "ok": 8
+      }
+    },
+    "settings": {
+      "preset": "qpcr",
+      "junction_spanning": true,
+      "avoid_repeats": false,
+      "repeat_mask_mode": null,
+      "params": {
+        "opt_size": 20,
+        "min_size": 18,
+        "max_size": 24,
+        "opt_tm": 60,
+        "min_tm": 58,
+        "max_tm": 62,
+        "min_gc": 35,
+        "max_gc": 65,
+        "max_tm_diff": 2,
+        "max_poly_x": 4,
+        "product_size_ranges": [
+          [
+            70,
+            150
+          ]
+        ],
+        "num_return": 5,
+        "min_3_prime_overlap_of_junction": 4,
+        "min_5_prime_overlap_of_junction": 7
+      }
+    },
+    "engine": {
+      "primer3": "2.6.1"
+    },
+    "warnings": []
+  }
+}

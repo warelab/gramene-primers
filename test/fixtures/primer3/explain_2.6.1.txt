@@ -1,0 +1,13 @@
+# Primer3 2.6.1 explain output captured by gramene-primers (template: SORBI_3001G000200.1 cDNA)
+# run qpcr_junctions_with_Ns: PRIMER_PAIR_NUM_RETURNED=5 PRIMER_ERROR=
+PRIMER_LEFT_EXPLAIN=considered 8226, too many Ns 48, GC content failed 2438, GC clamp failed 834, low tm 2199, high tm 1222, long poly-x seq 33, ok 1452
+PRIMER_RIGHT_EXPLAIN=considered 8298, too many Ns 49, GC content failed 2595, GC clamp failed 822, low tm 2211, high tm 1159, long poly-x seq 41, ok 1421
+PRIMER_PAIR_EXPLAIN=considered 3194, unacceptable product size 205, no overlap of required point 2983, ok 6
+# run target_excluded_lowercase: PRIMER_PAIR_NUM_RETURNED=5 PRIMER_ERROR=
+PRIMER_LEFT_EXPLAIN=considered 5838, overlap excluded region 69, GC content failed 1063, GC clamp failed 344, low tm 818, high tm 762, long poly-x seq 10, lowercase masking of 3' end 2100, ok 672
+PRIMER_RIGHT_EXPLAIN=considered 3156, overlap excluded region 50, GC content failed 1367, GC clamp failed 276, low tm 744, high tm 272, long poly-x seq 19, ok 428
+PRIMER_PAIR_EXPLAIN=considered 3967, unacceptable product size 3961, ok 6
+# run no_pairs_tight: PRIMER_PAIR_NUM_RETURNED=1 PRIMER_ERROR=
+PRIMER_LEFT_EXPLAIN=considered 118, GC content failed 70, GC clamp failed 7, low tm 10, high tm 21, high hairpin stability 9, ok 1
+PRIMER_RIGHT_EXPLAIN=considered 95, GC clamp failed 13, low tm 31, high tm 20, ok 31
+PRIMER_PAIR_EXPLAIN=considered 121, unacceptable product size 120, ok 1

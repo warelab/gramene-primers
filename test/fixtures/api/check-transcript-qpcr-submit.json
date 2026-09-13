@@ -1,0 +1,43 @@
+{
+  "captured_at": "2026-09-13T05:29:28.689Z",
+  "base": "http://127.0.0.1:50111/sorghum_v11",
+  "method": "POST",
+  "path": "/primers/check",
+  "request": {
+    "system_name": "sorghum_bicolor",
+    "mode": "transcript",
+    "gene_id": "SORBI_3004G087700",
+    "checks": [
+      "specificity"
+    ],
+    "pairs": [
+      {
+        "id": "P1",
+        "left": "CCAACAAAGTCATGGATGCACT",
+        "right": "GTGAACATCATGCTGCCCGATG"
+      }
+    ]
+  },
+  "status": 202,
+  "headers": {
+    "cache-control": "no-store",
+    "retry-after": null
+  },
+  "body": {
+    "job_id": "a064bb5968ab00fad26fed8911f3ed82",
+    "status": "queued",
+    "kind": "specificity",
+    "queue_position": 0,
+    "progress": {
+      "done": 0,
+      "total": 2,
+      "stage": "queued",
+      "running": []
+    },
+    "estimate": {
+      "cpu_s": 11
+    },
+    "created_at": "2026-09-13T05:29:28.688Z",
+    "warnings": []
+  }
+}

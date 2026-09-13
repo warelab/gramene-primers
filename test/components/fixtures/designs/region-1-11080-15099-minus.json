@@ -1,0 +1,480 @@
+{
+ "generated_by": "test/components/fixtures/build-designs.mjs",
+ "sources": {
+  "fastaidx": "http://localhost:8888",
+  "primer3": "2.6.1"
+ },
+ "request": {
+  "mode": "region",
+  "system_name": "sorghum_bicolor",
+  "region": {
+   "region": "1",
+   "start": 11080,
+   "end": 15099,
+   "strand": -1
+  },
+  "target": [
+   499,
+   50
+  ],
+  "included": [
+   100,
+   3000
+  ],
+  "excluded": [
+   [
+    1000,
+    40
+   ]
+  ],
+  "params": {
+   "min_size": 19,
+   "max_size": 22,
+   "min_tm": 58,
+   "max_tm": 61,
+   "min_gc": 40,
+   "max_gc": 60,
+   "max_tm_diff": 2,
+   "product_size_ranges": [
+    [
+     200,
+     300
+    ]
+   ]
+  }
+ },
+ "response": {
+  "template": {
+   "mode": "region",
+   "system_name": "sorghum_bicolor",
+   "gene_id": null,
+   "transcript_id": null,
+   "region": "1",
+   "start": 11080,
+   "end": 15099,
+   "strand": -1,
+   "length": 4020,
+   "seq": "ATTTTTAACATCGTTATTTAATTTTACAGTATTGTTATGTTATTATGTGATCTGTATATTTTTAGTTTAAAATTTTAGCTATCCTATAACAACGCACGGTTATGCTACCTAGTCATCTATACTGGAAAACTGTTCCTTCTTTTCTTTTTTTTGGTCAAGAGGAAACTGAAAAAAAAAAAGAGCTCGCCTGTGCAGGTGCAGCACAGCGCAGCGCCCGCTAGCTGTAGCTGTAGCCTCTGCGGTTGGAGCTGACCCGCCCAACCTAACAACCGCTCGGTGGCATCTTCCTCCCGGGATCCCGGTTCCTCCCTCCCTATCTCCCTCGATCCAGCTCAGCTCAGCTCTCTTCCTCCCGCCCCCCCGTACGACCTTACTCTTCTTGATCCGTTCATTCATACATACTTGTTGAGAGGAAGAGGATCGGTCTGCTGCTACTAGCTGCGGATAGTTGTGGTTCTAGTAGCAGGTAAAAGAAGGCAAGGGAAGGGAAGGGAATCCATGAAGAAATGGGGCAACAGCGGGCAAGCCGCCGATTCCTTCTACCAGGTCCGCCCCGATTGCAGCCAAAACGTCCCCAACACCAAGTTCAAGATCAAGGTGAGTGGTAGCCCCCGATTGGTTCGAGTCGAGATCCCCACCCCATGTTAATTTGAGTTGACTTGTTTTCACTGCTTTCATTTCAGGCGGGGAAGACACTGAGCGTTCGGAAATGGCATGCTGCCTTCACGCGTGACGGATGCCTGGATATCGCCTCTGTTCTCAGCCGCATACAGAGAGGGGTAGGCTACAGTTCATTCCAGTTCCATTTTAATTTTTCACTATATATAGATAGATAAATAAATTGAAAACAAGGCCTACGTACGTATTCTATGTCAGGCTGAAATGAAATGAAATTTTGAGTCCATCCTTGCTCACATCCGTCCCGCACCAAATTTCATTTCACTAATCCCTTCCTAAAAAATAAAAAAAAATATGTCAGGGTGTGCACCCCGCAATCAGGGGAGAGGTTTGGGAGTTCTTGCTCGGCTGCTTTGACCCTGGCAGCACCTTCGATGAGAGGGACCAGATTAGGGAGCGGAGAAGGTCGATCGGTGAACCACCCTTTCTCTTCACTGCTACTGTACCTCCCTTCCTTTCTCAACCAGTGGACTGAATGTATATTCTTTTCCTTGAATGAACAACAATGATCAGGATGCAGTATGCCAGATGGAAGGAAGAATGCAAAGAAATGGATTCTCATGTTGGCAGTGGTAAAATTATCACTGCCCCGGTTATAACTGAGGATGGATTCCCTATCAAGGATCCATTGGTATTACTGGAGGCTACTTCAGACACGCAAGGTACTTCTACCACCACCACCACCAATGGCAGCAGTGGAAATGGAATTGATGTTGATAACAACTCCATGAACCTTGTCTTGGATAAACAAATCATTGGCTGGAAGCTTACATTACATCAAATAGGTAAGGTCGATTCTTCTCCTCCTATGATCTGCCAGTGGCGAAGCTATGTTATAGCTTGTGGGTGCAAATGCACCCACAAGAATTTTAAAAAAAAAACACTGCTAAAATTAAATTTTCACCATGGTTGTTGCTTATATTTTTACATCTACAAGAAAAATGCACCACCCTCTAAATTGCTCTAGCTTCGCCACTGTCTGCCATTATTTTCTCCTCCTTACATAACTGCTGCATGGTAGGCCTTGATGTTCTGCGCACTGACCGCACCATGGTATTTTACGAGAACAAAGATAATCTTTCAAAGTTGTGGGATATTCTTGCTGTCTATGCATGGATCGACAAAGAAGTTGGTTATTGTCAAGGTCAGTGCCTCTTACTTGCACAGTGGCCTTGTTTATTGCCCGCAAGGAAATCTGACATAATAAGGTTTTTTTCTCCACCCCTCTTAATTAATTAGGGATGAGTGATTTATGTTCACCCATGATAGTGCTACTCAACGATGAAGCAGATGCATTTTGGTGCTTTGAGAGATTGATGCGTAGGCTGGTAAAAACTTCTTCTCCATCTAGCTGTCCGATGCTTTTCCCTGTGACATCATTCTTCTGAACTTTTAATCACCATCTTTCTAAAATTTTCAAGCGAGGCAATTTCAGATGTACACAGCAGTCAGTTGGGGTGGAAAACCAGCTTCAGCATCTTGCTTCTATCATTCAGGTGCTTGATCCAAAGTTGCATGGCCACCTAGGTATGGAACAAAGACTTGTACGGGCTGTTACTGTTAGACATTCAATTCTGTGTCAAAATTTGCTGCTTTTACATCCTGCAATTGGTTCTTGTTGACTCCTCAACACAGAAACACTTGGCGGGGGTGACTATCTCTTTGCATTCCGCATGTTCATGGTATTGTTCCGGCGAGAACTATCATTTGGGGATTCCTTGTACCTTTGGGAGGTAAATGTTACATCCTGACATGTGACTTTGAATCTGGAACAAAAATACGTTGGCTGCCAACGTATTTTTGTCAAGAAAAAGAGACAAAAATTGAAGATTTGTGAAGCCCTCTATGTTCAATGGTGTTAGATTATATTAGGCATCTCCAGATGTGGTTAGTTTATGATTGATTGCAACCCTGTCATAACCTGTCTTATCTCTTAGAGAGGCTTGTTGCCCTCCAAGCCATGCACTCGTATGGCTCAGTACATATCATCAAATATTCTCAGTATATATTAATCTTCTCACAAATAGAATTAAACTCTACAGTACCTCACCAAAGAAAATGATCTAAAACTTTGATAATTGTGAAGAATTGTATTTATGAGATCTTTCCACCTATGATTTATGAAGGCTAAACAAATGTGCTGTGTTTGTCCATTGGTAACTGTTCAGAGACCATAGGAAGGTAGGCGAACTTATTTTATTTGGCATGTGGTGTATGAAGAAATTGGTTTGACGACTGATGACCATATTGTTCTGAATCGTATCTGCAGATGATGTGGGCTCTAGAATATGATCCTGACATTTGCTCCACTTATGAAGAGACTGGGGCTGCAGTCCACAAAATTGAAGGATTTAAACCAAAGGTAAAATCAATACGTCAGTTTGGCAAGTACGAGAGGGAGAATATGAAGAACAGGGCAAATGGTGGCGATGGACCTGTCCCTATTTCGGTTTTCCTGGTTGCTAGTGTCCTGAAAGAGAACAGTCCAAAGCTTCTGCAAGAGGCTCGAGGGATTGATGACATTATTAGGGTAAGCTAGCTGAAGGGATTACTTAACCTAGAAACTCTCGCTTGTTTTTACAACAGAGATGCATAAGGATAAAGGCGGCATCGCTAATTGCTCCCACATCTAAAGTTTGGCAGAATTTAGCCTCATGTAAATTGTGATTTCCTTTTTTGCTTGGTTCAGATATTGAATGATGTTAACGGGAATCTGGACGCGAAAAGGGCTTGTGTTGTTGCACTGAAGCTTCATAGGAAGTACCACAAAAAGGTGAATTAATTGTTGATAAAGTTTCCTCTTTATCTTTTTATAAGTGGGGATTTGCGTTACTTTACTACTCCTAGTTGCCTGCTAATCGTATGCAATATATATTTGTTCTCTTGGCAGTTGCAGGAAAAGAAATCCTAACATCATATGGCGAGATACCGAGATTGCACGCAACACAGGGTTGCAAAGATCCTAACATCATATGGCGAGATACGTACCGAGATTGCACGCCAATATTCGCCATACTGGGTTGCAAAGAGCAGCAGCATATCTAGAGATTTTAGGGTAATTGTTGGCATGAGTATTACCCCATGTTTTTGTTCCTTCCACTTAGAGCATGTCTAAGAGTCTTTTCAAATTTCACACTTTGAATCATCATTTGGAAAATCATCTGTATAAAATTGTTTTCTATATATTTTCACTCTCTAACAACTTTTTAATATATTGTGTATACTCTAGAGAGCTATTTTTGTTATCTATCTTTGTCTACTGAGAAATCCAGAATATGCTATTTTTGTTATCTTTGACTAGCGAGAAATTCAGAATAGAGTATGACTATATTCGGATAACCA",
+   "masked": false,
+   "mask_source": null,
+   "mask": [],
+   "masked_fraction": 0,
+   "features": {}
+  },
+  "pairs": [
+   {
+    "rank": 0,
+    "penalty": 0.060309,
+    "product_size": 283,
+    "product_tm": 88.6503,
+    "compl_any_th": 0,
+    "compl_end_th": 0,
+    "left": {
+     "seq": "TCCTCCCTCCCTATCTCCCT",
+     "start": 304,
+     "end": 323,
+     "len": 20,
+     "tm": 60.026,
+     "gc": 60,
+     "self_any_th": 0,
+     "self_end_th": 0,
+     "hairpin_th": 0,
+     "end_stability": 4.2,
+     "penalty": 0.026415,
+     "junction": null,
+     "genomic": {
+      "region": "1",
+      "start": 14777,
+      "end": 14796,
+      "strand": -1,
+      "blocks": [
+       {
+        "start": 14777,
+        "end": 14796
+       }
+      ]
+     }
+    },
+    "right": {
+     "seq": "ACTTGGTGTTGGGGACGTTT",
+     "start": 567,
+     "end": 586,
+     "len": 20,
+     "tm": 60.034,
+     "gc": 50,
+     "self_any_th": 0,
+     "self_end_th": 0,
+     "hairpin_th": 0,
+     "end_stability": 3.6,
+     "penalty": 0.033894,
+     "junction": null,
+     "genomic": {
+      "region": "1",
+      "start": 14514,
+      "end": 14533,
+      "strand": 1,
+      "blocks": [
+       {
+        "start": 14514,
+        "end": 14533
+       }
+      ]
+     }
+    },
+    "product": {
+     "start": 304,
+     "end": 586,
+     "genomic": {
+      "region": "1",
+      "start": 14514,
+      "end": 14796,
+      "strand": -1
+     }
+    }
+   },
+   {
+    "rank": 1,
+    "penalty": 0.060309,
+    "product_size": 284,
+    "product_tm": 88.5792,
+    "compl_any_th": 0,
+    "compl_end_th": 0,
+    "left": {
+     "seq": "TCCTCCCTCCCTATCTCCCT",
+     "start": 304,
+     "end": 323,
+     "len": 20,
+     "tm": 60.026,
+     "gc": 60,
+     "self_any_th": 0,
+     "self_end_th": 0,
+     "hairpin_th": 0,
+     "end_stability": 4.2,
+     "penalty": 0.026415,
+     "junction": null,
+     "genomic": {
+      "region": "1",
+      "start": 14777,
+      "end": 14796,
+      "strand": -1,
+      "blocks": [
+       {
+        "start": 14777,
+        "end": 14796
+       }
+      ]
+     }
+    },
+    "right": {
+     "seq": "AACTTGGTGTTGGGGACGTT",
+     "start": 568,
+     "end": 587,
+     "len": 20,
+     "tm": 60.034,
+     "gc": 50,
+     "self_any_th": 0,
+     "self_end_th": 0,
+     "hairpin_th": 37.52,
+     "end_stability": 3.99,
+     "penalty": 0.033894,
+     "junction": null,
+     "genomic": {
+      "region": "1",
+      "start": 14513,
+      "end": 14532,
+      "strand": 1,
+      "blocks": [
+       {
+        "start": 14513,
+        "end": 14532
+       }
+      ]
+     }
+    },
+    "product": {
+     "start": 304,
+     "end": 587,
+     "genomic": {
+      "region": "1",
+      "start": 14513,
+      "end": 14796,
+      "strand": -1
+     }
+    }
+   },
+   {
+    "rank": 2,
+    "penalty": 0.064937,
+    "product_size": 265,
+    "product_tm": 88.3198,
+    "compl_any_th": 0,
+    "compl_end_th": 0,
+    "left": {
+     "seq": "CTCGATCCAGCTCAGCTCAG",
+     "start": 322,
+     "end": 341,
+     "len": 20,
+     "tm": 59.969,
+     "gc": 60,
+     "self_any_th": 0,
+     "self_end_th": 0,
+     "hairpin_th": 36.4,
+     "end_stability": 3.35,
+     "penalty": 0.031043,
+     "junction": null,
+     "genomic": {
+      "region": "1",
+      "start": 14759,
+      "end": 14778,
+      "strand": -1,
+      "blocks": [
+       {
+        "start": 14759,
+        "end": 14778
+       }
+      ]
+     }
+    },
+    "right": {
+     "seq": "ACTTGGTGTTGGGGACGTTT",
+     "start": 567,
+     "end": 586,
+     "len": 20,
+     "tm": 60.034,
+     "gc": 50,
+     "self_any_th": 0,
+     "self_end_th": 0,
+     "hairpin_th": 0,
+     "end_stability": 3.6,
+     "penalty": 0.033894,
+     "junction": null,
+     "genomic": {
+      "region": "1",
+      "start": 14514,
+      "end": 14533,
+      "strand": 1,
+      "blocks": [
+       {
+        "start": 14514,
+        "end": 14533
+       }
+      ]
+     }
+    },
+    "product": {
+     "start": 322,
+     "end": 586,
+     "genomic": {
+      "region": "1",
+      "start": 14514,
+      "end": 14778,
+      "strand": -1
+     }
+    }
+   },
+   {
+    "rank": 3,
+    "penalty": 0.064937,
+    "product_size": 266,
+    "product_tm": 88.2452,
+    "compl_any_th": 0,
+    "compl_end_th": 0,
+    "left": {
+     "seq": "CTCGATCCAGCTCAGCTCAG",
+     "start": 322,
+     "end": 341,
+     "len": 20,
+     "tm": 59.969,
+     "gc": 60,
+     "self_any_th": 0,
+     "self_end_th": 0,
+     "hairpin_th": 36.4,
+     "end_stability": 3.35,
+     "penalty": 0.031043,
+     "junction": null,
+     "genomic": {
+      "region": "1",
+      "start": 14759,
+      "end": 14778,
+      "strand": -1,
+      "blocks": [
+       {
+        "start": 14759,
+        "end": 14778
+       }
+      ]
+     }
+    },
+    "right": {
+     "seq": "AACTTGGTGTTGGGGACGTT",
+     "start": 568,
+     "end": 587,
+     "len": 20,
+     "tm": 60.034,
+     "gc": 50,
+     "self_any_th": 0,
+     "self_end_th": 0,
+     "hairpin_th": 37.52,
+     "end_stability": 3.99,
+     "penalty": 0.033894,
+     "junction": null,
+     "genomic": {
+      "region": "1",
+      "start": 14513,
+      "end": 14532,
+      "strand": 1,
+      "blocks": [
+       {
+        "start": 14513,
+        "end": 14532
+       }
+      ]
+     }
+    },
+    "product": {
+     "start": 322,
+     "end": 587,
+     "genomic": {
+      "region": "1",
+      "start": 14513,
+      "end": 14778,
+      "strand": -1
+     }
+    }
+   },
+   {
+    "rank": 4,
+    "penalty": 0.066888,
+    "product_size": 279,
+    "product_tm": 87.9111,
+    "compl_any_th": 0,
+    "compl_end_th": 0,
+    "left": {
+     "seq": "GAGGATCGGTCTGCTGCTAC",
+     "start": 416,
+     "end": 435,
+     "len": 20,
+     "tm": 59.969,
+     "gc": 60,
+     "self_any_th": 0,
+     "self_end_th": 0,
+     "hairpin_th": 0,
+     "end_stability": 3.58,
+     "penalty": 0.031449,
+     "junction": null,
+     "genomic": {
+      "region": "1",
+      "start": 14665,
+      "end": 14684,
+      "strand": -1,
+      "blocks": [
+       {
+        "start": 14665,
+        "end": 14684
+       }
+      ]
+     }
+    },
+    "right": {
+     "seq": "GTCTTCCCCGCCTGAAATGA",
+     "start": 675,
+     "end": 694,
+     "len": 20,
+     "tm": 60.035,
+     "gc": 55,
+     "self_any_th": 0,
+     "self_end_th": 0,
+     "hairpin_th": 0,
+     "end_stability": 2.57,
+     "penalty": 0.035439,
+     "junction": null,
+     "genomic": {
+      "region": "1",
+      "start": 14406,
+      "end": 14425,
+      "strand": 1,
+      "blocks": [
+       {
+        "start": 14406,
+        "end": 14425
+       }
+      ]
+     }
+    },
+    "product": {
+     "start": 416,
+     "end": 694,
+     "genomic": {
+      "region": "1",
+      "start": 14406,
+      "end": 14684,
+      "strand": -1
+     }
+    }
+   }
+  ],
+  "explain": {
+   "left": {
+    "raw": "considered 1500, GC content failed 882, low tm 270, high tm 163, long poly-x seq 10, ok 175",
+    "considered": 1500,
+    "GC content failed": 882,
+    "low tm": 270,
+    "high tm": 163,
+    "long poly-x seq": 10,
+    "ok": 175
+   },
+   "right": {
+    "raw": "considered 9780, overlap excluded region 61, GC content failed 4286, low tm 3215, high tm 754, long poly-x seq 78, ok 1386",
+    "considered": 9780,
+    "overlap excluded region": 61,
+    "GC content failed": 4286,
+    "low tm": 3215,
+    "high tm": 754,
+    "long poly-x seq": 78,
+    "ok": 1386
+   },
+   "pair": {
+    "raw": "considered 263, unacceptable product size 255, ok 8",
+    "considered": 263,
+    "unacceptable product size": 255,
+    "ok": 8
+   }
+  },
+  "settings": {
+   "preset": "pcr",
+   "junction_spanning": false,
+   "avoid_repeats": false,
+   "repeat_mask_mode": null,
+   "params": {
+    "gc_clamp": 0,
+    "max_end_stability": 100,
+    "max_ns": 0,
+    "salt_monovalent": 50,
+    "salt_divalent": 1.5,
+    "dntp_conc": 0.6,
+    "dna_conc": 50,
+    "opt_size": 20,
+    "min_size": 19,
+    "max_size": 22,
+    "opt_tm": 60,
+    "min_tm": 58,
+    "max_tm": 61,
+    "min_gc": 40,
+    "max_gc": 60,
+    "max_tm_diff": 2,
+    "max_poly_x": 4,
+    "product_size_ranges": [
+     [
+      200,
+      300
+     ]
+    ],
+    "num_return": 5
+   }
+  },
+  "engine": {
+   "primer3": "2.6.1"
+  },
+  "warnings": []
+ }
+}

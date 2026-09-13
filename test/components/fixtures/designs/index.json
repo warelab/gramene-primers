@@ -1,0 +1,104 @@
+{
+  "gene-SORBI_3001G000200-flanks": {
+    "mode": "gene",
+    "length": 4020,
+    "pairs": 5,
+    "products": [
+      132,
+      475,
+      127,
+      283,
+      284
+    ]
+  },
+  "gene-SORBI_3001G000700": {
+    "mode": "gene",
+    "length": 9525,
+    "pairs": 5,
+    "products": [
+      819,
+      820,
+      868,
+      520,
+      946
+    ]
+  },
+  "transcript-SORBI_3001G000200": {
+    "mode": "transcript",
+    "length": 1982,
+    "pairs": 5,
+    "products": [
+      109,
+      108,
+      141,
+      140,
+      127
+    ]
+  },
+  "transcript-SORBI_3004G087700.3": {
+    "mode": "transcript",
+    "length": 4878,
+    "pairs": 5,
+    "products": [
+      73,
+      122,
+      132,
+      132,
+      116
+    ]
+  },
+  "transcript-SORBI_3001G046200.2": {
+    "mode": "transcript",
+    "length": 3795,
+    "pairs": 5,
+    "products": [
+      106,
+      150,
+      93,
+      118,
+      120
+    ]
+  },
+  "transcript-SORBI_3001G046200.1": {
+    "mode": "transcript",
+    "length": 3563,
+    "pairs": 5,
+    "products": [
+      109,
+      73,
+      92,
+      80,
+      110
+    ]
+  },
+  "region-1-11080-15099-minus": {
+    "mode": "region",
+    "length": 4020,
+    "pairs": 5,
+    "products": [
+      283,
+      284,
+      265,
+      266,
+      279
+    ]
+  },
+  "sequence-iupac": {
+    "mode": "sequence",
+    "length": 1200,
+    "pairs": 5,
+    "products": [
+      920,
+      581,
+      359,
+      577,
+      259
+    ]
+  },
+  "no-pairs-SORBI_3001G000200": {
+    "mode": "transcript",
+    "length": 1982,
+    "pairs": 0,
+    "products": []
+  }
+}

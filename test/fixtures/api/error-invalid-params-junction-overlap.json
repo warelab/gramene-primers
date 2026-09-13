@@ -1,0 +1,27 @@
+{
+  "captured_at": "2026-09-13T05:27:32.439Z",
+  "base": "http://127.0.0.1:50111/sorghum_v11",
+  "method": "POST",
+  "path": "/primers/design",
+  "request": {
+    "mode": "transcript",
+    "gene_id": "SORBI_3001G000200",
+    "params": {
+      "max_size": 24,
+      "min_5_prime_overlap_of_junction": 13
+    }
+  },
+  "status": 400,
+  "headers": {
+    "cache-control": "no-store",
+    "retry-after": null
+  },
+  "body": {
+    "message": "min_5_prime_overlap_of_junction (13) must be at most floor(max_size / 2) = 12 for junction-spanning primers",
+    "code": "INVALID_PARAMS",
+    "details": {
+      "param": "min_5_prime_overlap_of_junction",
+      "max": 12
+    }
+  }
+}

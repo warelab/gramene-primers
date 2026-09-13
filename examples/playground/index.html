@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>gramene-primers playground</title>
+    <!--
+      Local playground (spec §C.7). From the package root:
+        npm run dev                                   # ?api=mock replays fixtures
+        PRIMERS_PROXY_TARGET=http://localhost:50111 npx vite --port 5174   # ?api=live proxies /sorghum_v11
+      Open http://localhost:5174/?api=mock (or ?api=live). Extra: &page=<id>, &mockError=BUSY|VALIDATION|FEATURE_DISABLED|PRIMER3_UNAVAILABLE|QUEUE_FULL|JOB_TOO_LARGE
+    -->
+    <style>
+      body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f3f4f6; color: #111827; }
+      .pg-shell { display: grid; grid-template-columns: 15rem minmax(0, 1fr); min-height: 100vh; }
+      .pg-nav { padding: 1rem; border-right: 1px solid #d1d5db; background: #fff; display: flex; flex-direction: column; gap: 0.75rem; }
+      .pg-nav h1 { font-size: 1.1rem; margin: 0; }
+      .pg-nav h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; margin: 0.5rem 0 0.25rem; }
+      .pg-nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+      .pg-nav button { width: 100%; text-align: left; border: 0; background: none; padding: 0.35rem 0.5rem; border-radius: 4px; cursor: pointer; font: inherit; }
+      .pg-nav button[aria-current="page"] { background: #dbeafe; font-weight: 600; }
+      .pg-main { padding: 1rem 1.25rem 3rem; display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+      .pg-bar { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; align-items: center; font-size: 0.9rem; }
+      .pg-note { margin: 0; font-size: 0.85rem; color: #4b5563; }
+      .pg-inspector { background: #111827; color: #e5e7eb; border-radius: 6px; padding: 0.75rem; font-size: 12px; max-height: 24rem; overflow: auto; }
+      .pg-inspector-bar { display: flex; gap: 0.5rem; align-items: center; }
+      .pg-host { background: #fff; border: 1px solid #d1d5db; border-radius: 8px; padding: 1rem; }
+      @media (max-width: 800px) { .pg-shell { grid-template-columns: minmax(0, 1fr); } .pg-nav { border-right: 0; border-bottom: 1px solid #d1d5db; } }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>
