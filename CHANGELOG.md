@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format follows
 [semantic versioning](https://semver.org/). `0.x` releases are published with
 `--tag next`; `1.0.0` follows once `/primers` is live on data.sorghumbase.org.
 
-## [Unreleased]
+## [0.1.1] — 2026-09-15
 
 ### Fixed
 - **Inputs in `<details>` panels** (Advanced parameters, Advanced check settings) are no longer 18 px wider than their grid cells. Children of `<details>` inherit `box-sizing` through its UA shadow slot, so the stylesheet sets `border-box` on them again.

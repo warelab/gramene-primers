@@ -1,6 +1,6 @@
 {
   "name": "gramene-primers",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Embeddable React component and headless client for Gramene PCR/qPCR primer design, genome specificity and pan-genome coverage checks.",
   "type": "module",
   "main": "./dist/gramene-primers.cjs",

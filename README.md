@@ -11,7 +11,7 @@ endpoints:
 - React 18 is a peer dependency; the package has **no runtime dependencies**.
 - ESM + CJS builds with TypeScript declarations; styles are injected at runtime and also shipped as `gramene-primers/style.css`.
 
-> Status: `0.1.0`, unreleased. The API endpoints are under development on the
+> Status: `0.1.1`. The API endpoints are under development on the
 > gramene-swagger `primer-design` branch. Check results follow check algorithm version 2.
 
 ## Install
@@ -23,8 +23,8 @@ npm install gramene-primers react@^18.2 react-dom@^18.2
 During development, link a tarball rather than `npm link` (a symlink would load a second React):
 
 ```bash
-npm run pack:local                       # gramene-primers-0.1.0.tgz
-cd ../gramene-search && npm install --no-save ../gramene-primers/gramene-primers-0.1.0.tgz && rm -rf .parcel-cache
+npm run pack:local                       # gramene-primers-0.1.1.tgz
+cd ../gramene-search && npm install --no-save ../gramene-primers/gramene-primers-0.1.1.tgz && rm -rf .parcel-cache
 ```
 
 `npm run lint:pkg` packs into a temporary directory, so it never deletes that tarball, whichever runs last.
@@ -259,7 +259,7 @@ npm run typecheck
 npm test                  # vitest + jsdom unit and component tests
 npm run build             # dist/gramene-primers.{js,cjs,css}, dist/index.d.{ts,cts}
 npm run lint:pkg          # publint + @arethetypeswrong/cli on a tarball packed in a temp dir
-npm run pack:local        # build, then gramene-primers-0.1.0.tgz
+npm run pack:local        # build, then gramene-primers-0.1.1.tgz
 npm run fixtures          # contract request fixtures (below)
 npm run dev               # playground on :5174
 ```
