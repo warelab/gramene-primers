@@ -7,6 +7,7 @@
     <!--
       Local playground (spec §C.7). From the package root:
         npm run dev                                   # ?api=mock replays fixtures
+        PRIMERS_API=https://data.sorghumbase.org/sorghum_v11a npm run dev   # ?api=live calls that API directly
         PRIMERS_PROXY_TARGET=http://localhost:50111 npx vite --port 5174   # ?api=live proxies /sorghum_v11
       Open http://localhost:5174/?api=mock (or ?api=live). Extra: &page=<id>, &mockError=BUSY|VALIDATION|FEATURE_DISABLED|PRIMER3_UNAVAILABLE|QUEUE_FULL|JOB_TOO_LARGE
     -->

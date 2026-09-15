@@ -25,7 +25,9 @@ function run(cmd, args, options = {}) {
 const dir = mkdtempSync(join(tmpdir(), 'gramene-primers-attw-'));
 try {
   run(bin('publint'), []);
-  const out = run('npm', ['pack', '--pack-destination', dir, '--json', '--ignore-scripts'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
+  // `--dry-run=false`: under `npm publish --dry-run` (prepublishOnly) this child inherits
+  // npm_config_dry_run and would write no tarball for attw to read.
+  const out = run('npm', ['pack', '--pack-destination', dir, '--json', '--ignore-scripts', '--dry-run=false'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
   const [info] = JSON.parse(out);
   if (!info || typeof info.filename !== 'string') throw new Error(`lint-pkg: unexpected npm pack output: ${out}`);
   // npm < 9.7 reports scoped names with a leading "@"; the file on disk has none.

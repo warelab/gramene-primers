@@ -26,7 +26,8 @@ function emitStylesheet(): Plugin {
 /**
  * - `npm run build` -> library build into ./dist (ESM + CJS + rolled-up d.ts + css).
  * - `npm run dev`   -> playground (examples/playground) on :5174; `gramene-primers`
- *                      resolves to src/, `/sorghum_v11` is proxied to the dev API.
+ *                      resolves to src/. `?api=live` calls `PRIMERS_API` when set,
+ *                      else `/sorghum_v11`, which is proxied to the dev API.
  */
 export default defineConfig(({ command }) => {
   if (command === 'build') {
@@ -63,6 +64,9 @@ export default defineConfig(({ command }) => {
   return {
     plugins: [react()],
     root: resolve(root, 'examples/playground'),
+    define: {
+      'import.meta.env.PRIMERS_API': JSON.stringify(process.env.PRIMERS_API ?? ''),
+    },
     resolve: {
       alias: { 'gramene-primers': resolve(root, 'src/index.ts') },
     },

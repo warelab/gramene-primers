@@ -270,7 +270,7 @@ npm run dev               # playground on :5174
 
 | URL parameter | Values |
 |---|---|
-| `api` | `mock` (default) replays real design fixtures and simulates check jobs (queued → running with partial results → done); `live` uses the real client against `/sorghum_v11`, proxied to `PRIMERS_PROXY_TARGET` (default `http://localhost:50111`) |
+| `api` | `mock` (default) replays real design fixtures and simulates check jobs (queued → running with partial results → done); `live` uses the real client against `PRIMERS_API` when the dev server has it (e.g. `PRIMERS_API=https://data.sorghumbase.org/sorghum_v11a npm run dev`, called directly), else against `/sorghum_v11`, proxied to `PRIMERS_PROXY_TARGET` (default `http://localhost:50111`) |
 | `page` | `gene-000200` (default), `gene-000700`, `transcript-87700`, `transcript-46200`, `region`, `sequence`, `check-p1-p3`, `check-p5l`, `check-qpcr` |
 | `mockError` | Mock only: the first matching request fails with this code. `BUSY`, `VALIDATION`, `FEATURE_DISABLED`, `PRIMER3_UNAVAILABLE` apply to design; `QUEUE_FULL`, `JOB_TOO_LARGE` and any other code (as a 503) apply to the check |
 

@@ -143,6 +143,11 @@
   box-sizing: inherit;
 }
 
+/* Children of <details> inherit through its UA shadow slot (content-box), not from <details>. */
+.gpr-root details > * {
+  box-sizing: border-box;
+}
+
 .gpr-root button,
 .gpr-root input,
 .gpr-root select,

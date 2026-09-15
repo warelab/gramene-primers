@@ -3,7 +3,8 @@ import { createPrimersClient, PrimerDesigner, VERSION, type PrimerDesignerState,
 import { createMockClient, GENES } from './mockClient';
 import { findPage, PAGES } from './pages';
 
-export const LIVE_API_BASE = '/sorghum_v11';
+/** `?api=live` base: the dev server's `PRIMERS_API` (called directly; the API sends CORS `*`), else `/sorghum_v11` through the dev proxy. */
+export const LIVE_API_BASE = import.meta.env.PRIMERS_API || '/sorghum_v11';
 type ThemeChoice = 'auto' | 'light' | 'dark';
 const EXPIRED_JOB_ID = '0'.repeat(32);
 
@@ -46,7 +47,7 @@ export function App({ search = '', mockDelayScale }: AppProps): JSX.Element {
       <nav className="pg-nav" aria-label="Playground pages">
         <h1>gramene-primers {VERSION}</h1>
         <p className="pg-note">
-          API: <strong>{api}</strong> ({api === 'live' ? `${LIVE_API_BASE} via the dev proxy` : 'fixture replay'})
+          API: <strong>{api}</strong> ({api === 'live' ? (LIVE_API_BASE.startsWith('/') ? `${LIVE_API_BASE} via the dev proxy` : LIVE_API_BASE) : 'fixture replay'})
         </p>
         {groups.map((group) => (
           <div key={group}>
