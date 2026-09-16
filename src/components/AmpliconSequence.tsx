@@ -11,26 +11,38 @@ export interface AmpliconSequenceProps {
   template: Pick<PrimerTemplate, 'seq' | 'length' | 'mask' | 'features'> | null | undefined;
   /** FASTA record prefix. */
   label?: string;
+  /**
+   * Template positions where a chosen enzyme severs the top strand; the break
+   * is drawn before each base. One enzyme at a time — every site in the panel
+   * at once would bar the sequence into confetti.
+   */
+  cuts?: ReadonlyArray<number>;
+  /** Named in the legend beside the cut marks. */
+  cutLabel?: string;
 }
 
 interface Segment {
   text: string;
   cls: string;
   barAfter: boolean;
+  cutAfter: boolean;
 }
 
 /** The amplicon in 60-nt lines with primer footprints, masked bases and junction bars (spec §C.3 PairDetail). */
-export function AmpliconSequence({ pair, template, label }: AmpliconSequenceProps): JSX.Element {
+export function AmpliconSequence({ pair, template, label, cuts, cutLabel }: AmpliconSequenceProps): JSX.Element {
   const seq = template?.seq ?? '';
   const start = pair.left.start;
   const end = pair.right.end;
   const valid = !!seq && start >= 1 && end <= seq.length && end >= start;
   const junctionList = template?.features?.junctions;
   const maskList = template?.mask;
+  const cutKey = (cuts ?? []).join(',');
 
-  const { lines, hasMask, hasJunction } = useMemo(() => {
-    if (!valid) return { lines: [], hasMask: false, hasJunction: false };
+  const { lines, hasMask, hasJunction, hasCut } = useMemo(() => {
+    if (!valid) return { lines: [], hasMask: false, hasJunction: false, hasCut: false };
     const junctions = new Set((junctionList ?? []).filter((j) => j >= start && j < end));
+    // A cut before base p is a break after p-1, which is where the bar goes.
+    const cutAfterSet = new Set((cuts ?? []).map((c) => c - 1).filter((t) => t >= start && t < end));
     const masked = new Uint8Array(end - start + 1);
     for (const [s, l] of maskList ?? []) {
       for (let t = Math.max(s, start); t <= Math.min(end, s + l - 1); t++) masked[t - start] = 1;
@@ -51,19 +63,20 @@ export function AmpliconSequence({ pair, template, label }: AmpliconSequenceProp
             isMasked && 'gpr-seq-masked',
           ) || 'gpr-seq-plain';
         if (!cur || cur.cls !== cls) {
-          cur = { text: '', cls, barAfter: false };
+          cur = { text: '', cls, barAfter: false, cutAfter: false };
           segs.push(cur);
         }
         cur.text += seq[t - 1] ?? '';
-        if (junctions.has(t)) {
-          cur.barAfter = true;
+        if (junctions.has(t) || cutAfterSet.has(t)) {
+          cur.barAfter = junctions.has(t);
+          cur.cutAfter = cutAfterSet.has(t);
           cur = null;
         }
       }
       out.push({ pos: lineStart, segs });
     }
-    return { lines: out, hasMask: anyMask, hasJunction: junctions.size > 0 };
-  }, [valid, seq, start, end, pair.left.start, pair.left.end, pair.right.start, pair.right.end, junctionList, maskList]);
+    return { lines: out, hasMask: anyMask, hasJunction: junctions.size > 0, hasCut: cutAfterSet.size > 0 };
+  }, [valid, seq, start, end, pair.left.start, pair.left.end, pair.right.start, pair.right.end, junctionList, maskList, cutKey]);
 
   if (!valid) return <p className="gpr-hint">The amplicon sequence is not available.</p>;
   const n = pair.rank + 1;
@@ -88,6 +101,7 @@ export function AmpliconSequence({ pair, template, label }: AmpliconSequenceProp
               <Fragment key={i}>
                 <span className={s.cls}>{s.text}</span>
                 {s.barAfter ? <span className="gpr-junction-bar" aria-hidden="true" /> : null}
+                {s.cutAfter ? <span className="gpr-cut-bar" aria-hidden="true" /> : null}
               </Fragment>
             ))}
           </div>
@@ -99,6 +113,12 @@ export function AmpliconSequence({ pair, template, label }: AmpliconSequenceProp
           <>
             {' '}
             <span className="gpr-junction-sample" aria-hidden="true" /> exon–exon junction
+          </>
+        ) : null}
+        {hasCut ? (
+          <>
+            {' '}
+            <span className="gpr-cut-sample" aria-hidden="true" /> {cutLabel ? `${cutLabel} cut` : 'cut site'}
           </>
         ) : null}
         {hasMask ? (

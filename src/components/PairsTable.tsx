@@ -5,6 +5,8 @@ import { canAddPairToCheck, CHECK_LIMITS, pairCheckability } from '../request';
 import { matchCheckResults } from '../results';
 import type { CheckJob, CheckPrimerInfo, PrimerOligo, PrimerPair, PrimerTemplate, SubmittedPair } from '../types';
 import { CopyButton } from './CopyButton';
+import type { RestrictionEnzyme } from '../enzymes';
+import type { DigestVariant } from './DigestPanel';
 import { PairDetail } from './PairDetail';
 import { Primer3DocText } from './Primer3Help';
 import { GprRoot, type StyleProps } from './Root';
@@ -38,6 +40,12 @@ export interface PairsTableProps extends StyleProps {
   /** FASTA label for amplicon copies. */
   label?: string;
   caption?: string;
+  /** Variants inside the template, for the per-pair digest and CAPS tables. */
+  variants?: ReadonlyArray<DigestVariant>;
+  /** Restriction enzymes to consider. Defaults to the bundled panel. */
+  enzymes?: ReadonlyArray<RestrictionEnzyme>;
+  /** Said in place of the CAPS table when no variants could be looked up. */
+  variantsUnavailable?: string | null;
 }
 
 function PrimerCell({ oligo, side, n, info }: { oligo: PrimerOligo; side: 'left' | 'right'; n: number; info: CheckPrimerInfo | null }): JSX.Element {
@@ -272,7 +280,16 @@ export function PairsTable(props: PairsTableProps): JSX.Element {
                   {isExpanded ? (
                     <tr className="gpr-detail-row">
                       <td colSpan={colCount}>
-                        <PairDetail id={detailId} pair={p} template={template} label={label} primers={primers} />
+                        <PairDetail
+                          id={detailId}
+                          pair={p}
+                          template={template}
+                          label={label}
+                          primers={primers}
+                          variants={props.variants}
+                          enzymes={props.enzymes}
+                          variantsUnavailable={props.variantsUnavailable}
+                        />
                       </td>
                     </tr>
                   ) : null}

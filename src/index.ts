@@ -217,6 +217,17 @@ export type {
   VariantContext,
   WindowCheck,
 } from './caps';
+export {
+  ampliconSeq,
+  capsForAmplicon,
+  digestAmplicon,
+  digestsDistinguishable,
+  genomicToTemplatePosition,
+  nonCutters,
+  singleCutters,
+  variantOnTemplate,
+} from './amplicon';
+export type { AmpliconDigest, DigestOptions, ProductCaps, TemplateSpan, TemplateVariant } from './amplicon';
 export { COMMON_ENZYMES, enzymeSpecificity, findEnzyme, isSixCutter, SIX_CUTTER_SPECIFICITY } from './enzymes';
 export type { RestrictionEnzyme } from './enzymes';
 export { DESIGN_MODES, designModeOf, isDesignMode } from './modes';

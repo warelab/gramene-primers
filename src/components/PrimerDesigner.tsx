@@ -30,6 +30,7 @@ import { useCheckJob } from './hooks/useCheckJob';
 import { useDesign, type DesignMeta } from './hooks/useDesign';
 import { useDesignerState } from './hooks/useDesignerState';
 import { useGeneDoc, useGenomes } from './hooks/useResources';
+import { templateVariantsNote, useTemplateVariants } from './hooks/useTemplateVariants';
 import { GeneInputs } from './inputs/GeneInputs';
 import { RegionInputs } from './inputs/RegionInputs';
 import { SequenceInputs } from './inputs/SequenceInputs';
@@ -253,6 +254,16 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
 
   // ---- results ----------------------------------------------------------------
   const pairs = response?.pairs ?? [];
+  /**
+   * Variants inside the designed template, so an ordinary pair can be checked
+   * for a CAPS assay. Degrades quietly: a pasted sequence has no coordinates,
+   * and a genome without variation data simply has none to find.
+   */
+  const templateVariants = useTemplateVariants(client, template, pairs, {
+    variationAvailable: !!genomes.data?.variation?.available && genomeList?.find((g) => g.system_name === template?.system_name)?.has_variation !== false,
+    enzymes: props.enzymes,
+  });
+  const variantsNote = templateVariantsNote(templateVariants.reason);
   const templateOnlyResponse = !!design.state.responseMeta?.templateOnly;
   const noPairs = !!response && !templateOnlyResponse && (pairs.length === 0 || (response.warnings ?? []).some((w) => w.code === 'NO_PAIRS'));
   const job = check.state.job;
@@ -370,6 +381,9 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
         check={checkForMatching}
         submitted={submitted}
         label={exportLabel}
+        variants={templateVariants.variants}
+        enzymes={props.enzymes}
+        variantsUnavailable={variantsNote}
       />
     );
   } else if (activeTab === 'specificity' || activeTab === 'transcriptome') {
@@ -590,6 +604,14 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
                         target={mapIntervals.target}
                         included={mapIntervals.included}
                         excluded={mapIntervals.excluded}
+                        variants={templateVariants.variants.map((v) => ({
+                          key: v.key,
+                          label: v.label,
+                          position: v.variant.position,
+                          consequence: v.consequence,
+                          caps: v.caps,
+                          capsEnzyme: v.capsEnzyme,
+                        }))}
                       />
                     ) : null}
                     {templateOnlyResponse ? (

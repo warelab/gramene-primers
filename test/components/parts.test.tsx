@@ -22,6 +22,9 @@ import { GprRoot } from '../../src/components/Root';
 import { SetsTable } from '../../src/components/SetsTable';
 import { SpecificityResults } from '../../src/components/SpecificityResults';
 import { niceTicks, packPairLanes, TemplateMap } from '../../src/components/TemplateMap';
+import { DigestPanel } from '../../src/components/DigestPanel';
+import { PairDetail } from '../../src/components/PairDetail';
+import { variantOnTemplate } from '../../src/amplicon';
 import { toApiError } from '../../src/client';
 import { flattenValidationErrors } from '../../src/errors';
 import * as api from '../../src/index';
@@ -1332,5 +1335,105 @@ describe('styling contract (spec §C.5)', () => {
     for (const name of ['PrimerDesigner', 'PairsTable', 'TemplateMap', 'SpecificityResults', 'PangenomeMatrix', 'GenomePicker', 'mount', 'ensureStylesInjected']) {
       expect(typeof (api as Record<string, unknown>)[name], name).toBe('function');
     }
+  });
+});
+
+describe('DigestPanel', () => {
+  const geneMinus = designFixture('gene-SORBI_3001G000200-flanks').response;
+  const template = geneMinus.template;
+  /** A 100 bp window of this minus-strand template that spans two real variants. */
+  const SPAN = { start: 3860, end: 3959 };
+  const placed = [
+    { key: '1:11193:C:T', label: '1:11193 C/T', vcf: { position: 11193, ref: 'C', alt: 'T' } },
+    { key: '1:11203:C:T', label: '1:11203 C/T', vcf: { position: 11203, ref: 'C', alt: 'T' } },
+  ].map((v) => ({ key: v.key, label: v.label, variant: variantOnTemplate(template, v.vcf)! }));
+
+  it('lists the enzymes that cut the product, fewest cuts first', () => {
+    render(<DigestPanel template={template} span={{ start: geneMinus.pairs[0]!.left.start, end: geneMinus.pairs[0]!.right.end }} />);
+    const table = screen.getByRole('table', { name: /Restriction digest/ });
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(rows.length).toBeGreaterThan(0);
+    const cuts = rows.map((r) => Number(within(r).getAllByRole('cell')[1]!.textContent));
+    expect([...cuts].sort((a, b) => a - b)).toEqual(cuts);
+    expect(within(table).getByRole('button', { name: 'RsaI' })).toBeTruthy();
+  });
+
+  it('shows the CAPS assay a variant inside the product gives, with its fragment sizes', () => {
+    render(<DigestPanel template={template} span={SPAN} variants={placed} />);
+    const table = screen.getByRole('table', { name: /CAPS assays/ });
+    const row = within(table).getByRole('row', { name: /11193/ });
+    expect(within(row).getByRole('button', { name: 'XbaI' })).toBeTruthy();
+    expect(row).toHaveTextContent('56 / 44');
+    expect(row).toHaveTextContent('100');
+    expect(within(row).getByText('Readable')).toBeTruthy();
+  });
+
+  it('says a digest is unreadable rather than offering it', () => {
+    render(<DigestPanel template={template} span={SPAN} variants={placed} />);
+    const row = within(screen.getByRole('table', { name: /CAPS assays/ })).getByRole('row', { name: /11203/ });
+    // AccI splits 75 into 39 and 36, which co-migrate.
+    expect(within(row).getByText('Not on a gel')).toBeTruthy();
+  });
+
+  it('counts only variants that fall inside the product', () => {
+    // The pair-1 amplicon is far from these variants; claiming they are in it
+    // would be a plainly false statement.
+    render(<DigestPanel template={template} span={{ start: geneMinus.pairs[0]!.left.start, end: geneMinus.pairs[0]!.right.end }} variants={placed} />);
+    expect(screen.getByText(/No known variant falls inside this product/)).toBeTruthy();
+    expect(screen.queryByRole('table', { name: /CAPS assays/ })).toBeNull();
+  });
+
+  it('explains why there are no variants rather than staying blank', () => {
+    render(<DigestPanel template={template} span={SPAN} variantsUnavailable="A pasted sequence has no genomic coordinates." />);
+    expect(screen.getByText(/pasted sequence has no genomic coordinates/)).toBeTruthy();
+  });
+
+  it('names the enzymes that leave the product alone', () => {
+    render(<DigestPanel template={template} span={SPAN} />);
+    expect(screen.getByText(/do not cut this product at all/)).toBeTruthy();
+  });
+});
+
+describe('PairDetail digest selection', () => {
+  const geneMinus = designFixture('gene-SORBI_3001G000200-flanks').response;
+
+  it('marks the chosen enzyme’s cuts in the amplicon and names it in the legend', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<PairDetail pair={geneMinus.pairs[0]!} template={geneMinus.template} />);
+    expect(container.querySelectorAll('.gpr-cut-bar')).toHaveLength(0);
+    await user.click(screen.getByRole('button', { name: 'RsaI' }));
+    // RsaI cuts this product once, so exactly one break is drawn.
+    expect(container.querySelectorAll('.gpr-cut-bar')).toHaveLength(1);
+    expect(screen.getByText(/RsaI cut/)).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'RsaI' }));
+    expect(container.querySelectorAll('.gpr-cut-bar')).toHaveLength(0);
+  });
+});
+
+describe('TemplateMap variants', () => {
+  const geneMinus = designFixture('gene-SORBI_3001G000200-flanks').response;
+  const variants = [
+    { key: 'a', label: '1:11193 C/T', position: 3907, consequence: '3_prime_UTR_variant', caps: true, capsEnzyme: 'XbaI' },
+    { key: 'b', label: '1:11203 C/T', position: 3897, consequence: 'missense_variant', caps: false, capsEnzyme: null },
+  ];
+
+  it('draws a lollipop per variant and rings only the ones an enzyme types', () => {
+    const { container } = render(<TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} variants={variants} />);
+    expect(container.querySelectorAll('.gpr-map-variant')).toHaveLength(2);
+    // Scoped to the track: the legend swatch reuses the ring so it matches too.
+    expect(container.querySelectorAll('.gpr-map-variants .gpr-map-variant-caps')).toHaveLength(1);
+    expect(container.querySelector('.gpr-map-variant title')?.textContent).toContain('XbaI cuts one allele');
+  });
+
+  it('keeps the track and its legend out of the way when there are no variants', () => {
+    const { container } = render(<TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} />);
+    expect(container.querySelectorAll('.gpr-map-variant')).toHaveLength(0);
+    expect(screen.queryByLabelText('Variant legend')).toBeNull();
+  });
+
+  it('grows to fit the variant track rather than overlapping the pair lanes', () => {
+    const without = render(<TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} />).container.querySelector('svg')!;
+    const withVariants = render(<TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} variants={variants} />).container.querySelector('svg')!;
+    expect(Number(withVariants.getAttribute('height'))).toBeGreaterThan(Number(without.getAttribute('height')));
   });
 });

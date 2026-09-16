@@ -2,6 +2,9 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { readFileSync } from 'node:fs';
 import { describe, it } from 'vitest';
+import { variantOnTemplate } from '../../src/amplicon';
+import { DigestPanel } from '../../src/components/DigestPanel';
+import { GprRoot } from '../../src/components/Root';
 import { PrimerDesigner } from '../../src/components/PrimerDesigner';
 import type { GenotypingDesignResponse } from '../../src/types';
 import { pkgPath } from '../paths';
@@ -135,5 +138,21 @@ describe('axe-core on the main states', () => {
     await act(async () => fake.submitCalls[0]!.resolve(submitAnswer(transcriptCheckJob())));
     await user.click(await screen.findByRole('tab', { name: 'Transcriptome' }));
     await expectNoAxeViolations(container, 'transcriptome');
+  });
+});
+
+describe('axe-core on the restriction digest', () => {
+  it('digest and CAPS tables, whose verdicts must read without colour', async () => {
+    const { template } = designFixture('gene-SORBI_3001G000200-flanks').response;
+    const variants = [
+      { key: '1:11193:C:T', label: '1:11193 C/T', vcf: { position: 11193, ref: 'C', alt: 'T' } },
+      { key: '1:11203:C:T', label: '1:11203 C/T', vcf: { position: 11203, ref: 'C', alt: 'T' } },
+    ].map((v) => ({ key: v.key, label: v.label, variant: variantOnTemplate(template, v.vcf)! }));
+    const { container } = render(
+      <GprRoot>
+        <DigestPanel template={template} span={{ start: 3860, end: 3959 }} variants={variants} selected="XbaI" />
+      </GprRoot>,
+    );
+    await expectNoAxeViolations(container, 'digest with CAPS assays');
   });
 });
