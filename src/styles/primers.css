@@ -2333,6 +2333,29 @@
   column-gap: var(--gpr-gap);
 }
 
+/* ---- genotyping: variant table toolbar and scrolling ----------------------- */
+.gpr-root .gpr-variant-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 6px 12px;
+}
+
+.gpr-root .gpr-variant-search {
+  min-width: 200px;
+}
+
+/* A window can list thousands of variants, so the table scrolls in place; the
+   sticky thead rule then keeps the (sortable) headers visible. */
+.gpr-root .gpr-variant-scroll {
+  max-height: 26em;
+  overflow: auto;
+}
+
+.gpr-root .gpr-sort-glyph {
+  font-size: 0.85em;
+}
+
 /* `hidden` must win over the display rules above (Bootstrap uses !important; this relies on source order). */
 .gpr-root [hidden] {
   display: none;

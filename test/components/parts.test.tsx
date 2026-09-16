@@ -553,16 +553,61 @@ describe('VariantPicker', () => {
     ...over,
   });
 
+  /** Every variant in the capture is designable, so a non-designable row is synthesized. */
+  const withUndesignable = (): VariantListResponse => {
+    const copy = JSON.parse(JSON.stringify(variantList)) as VariantListResponse;
+    copy.variants[0]!.designable = false;
+    copy.variants[0]!.issues = [{ code: 'REPEAT_TOO_LONG', message: 'The variant sits in a long repeat' }];
+    return copy;
+  };
+
   it('lists the window and marks a row that cannot be designed', async () => {
     const fake = new FakePrimersClient();
-    fake.onListVariants = () => variantList;
+    const listing = withUndesignable();
+    fake.onListVariants = () => listing;
     render(<VariantPicker client={fake} {...base()} />);
     const table = await screen.findByRole('table', { name: /variants/ });
-    expect(within(table).getAllByRole('row')).toHaveLength(variantList.variants.length + 1);
-    const undesignable = variantList.variants.filter((v) => !v.designable);
-    for (const v of undesignable) {
-      expect(within(table).getByRole('radio', { name: `Use ${v.label}` })).toBeDisabled();
-    }
+    expect(within(table).getAllByRole('row')).toHaveLength(listing.variants.length + 1);
+    const blocked = listing.variants.find((v) => !v.designable)!;
+    // Listed on purpose, with its reason, but not selectable.
+    expect(within(table).getByRole('radio', { name: `Use ${blocked.label}` })).toBeDisabled();
+    expect(within(table).getByText(/repeat too long/i)).toBeTruthy();
+  });
+
+  it('scrolls the table in place and keeps the headers sortable', async () => {
+    const fake = new FakePrimersClient();
+    fake.onListVariants = () => variantList;
+    const user = userEvent.setup();
+    render(<VariantPicker client={fake} {...base()} />);
+    const table = await screen.findByRole('table', { name: /variants/ });
+    // The wrapper is the scroll container, which is what makes the sticky header work.
+    expect(table.closest('.gpr-variant-scroll')).toBeTruthy();
+
+    const positions = () => within(table).getAllByRole('row').slice(1).map((r) => r.querySelector('th')?.textContent ?? '');
+    expect(positions()).toEqual([...positions()].sort());
+
+    await user.click(within(table).getByRole('button', { name: /^Kind/ }));
+    expect(within(table).getByRole('columnheader', { name: /^Kind/ })).toHaveAttribute('aria-sort', 'ascending');
+    expect(positions()[0]).toBe('11,282'); // 'deletion' sorts before 'snv'
+
+    await user.click(within(table).getByRole('button', { name: /^Kind/ }));
+    expect(within(table).getByRole('columnheader', { name: /^Kind/ })).toHaveAttribute('aria-sort', 'descending');
+    expect(positions()[0]).not.toBe('11,282');
+  });
+
+  it('filters to the rows that can actually be designed, and says how many are shown', async () => {
+    const fake = new FakePrimersClient();
+    const listing = withUndesignable();
+    fake.onListVariants = () => listing;
+    const user = userEvent.setup();
+    render(<VariantPicker client={fake} {...base()} />);
+    await screen.findByRole('table', { name: /variants/ });
+    const n = listing.variants.length;
+    expect(screen.getByText(`${n} of ${n} variants`)).toBeTruthy();
+
+    await user.click(screen.getByRole('checkbox', { name: 'Designable only' }));
+    expect(within(screen.getByRole('table', { name: /variants/ })).getAllByRole('row')).toHaveLength(n); // header + (n-1)
+    expect(screen.getByText(`${n - 1} of ${n} variants`)).toBeTruthy();
   });
 
   it('selects by content key, which already names one alternative allele', async () => {

@@ -11,6 +11,37 @@ import { fmtInt, useIdPrefix } from './util';
 
 const KINDS: ReadonlyArray<VariantKind> = ['snv', 'mnv', 'insertion', 'deletion', 'complex'];
 
+type VariantSortKey = 'position' | 'label' | 'kind' | 'ids' | 'consequence' | 'designable';
+
+const VARIANT_COLUMNS: ReadonlyArray<{ key: VariantSortKey; label: string }> = [
+  { key: 'position', label: 'Position' },
+  { key: 'label', label: 'Change' },
+  { key: 'kind', label: 'Kind' },
+  { key: 'ids', label: 'Ids' },
+  { key: 'consequence', label: 'Consequence' },
+  { key: 'designable', label: 'Designable' },
+];
+
+/** Every comparator falls back to position, so equal keys stay in genome order. */
+function compareVariants(key: VariantSortKey): (a: VariantEntry, b: VariantEntry) => number {
+  const byPos = (a: VariantEntry, b: VariantEntry) => a.vcf.position - b.vcf.position || a.key.localeCompare(b.key);
+  switch (key) {
+    case 'label':
+      return (a, b) => a.label.localeCompare(b.label) || byPos(a, b);
+    case 'kind':
+      return (a, b) => a.kind.localeCompare(b.kind) || byPos(a, b);
+    case 'ids':
+      return (a, b) => (a.ids[0] ?? '').localeCompare(b.ids[0] ?? '') || byPos(a, b);
+    case 'consequence':
+      return (a, b) => (a.consequence ?? '~').localeCompare(b.consequence ?? '~') || byPos(a, b);
+    case 'designable':
+      // Rows you can act on first.
+      return (a, b) => Number(b.designable) - Number(a.designable) || byPos(a, b);
+    default:
+      return byPos;
+  }
+}
+
 /** Codes that mean "variant lookups are unavailable", never "this design failed". */
 function degradedCode(error: unknown): string | null {
   if (!isPrimersApiError(error)) return null;
@@ -61,6 +92,8 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
   const [lookupError, setLookupError] = useState<unknown>(null);
   const [lookingUp, setLookingUp] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
+  const [designableOnly, setDesignableOnly] = useState(false);
+  const [sort, setSort] = useState<{ key: VariantSortKey; dir: 1 | -1 }>({ key: 'position', dir: 1 });
   const lookupCtrl = useRef<AbortController | null>(null);
 
   const window = p.state.window ?? p.defaultWindow ?? null;
@@ -88,11 +121,16 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
 
   const search = (filters.query ?? '').trim().toLowerCase();
   const listed = list.data?.variants ?? [];
+  const allRows = lookup ? lookup.variants : listed;
   const rows = useMemo(() => {
-    const base = lookup ? lookup.variants : listed;
-    if (!search) return base;
-    return base.filter((v) => v.label.toLowerCase().includes(search) || v.ids.some((i) => i.toLowerCase().includes(search)));
-  }, [lookup, listed, search]);
+    const kept = allRows.filter((v) => {
+      if (designableOnly && !v.designable) return false;
+      if (!search) return true;
+      return v.label.toLowerCase().includes(search) || v.ids.some((i) => i.toLowerCase().includes(search));
+    });
+    const cmp = compareVariants(sort.key);
+    return [...kept].sort((a, b) => sort.dir * cmp(a, b));
+  }, [allRows, search, designableOnly, sort]);
 
   const canLookUp = typeof p.client.getVariant === 'function';
   const runLookup = async () => {
@@ -186,14 +224,6 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
               hint="EMS mutations are private to one mutant line."
               onChange={(on) => p.onFilters({ ...filters, includeEms: on ? undefined : false })}
             />
-            <TextField
-              id={`${idp}-search`}
-              label="Search this list"
-              type="search"
-              value={filters.query ?? ''}
-              placeholder="id or position"
-              onChange={(q) => p.onFilters({ ...filters, query: q || undefined })}
-            />
           </fieldset>
 
           <div className="gpr-variant-lookup">
@@ -242,7 +272,23 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
                   Showing {fmtInt(list.data.returned)} of {fmtInt(list.data.total)} variants; narrow the window to see the rest.
                 </p>
               ) : null}
-              <div className="gpr-table-wrap">
+              <div className="gpr-variant-toolbar">
+                <TextField
+                  id={`${idp}-search`}
+                  label="Search"
+                  type="search"
+                  value={filters.query ?? ''}
+                  placeholder="id or position"
+                  disabled={p.disabled}
+                  className="gpr-variant-search"
+                  onChange={(q) => p.onFilters({ ...filters, query: q || undefined })}
+                />
+                <CheckboxField id={`${idp}-designable`} label="Designable only" checked={designableOnly} onChange={setDesignableOnly} />
+                <span className="gpr-sub">
+                  {fmtInt(rows.length)} of {fmtInt(allRows.length)} variant{allRows.length === 1 ? '' : 's'}
+                </span>
+              </div>
+              <div className="gpr-table-wrap gpr-variant-scroll">
                 <table className="gpr-table gpr-variant-table">
                   <caption className="gpr-caption">
                     {lookup ? `Alternative alleles of ${lookup.id}` : `${fmtInt(rows.length)} variant${rows.length === 1 ? '' : 's'}`} · rows that cannot be designed are
@@ -253,12 +299,20 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
                       <th scope="col" className="gpr-col-check">
                         <span className="gpr-visually-hidden">Select</span>
                       </th>
-                      <th scope="col">Position</th>
-                      <th scope="col">Change</th>
-                      <th scope="col">Kind</th>
-                      <th scope="col">Ids</th>
-                      <th scope="col">Consequence</th>
-                      <th scope="col">Designable</th>
+                      {VARIANT_COLUMNS.map((c) => (
+                        <th key={c.key} scope="col" aria-sort={sort.key === c.key ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined}>
+                          <button
+                            type="button"
+                            className="gpr-sort"
+                            onClick={() => setSort((v) => ({ key: c.key, dir: v.key === c.key ? (v.dir === 1 ? -1 : 1) : 1 }))}
+                          >
+                            {c.label}
+                            <span className="gpr-sort-glyph" aria-hidden="true">
+                              {sort.key === c.key ? (sort.dir === 1 ? ' ▲' : ' ▼') : ''}
+                            </span>
+                          </button>
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
