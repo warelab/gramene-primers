@@ -3,6 +3,10 @@
  * headless client. Readers are tolerant: unknown fields are ignored and
  * optional fields must be guarded by consumers.
  */
+
+import type { RestrictionEnzyme } from './enzymes';
+
+export type { RestrictionEnzyme };
 import type { CSSProperties } from 'react';
 
 // ---------------------------------------------------------------------------
@@ -1395,6 +1399,22 @@ export type GenesInRegion = (
   options?: RequestOptions,
 ) => Promise<RegionGene[]>;
 
+/**
+ * Reference sequence for a window, plus strand, as plain bases. `/primers`
+ * returns no sequence with a variant listing, so the host supplies this when it
+ * has a sequence source of its own. Without it the CAPS column reads
+ * "unknown" — never "no", which would be a claim the client cannot make.
+ *
+ * It must be the same assembly *and the same release* the primers API reads
+ * variants from. A mismatched gene track is visibly wrong; mismatched sequence
+ * produces a confident, wrong enzyme call, which is why every window is checked
+ * against the reference alleles before it is used.
+ */
+export type SequenceForRegion = (
+  query: { system_name: string; region: string; start: number; end: number },
+  options?: RequestOptions,
+) => Promise<string | null>;
+
 export interface PrimerDesignerProps {
   apiBase: string;
   client?: PrimersClient;
@@ -1406,6 +1426,10 @@ export interface PrimerDesignerProps {
   modes?: DesignerMode[];
   /** Supplies gene models for the genotyping variant browser; omitted, the gene track is hidden. */
   genesInRegion?: GenesInRegion;
+  /** Supplies reference sequence for the CAPS annotation; omitted, the CAPS column reads "unknown". */
+  sequenceForRegion?: SequenceForRegion;
+  /** Restriction enzymes to consider for CAPS. Defaults to the bundled panel. */
+  enzymes?: ReadonlyArray<RestrictionEnzyme>;
   defaultMode?: DesignerMode;
   defaultParams?: Partial<DesignParams>;
   state?: PrimerDesignerState;

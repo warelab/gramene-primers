@@ -190,6 +190,35 @@ export { estimateCheckCpu, CPU_S_PER_PRIMER_GB, CDNA_GB_ESTIMATE, MAX_JOB_CPU_S,
 export type { CheckCpuEstimate, CheckCpuInput, WordSize } from './cost';
 export { GENOTYPE_CPU_S_PER_GENOME } from './cost';
 export { CONSEQUENCE_PALETTE, consequenceColor, consequenceLabel } from './variants';
+export {
+  annotateVariants,
+  capsCall,
+  dcapsOpportunities,
+  differentialSites,
+  digestFragments,
+  enzymeCounts,
+  findSites,
+  isResolvable,
+  iupacMatcher,
+  variantContext,
+  verifyWindow,
+} from './caps';
+export type {
+  AnnotateOptions,
+  CapsAnnotation,
+  CapsCall,
+  CapsCallOptions,
+  CapsEnzymeHit,
+  CapsSite,
+  CapsUnknownReason,
+  CapsVerdict,
+  DcapsOpportunity,
+  DcapsSide,
+  VariantContext,
+  WindowCheck,
+} from './caps';
+export { COMMON_ENZYMES, enzymeSpecificity, findEnzyme, isSixCutter, SIX_CUTTER_SPECIFICITY } from './enzymes';
+export type { RestrictionEnzyme } from './enzymes';
 export { DESIGN_MODES, designModeOf, isDesignMode } from './modes';
 export {
   ALL_MODES,

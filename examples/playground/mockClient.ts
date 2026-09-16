@@ -808,3 +808,23 @@ export async function mockGenesInRegion(
 export function createMockClient(options: MockClientOptions = {}): MockPrimersClient {
   return new MockPrimersClient(options);
 }
+
+/**
+ * A stand-in for the host's sequence source, serving the real reference bases
+ * from the captured KASP template. Because the two captures come from the same
+ * assembly and release, the playground shows the CAPS calls a real deployment
+ * would, rather than plausible-looking noise.
+ */
+export async function mockSequenceForRegion(
+  query: { system_name: string; region: string; start: number; end: number },
+  options?: RequestOptions,
+): Promise<string | null> {
+  await wait(140, options?.signal);
+  const template = kaspDesignCapture.response.template;
+  if (query.region !== template.region) return null;
+  const from = query.start - template.start;
+  const to = query.end - template.start + 1;
+  // Outside the captured span there is nothing honest to return.
+  if (from < 0 || to > template.seq.length) return null;
+  return template.seq.slice(from, to);
+}

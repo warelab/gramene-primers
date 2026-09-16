@@ -1,9 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
+import { annotateVariants, enzymeCounts, type CapsAnnotation } from '../caps';
 import { isAbortError, isPrimersApiError } from '../errors';
-import type { GenesInRegion, GenotypingState, PrimerWarning, PrimersClient, VariantEntry, VariantKind, VariantListQuery, VariantSource } from '../types';
+import type { GenesInRegion, GenotypingState, PrimerWarning, PrimersClient, RestrictionEnzyme, SequenceForRegion, VariantEntry, VariantKind, VariantListQuery, VariantSource } from '../types';
 import { GENOTYPING_LIMITS, validateVariantInput } from '../validate';
 import { CheckboxField, NumberField, TextField } from './fields';
 import { useCountdown } from './hooks/useCountdown';
+import { useRegionSequence } from './hooks/useRegionSequence';
 import { useVariantList } from './hooks/useVariants';
 import { ManualVariantInputs, type ManualVariant } from './ManualVariantInputs';
 import { VariantBrowser } from './VariantBrowser';
@@ -12,7 +14,7 @@ import { fmtInt, useIdPrefix } from './util';
 
 const KINDS: ReadonlyArray<VariantKind> = ['snv', 'mnv', 'insertion', 'deletion', 'complex'];
 
-type VariantSortKey = 'position' | 'label' | 'kind' | 'ids' | 'consequence' | 'designable';
+type VariantSortKey = 'position' | 'label' | 'kind' | 'ids' | 'consequence' | 'caps' | 'designable';
 
 const VARIANT_COLUMNS: ReadonlyArray<{ key: VariantSortKey; label: string }> = [
   { key: 'position', label: 'Position' },
@@ -20,11 +22,20 @@ const VARIANT_COLUMNS: ReadonlyArray<{ key: VariantSortKey; label: string }> = [
   { key: 'kind', label: 'Kind' },
   { key: 'ids', label: 'Ids' },
   { key: 'consequence', label: 'Consequence' },
+  { key: 'caps', label: 'CAPS' },
   { key: 'designable', label: 'Designable' },
 ];
 
+/** Usable assays first, then ones needing a modified primer, then the rest. */
+function capsRank(a: CapsAnnotation | undefined): number {
+  if (!a || a.unknown) return 0;
+  if (a.verdict === 'caps') return 3;
+  if (a.verdict === 'dcaps') return 2;
+  return 1;
+}
+
 /** Every comparator falls back to position, so equal keys stay in genome order. */
-function compareVariants(key: VariantSortKey): (a: VariantEntry, b: VariantEntry) => number {
+function compareVariants(key: VariantSortKey, caps: ReadonlyMap<string, CapsAnnotation>): (a: VariantEntry, b: VariantEntry) => number {
   const byPos = (a: VariantEntry, b: VariantEntry) => a.vcf.position - b.vcf.position || a.key.localeCompare(b.key);
   switch (key) {
     case 'label':
@@ -35,6 +46,8 @@ function compareVariants(key: VariantSortKey): (a: VariantEntry, b: VariantEntry
       return (a, b) => (a.ids[0] ?? '').localeCompare(b.ids[0] ?? '') || byPos(a, b);
     case 'consequence':
       return (a, b) => (a.consequence ?? '~').localeCompare(b.consequence ?? '~') || byPos(a, b);
+    case 'caps':
+      return (a, b) => capsRank(caps.get(b.key)) - capsRank(caps.get(a.key)) || byPos(a, b);
     case 'designable':
       // Rows you can act on first.
       return (a, b) => Number(b.designable) - Number(a.designable) || byPos(a, b);
@@ -87,6 +100,70 @@ function FacetSelect(p: {
   );
 }
 
+/** Why a variant carries no verdict, in words a user can act on. */
+const CAPS_UNKNOWN_TITLE: Readonly<Record<string, string>> = {
+  'no-sequence': 'No reference sequence is available here, so restriction sites cannot be checked.',
+  'window-mismatch': 'The reference sequence disagrees with the reported alleles, so no site can be trusted.',
+  'out-of-window': 'This variant lies outside the fetched sequence.',
+  'ref-mismatch': 'The reference allele does not match the sequence at this position.',
+};
+
+/**
+ * The CAPS verdict for one variant: glyph, colour and words together, so the
+ * column reads the same to someone who cannot tell the colours apart.
+ */
+function CapsCell({ annotation }: { annotation: CapsAnnotation | undefined }): JSX.Element {
+  if (!annotation || annotation.unknown) {
+    return (
+      <span className="gpr-chip gpr-chip-muted" title={CAPS_UNKNOWN_TITLE[annotation?.unknown ?? 'no-sequence']}>
+        <span className="gpr-chip-glyph" aria-hidden="true">
+          ·
+        </span>
+        <span className="gpr-chip-text">Unknown</span>
+      </span>
+    );
+  }
+  if (annotation.verdict === 'caps') {
+    const best = annotation.sites[0]!;
+    const more = annotation.sites.length - 1;
+    return (
+      <span
+        className="gpr-chip gpr-chip-ok"
+        title={`${best.enzyme.name} (${best.enzyme.site}) cuts the ${best.cuts === 'ref' ? 'reference' : 'alternate'} allele and not the other. Fragment sizes depend on the amplicon.`}
+      >
+        <span className="gpr-chip-glyph" aria-hidden="true">
+          ✂
+        </span>
+        <span className="gpr-chip-text">{best.enzyme.name}</span>
+        {more > 0 ? <span className="gpr-caps-more"> +{more}</span> : null}
+      </span>
+    );
+  }
+  if (annotation.verdict === 'dcaps') {
+    const best = annotation.dcaps[0]!;
+    return (
+      <span
+        className="gpr-chip gpr-chip-warn"
+        title={`No natural site. A primer carrying ${best.from}→${best.to} ${best.offset} bp ${best.side} of the variant would create a ${best.enzyme.name} (${best.enzyme.site}) site in the ${best.cuts === 'ref' ? 'reference' : 'alternate'} allele. The primer is not designed here.`}
+      >
+        <span className="gpr-chip-glyph" aria-hidden="true">
+          ~
+        </span>
+        <span className="gpr-chip-text">dCAPS</span>
+        <span className="gpr-caps-more"> {best.enzyme.name}</span>
+      </span>
+    );
+  }
+  return (
+    <span className="gpr-chip gpr-chip-muted" title="No enzyme in the panel tells the alleles apart, with or without a modified primer.">
+      <span className="gpr-chip-glyph" aria-hidden="true">
+        –
+      </span>
+      <span className="gpr-chip-text">None</span>
+    </span>
+  );
+}
+
 function sourceLabel(source: VariantSource | null | undefined): string {
   if (!source?.name) return 'manual entry only';
   return source.release ? `${source.name} ${source.release} variants` : `${source.name} variants`;
@@ -100,6 +177,9 @@ export interface VariantPickerProps {
   source?: VariantSource | null;
   /** Host-supplied gene search for the region browser; without it the gene track is hidden. */
   genesInRegion?: GenesInRegion;
+  sequenceForRegion?: SequenceForRegion;
+  /** Restriction enzymes to consider. Defaults to the bundled panel. */
+  enzymes?: ReadonlyArray<RestrictionEnzyme>;
   state: GenotypingState;
   /** Used when the state carries no window yet (the gene span ± 2 kb, clamped by the caller). */
   defaultWindow?: GenotypingState['window'];
@@ -134,6 +214,8 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
   const [source, setSource] = useState('');
   const [multiallelicOnly, setMultiallelicOnly] = useState(false);
   const [shiftableOnly, setShiftableOnly] = useState(false);
+  const [capsOnly, setCapsOnly] = useState(false);
+  const [enzyme, setEnzyme] = useState('');
   const lookupCtrl = useRef<AbortController | null>(null);
 
   const window = p.state.window ?? p.defaultWindow ?? null;
@@ -159,9 +241,35 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
   }, [list.error, lookupError]);
   const retryIn = useCountdown(retryTarget);
 
+  // Sequence is keyed on the listing window, so panning the browser never refetches.
+  const sequence = useRegionSequence(p.sequenceForRegion, query);
+
   const search = (filters.query ?? '').trim().toLowerCase();
   const listed = list.data?.variants ?? [];
   const allRows = lookup ? lookup.variants : listed;
+  /**
+   * CAPS for every listed row at once. The natural-site scan is the cheap half
+   * and the near-miss scan costs little more, so both run eagerly rather than
+   * splitting the column into two states the user has to learn.
+   */
+  const caps = useMemo(
+    () => annotateVariants(allRows, sequence.seq, sequence.start, { enzymes: p.enzymes }),
+    [allRows, sequence.seq, sequence.start, p.enzymes],
+  );
+  const capsUnknown = sequence.unsupported || !sequence.seq;
+  const capsNote =
+    sequence.unsupported
+      ? 'Restriction sites are not available here: this site supplies no reference sequence.'
+      : sequence.loading
+        ? 'Checking restriction sites…'
+        : sequence.error
+          ? 'Reference sequence could not be fetched, so restriction sites are unknown.'
+          : [...caps.values()].some((c) => c.unknown === 'window-mismatch')
+            ? 'The reference sequence disagrees with the reported alleles, so restriction sites are not shown. The sequence source and the variant source are probably different releases.'
+            : null;
+  const enzymes = useMemo(() => [...enzymeCounts(caps.values())].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])), [caps]);
+  const activeEnzyme = enzymes.some(([e]) => e === enzyme) ? enzyme : '';
+
   /** Facet values come from the listing, so only choices that match something are offered. */
   const facet = (pick: (v: VariantEntry) => string[]): Array<readonly [string, number]> => {
     const counts = new Map<string, number>();
@@ -173,7 +281,7 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
   // A new window can retire the chosen value; fall back to "any" rather than showing nothing.
   const activeConsequence = consequences.some(([c]) => c === consequence) ? consequence : '';
   const activeSource = sources.some(([c]) => c === source) ? source : '';
-  const anyFilter = !!(search || activeConsequence || activeSource || designableOnly || multiallelicOnly || shiftableOnly);
+  const anyFilter = !!(search || activeConsequence || activeSource || activeEnzyme || designableOnly || multiallelicOnly || shiftableOnly || capsOnly);
 
   const rows = useMemo(() => {
     const kept = allRows.filter((v) => {
@@ -182,12 +290,18 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
       if (shiftableOnly && !(typeof v.shift === 'number' && v.shift > 0)) return false;
       if (activeConsequence && v.consequence !== activeConsequence) return false;
       if (activeSource && !v.records.some((r) => r.source === activeSource)) return false;
+      if (capsOnly && caps.get(v.key)?.verdict !== 'caps') return false;
+      if (activeEnzyme) {
+        const a = caps.get(v.key);
+        const named = (n: string) => n === activeEnzyme;
+        if (!a || (!a.sites.some((x) => named(x.enzyme.name)) && !a.dcaps.some((x) => named(x.enzyme.name)))) return false;
+      }
       if (!search) return true;
       return v.label.toLowerCase().includes(search) || v.ids.some((i) => i.toLowerCase().includes(search));
     });
-    const cmp = compareVariants(sort.key);
+    const cmp = compareVariants(sort.key, caps);
     return [...kept].sort((a, b) => sort.dir * cmp(a, b));
-  }, [allRows, search, designableOnly, multiallelicOnly, shiftableOnly, activeConsequence, activeSource, sort]);
+  }, [allRows, search, designableOnly, multiallelicOnly, shiftableOnly, capsOnly, activeConsequence, activeSource, activeEnzyme, caps, sort]);
 
   const clearFilters = () => {
     setConsequence('');
@@ -195,6 +309,8 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
     setDesignableOnly(false);
     setMultiallelicOnly(false);
     setShiftableOnly(false);
+    setCapsOnly(false);
+    setEnzyme('');
     p.onFilters({ ...filters, query: undefined });
   };
 
@@ -331,6 +447,7 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
               window={{ start: window.start, end: window.end }}
               systemName={p.systemName}
               genesInRegion={p.genesInRegion}
+              caps={caps}
               variants={rows}
               selectedKey={p.state.variantKey ?? null}
               disabled={p.disabled}
@@ -382,11 +499,27 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
                   disabled={p.disabled}
                   onChange={setSource}
                 />
+                <FacetSelect
+                  id={`${idp}-enzyme`}
+                  label="Enzyme"
+                  anyLabel="Any enzyme"
+                  value={activeEnzyme}
+                  options={enzymes}
+                  disabled={p.disabled || capsUnknown}
+                  onChange={setEnzyme}
+                />
               </div>
               <div className="gpr-variant-toolbar">
                 <CheckboxField id={`${idp}-designable`} label="Designable only" checked={designableOnly} onChange={setDesignableOnly} />
                 <CheckboxField id={`${idp}-multiallelic`} label="Multi-allelic only" checked={multiallelicOnly} onChange={setMultiallelicOnly} />
                 <CheckboxField id={`${idp}-shiftable`} label="Can slide" checked={shiftableOnly} onChange={setShiftableOnly} />
+                <CheckboxField
+                  id={`${idp}-caps`}
+                  label="CAPS-able only"
+                  checked={capsOnly}
+                  disabled={p.disabled || capsUnknown}
+                  onChange={setCapsOnly}
+                />
                 <span className="gpr-sub">
                   {fmtInt(rows.length)} of {fmtInt(allRows.length)} variant{allRows.length === 1 ? '' : 's'}
                 </span>
@@ -396,6 +529,7 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
                   </button>
                 ) : null}
               </div>
+              {capsNote ? <p className="gpr-sub gpr-caps-note">{capsNote}</p> : null}
               {rows.length ? (
               <div className="gpr-table-wrap gpr-variant-scroll">
                 <table className="gpr-table gpr-variant-table">
@@ -464,6 +598,9 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
                             </span>
                           </td>
                           <td>{v.consequence ?? <span className="gpr-sub">–</span>}</td>
+                          <td>
+                            <CapsCell annotation={caps.get(v.key)} />
+                          </td>
                           <td>
                             {v.designable ? (
                               <span className="gpr-chip gpr-chip-ok">

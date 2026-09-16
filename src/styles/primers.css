@@ -2437,6 +2437,38 @@
 }
 
 /* `hidden` must win over the display rules above (Bootstrap uses !important; this relies on source order). */
+/* ---- CAPS annotation ---- */
+
+/* Secondary text inside a chip: present, but not competing with the verdict. */
+.gpr-root .gpr-caps-more {
+  font-weight: 400;
+  opacity: 0.75;
+}
+
+.gpr-root .gpr-caps-note {
+  margin: 4px 0 0;
+  max-width: 68ch;
+}
+
+/*
+ * A ring, not a fill: consequence colour already owns the lollipop, and a
+ * second meaning on the same channel would be unreadable to anyone matching
+ * the fill against the legend.
+ */
+.gpr-root .gpr-browser-caps {
+  stroke: var(--gpr-fg);
+  stroke-width: 1.25;
+  stroke-dasharray: 2.5 2;
+  opacity: 0.65;
+}
+
+.gpr-root .gpr-browser-caps-key {
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+  fill: var(--gpr-muted);
+}
+
 .gpr-root [hidden] {
   display: none;
 }

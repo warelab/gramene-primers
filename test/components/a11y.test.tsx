@@ -106,6 +106,9 @@ describe('axe-core on the main states', () => {
         modes={['gene', 'genotyping']}
         defaultMode="genotyping"
         state={{ v: 1, mode: 'genotyping', systemName: 'sorghum_bicolor', genotyping: { variantKey: '1:11109:C:A' } }}
+        // Exercises the CAPS column and its chips, which must read by glyph and
+        // text rather than by colour alone.
+        sequenceForRegion={async (q) => kasp.template.seq.slice(q.start - kasp.template.start, q.end - kasp.template.start + 1)}
       />,
     );
     await expectNoAxeViolations(container, 'genotyping inputs');

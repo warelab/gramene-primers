@@ -438,6 +438,8 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
                   defaultWindow={genotypingWindow}
                   geneId={geneId}
                   genesInRegion={props.genesInRegion}
+                  sequenceForRegion={props.sequenceForRegion}
+                  enzymes={props.enzymes}
                   pangenomeFeature={features.pangenome}
                   exportFeature={features.export}
                   disabled={formDisabled}

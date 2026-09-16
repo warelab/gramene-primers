@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { GenesInRegion, RegionGene, VariantEntry } from '../types';
+import type { CapsAnnotation } from '../caps';
 import { consequenceColor, consequenceLabel } from '../variants';
 import { useGenesInRegion } from './hooks/useGenesInRegion';
 import { niceTicks } from './TemplateMap';
@@ -65,6 +66,8 @@ export interface VariantBrowserProps {
   systemName: string;
   /** Host-supplied gene search; without it no gene track is drawn. */
   genesInRegion?: GenesInRegion;
+  /** CAPS verdicts by variant key, from the picker, so both views agree. */
+  caps?: ReadonlyMap<string, CapsAnnotation>;
   selectedKey?: string | null;
   onSelect?: (variant: VariantEntry) => void;
   /** Re-lists the table over the browsed region. */
@@ -267,6 +270,8 @@ export function VariantBrowser(p: VariantBrowserProps): JSX.Element {
         {inView.map((v) => {
           const px = x(v.vcf.position);
           const selected = p.selectedKey === v.key;
+          const caps = p.caps?.get(v.key);
+          const cuts = !!caps && !caps.unknown && caps.verdict === 'caps';
           return (
             <g
               key={v.key}
@@ -278,8 +283,10 @@ export function VariantBrowser(p: VariantBrowserProps): JSX.Element {
                 if (v.designable) p.onSelect?.(v);
               }}
             >
-              <title>{`${v.label} · ${v.kind} · ${consequenceLabel(v.consequence)}${v.designable ? '' : ' · cannot be designed'}`}</title>
+              <title>{`${v.label} · ${v.kind} · ${consequenceLabel(v.consequence)}${cuts ? ` · ${caps!.sites[0]!.enzyme.name} cuts one allele` : ''}${v.designable ? '' : ' · cannot be designed'}`}</title>
               <line x1={px} x2={px} y1={variantsY} y2={variantsY + VARIANT_STEM} stroke={consequenceColor(v.consequence)} />
+              {/* Colour already carries consequence, so a CAPS-able variant is ringed rather than recoloured. */}
+              {cuts ? <circle className="gpr-browser-caps" cx={px} cy={variantsY + VARIANT_STEM} r={selected ? 8 : 6.5} fill="none" /> : null}
               <circle cx={px} cy={variantsY + VARIANT_STEM} r={selected ? 5 : 3.5} fill={consequenceColor(v.consequence)} />
             </g>
           );
@@ -290,6 +297,18 @@ export function VariantBrowser(p: VariantBrowserProps): JSX.Element {
         {geneState.unsupported ? <span className="gpr-sub">Gene models are not available here.</span> : null}
         {geneState.loading ? <span className="gpr-sub">Loading gene models…</span> : null}
         {geneState.error ? <span className="gpr-sub">Gene models could not be loaded.</span> : null}
+        {p.variants.some((v) => {
+          const c = p.caps?.get(v.key);
+          return !!c && !c.unknown && c.verdict === 'caps';
+        }) ? (
+          <span className="gpr-browser-key">
+            <svg className="gpr-browser-caps-key" viewBox="0 0 14 14" aria-hidden="true" focusable="false">
+              <circle className="gpr-browser-caps" cx="7" cy="7" r="5.5" fill="none" />
+              <circle cx="7" cy="7" r="2.5" />
+            </svg>
+            cut differently by an enzyme
+          </span>
+        ) : null}
         {legend.map(([consequence, color]) => (
           <span key={consequence} className="gpr-browser-key">
             <span className="gpr-browser-swatch" aria-hidden="true" style={{ backgroundColor: color }} />

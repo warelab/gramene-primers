@@ -57,6 +57,9 @@ import { PrimerDesigner } from 'gramene-primers';
 | `region` | `{region, start, end, strand?}` | the gene location | Region prefill |
 | `sequence` | `string` | | Sequence-mode prefill |
 | `modes` | `DesignerMode[]` | the four design modes | Offered modes; a mode without its inputs is hidden. `genotyping` is opt-in: list it to offer KASP/AS-PCR design (it needs a genome) |
+| `genesInRegion` | `GenesInRegion` | | Gene models for the genotyping variant browser; without it the gene track is hidden |
+| `sequenceForRegion` | `SequenceForRegion` | | Reference sequence for the CAPS annotation; without it the CAPS column reads "unknown". **Must be the same assembly and release the primers API reads variants from** |
+| `enzymes` | `RestrictionEnzyme[]` | `COMMON_ENZYMES` | Restriction enzymes to consider — pass what the lab actually stocks |
 | `defaultMode`, `defaultParams` | | | Initial mode and Primer3 parameter overrides |
 | `state`, `onStateChange` | `PrimerDesignerState` | uncontrolled | Controlled, JSON-serializable `{v: 1, …}` state |
 | `persistSequence` | `boolean` | `true` | `false` keeps the pasted sequence out of emitted state (it survives only while mounted) |
@@ -248,6 +251,66 @@ unknown genome sizes (reference or pan-genome) count as FALLBACK_GENOME_GB = 1 G
 | `matchCheckResults`, `unlikelyReason`, `unlikelyText` | Results by sequence; why a product is `unlikely` |
 | `summarizePangenome`, `truncatedGenomeCount`, `pangenomeRows`, `PANGENOME_STATUS_META` | Pan-genome matrix data (`amplifies = single_perfect + single_mismatch + multiple`; `truncated` is a flag, not a status) |
 | `revcomp`, `transcriptLayout`, `cdnaToGenomicBlocks`, `mismatchIndexes`, `formatGenomic` | IUPAC-aware, case-preserving coordinates (1-based, inclusive) |
+| `annotateVariants`, `capsCall`, `differentialSites`, `dcapsOpportunities`, `enzymeCounts` | CAPS / dCAPS annotation for a variant listing — see [CAPS](#caps) |
+| `findSites`, `iupacMatcher`, `digestFragments`, `isResolvable`, `variantContext`, `verifyWindow` | The restriction-site engine underneath it |
+| `COMMON_ENZYMES`, `findEnzyme`, `enzymeSpecificity`, `isSixCutter` | The bundled enzyme panel |
+
+### CAPS
+
+A variant can often be typed by digesting an ordinary PCR product instead of by
+allele-specific priming: **CAPS** when the variant itself creates or destroys a
+restriction site, **dCAPS** when a deliberate mismatch in the primer creates one.
+
+This is an *annotation* — a property of the sequence — not a third assay type. A
+genotyping set is three oligos by definition, which CAPS does not fit, so
+nothing about designing or ordering sets changes. The column simply tells you
+whether a cheaper assay is available for a variant before you commit to KASP.
+
+It runs entirely in the browser and needs no new endpoint, but it does need
+reference sequence, which a variant listing does not carry. Supply
+`sequenceForRegion` and the column fills in; omit it and every row reads
+`Unknown` — never `None`, which would be a claim the client cannot make.
+
+```tsx
+<PrimerDesigner
+  apiBase={apiBase}
+  gene={gene}
+  modes={['gene', 'genotyping']}
+  sequenceForRegion={async ({ system_name, region, start, end }, options) => {
+    const r = await fetch(`${ensemblRest}/sequence/region/${species}/${region}:${start}-${end}?content-type=application/json`, options);
+    return (await r.json()).seq;
+  }}
+/>
+```
+
+Headless, without the components:
+
+```ts
+import { annotateVariants, COMMON_ENZYMES } from 'gramene-primers';
+
+const caps = annotateVariants(variants, windowSeq, windowStart);
+caps.get(variant.key); // { verdict: 'caps' | 'dcaps' | 'none', sites, dcaps, unknown }
+```
+
+Worth knowing before you trust a verdict:
+
+- **The sequence must match the variant source's release.** A mismatched gene
+  track looks wrong; mismatched sequence produces a confident, wrong enzyme
+  call. Every window is therefore checked against the reference alleles the API
+  reports, and one disagreement marks the whole window unknown.
+- **Six-cutters are ranked first.** Four-cutters discriminate far more variants
+  but cut an amplicon too often to read on a gel, so they are reported and
+  ranked below. `enzymeSpecificity` is what separates them — `XmnI`
+  (`GAANNNNTTC`) is ten characters long and still a six-cutter.
+- **dCAPS reports the opportunity, not the primer.** It gives the enzyme, which
+  side of the variant the mismatch sits on, how far away, and which base — not a
+  designed primer, which needs the thermodynamics the server owns.
+- **Methylation is not modelled.** Digests are computed from sequence alone, so
+  a Dam- or Dcm-sensitive enzyme may fail on DNA this annotation calls cuttable.
+- **The panel is a default.** Pass `enzymes` with what the lab stocks.
+
+Recognition sequences and cut positions follow
+[REBASE](https://rebase.neb.com) (Roberts *et al.*, *Nucleic Acids Res* 43:D298, 2015).
 
 ### Types
 

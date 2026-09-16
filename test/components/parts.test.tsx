@@ -548,6 +548,25 @@ describe('VariantBrowser', () => {
   const win = { start: 11180, end: 11290 };
   const base = () => ({ region: '1', window: win, systemName: 'sorghum_bicolor', variants: listing.variants, maxWindow: 50_000 });
 
+  it('rings the variants an enzyme cuts, without recolouring them', () => {
+    // Colour is the consequence scale; a second meaning on it would be unreadable.
+    const [first, second] = listing.variants;
+    const caps = new Map([
+      [first!.key, { verdict: 'caps' as const, sites: [{ enzyme: { name: 'XbaI', site: 'TCTAGA', cut: 1 }, cuts: 'ref' as const, site: { start: 1, end: 6, strand: 1 as const }, specificity: 4096 }], dcaps: [], unknown: null }],
+      [second!.key, { verdict: 'dcaps' as const, sites: [], dcaps: [], unknown: null }],
+    ]);
+    const { container } = render(<VariantBrowser {...base()} caps={caps} />);
+    // Only the natural site is marked; a dCAPS opportunity is not an assay.
+    expect(container.querySelectorAll('.gpr-browser-variant .gpr-browser-caps')).toHaveLength(1);
+    expect(container.querySelector('.gpr-browser-variant title')?.textContent).toContain('XbaI cuts one allele');
+    expect(screen.getByText('cut differently by an enzyme')).toBeTruthy();
+  });
+
+  it('omits the CAPS key when nothing in view is cut', () => {
+    render(<VariantBrowser {...base()} />);
+    expect(screen.queryByText('cut differently by an enzyme')).toBeNull();
+  });
+
   it('draws exactly the variants it is handed, so it cannot disagree with the table', () => {
     const { container } = render(<VariantBrowser {...base()} />);
     expect(container.querySelectorAll('.gpr-browser-variant')).toHaveLength(listing.variants.length);
@@ -803,6 +822,100 @@ describe('VariantPicker', () => {
     expect(p.onSelect).not.toHaveBeenCalled();
     fireEvent.change(screen.getByRole('textbox', { name: 'Alternative allele' }), { target: { value: 'A' } });
     expect(p.onSelect).toHaveBeenCalledWith({ manual: { region: '1', position: 11109, ref: 'C', alt: 'A' } });
+  });
+
+  describe('CAPS annotation', () => {
+    // Real bases for the window, cut from the design capture so the two
+    // fixtures cannot drift apart.
+    const kasp = (JSON.parse(readFileSync(pkgPath('test', 'fixtures', 'genotyping', 'capture-genotyping-design-rs871475760-kasp.json'), 'utf8')) as {
+      response: { template: { start: number; seq: string } };
+    }).response;
+    const sequenceForRegion = async (q: { start: number; end: number }) =>
+      kasp.template.seq.slice(q.start - kasp.template.start, q.end - kasp.template.start + 1);
+
+    /** Rows are keyed by position: two variants in this window are both C>T. */
+    const capsRow = (position: number) => within(screen.getByRole('row', { name: new RegExp(String(position)) }));
+
+    it('names the enzyme that cuts one allele and not the other', async () => {
+      const fake = new FakePrimersClient();
+      fake.onListVariants = () => variantList;
+      render(<VariantPicker client={fake} {...base({ sequenceForRegion })} />);
+      await screen.findByRole('table', { name: /variants/ });
+      // 1:11193 C>T destroys an XbaI site; 1:11182 A>G has no natural site.
+      await waitFor(() => expect(capsRow(11193).getByText('XbaI')).toBeTruthy());
+      expect(capsRow(11203).getByText('AccI')).toBeTruthy();
+      expect(capsRow(11182).getByText('dCAPS')).toBeTruthy();
+    });
+
+    it('reads "unknown", not "none", when the host supplies no sequence', async () => {
+      const fake = new FakePrimersClient();
+      fake.onListVariants = () => variantList;
+      render(<VariantPicker client={fake} {...base()} />);
+      const table = await screen.findByRole('table', { name: /variants/ });
+      expect(within(table).getAllByText('Unknown')).toHaveLength(variantList.variants.length);
+      expect(screen.getByText(/supplies no reference sequence/)).toBeTruthy();
+      expect(screen.getByRole('checkbox', { name: 'CAPS-able only' })).toBeDisabled();
+    });
+
+    it('refuses the whole window when the sequence disagrees with the reported alleles', async () => {
+      const fake = new FakePrimersClient();
+      fake.onListVariants = () => variantList;
+      // One wrong base is enough: it means the wrong release, and every call in
+      // the window would be wrong in the same invisible way.
+      const corrupt = async (q: { start: number; end: number }) => {
+        const seq = await sequenceForRegion(q);
+        const i = 11193 - q.start;
+        return seq.slice(0, i) + (seq[i] === 'A' ? 'C' : 'A') + seq.slice(i + 1);
+      };
+      render(<VariantPicker client={fake} {...base({ sequenceForRegion: corrupt })} />);
+      const table = await screen.findByRole('table', { name: /variants/ });
+      await waitFor(() => expect(within(table).getAllByText('Unknown')).toHaveLength(variantList.variants.length));
+      expect(screen.getByText(/probably different releases/)).toBeTruthy();
+    });
+
+    it('narrows the table to variants with a natural site', async () => {
+      const fake = new FakePrimersClient();
+      fake.onListVariants = () => variantList;
+      const user = userEvent.setup();
+      render(<VariantPicker client={fake} {...base({ sequenceForRegion })} />);
+      const table = await screen.findByRole('table', { name: /variants/ });
+      await waitFor(() => expect(within(table).queryAllByText('Unknown')).toHaveLength(0));
+      const all = within(table).getAllByRole('row').length;
+      await user.click(screen.getByRole('checkbox', { name: 'CAPS-able only' }));
+      const narrowed = within(screen.getByRole('table', { name: /variants/ })).getAllByRole('row').length;
+      expect(narrowed).toBeGreaterThan(1);
+      expect(narrowed).toBeLessThan(all);
+      await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+      expect(within(screen.getByRole('table', { name: /variants/ })).getAllByRole('row')).toHaveLength(all);
+    });
+
+    it('offers only enzymes that discriminate something in the window', async () => {
+      const fake = new FakePrimersClient();
+      fake.onListVariants = () => variantList;
+      const user = userEvent.setup();
+      render(<VariantPicker client={fake} {...base({ sequenceForRegion })} />);
+      await screen.findByRole('table', { name: /variants/ });
+      const select = screen.getByRole('combobox', { name: 'Enzyme' });
+      await waitFor(() => expect(within(select).getAllByRole('option').length).toBeGreaterThan(1));
+      const options = within(select).getAllByRole('option').map((o) => o.textContent ?? '');
+      expect(options[0]).toBe('Any enzyme');
+      expect(options.join(' ')).toContain('XbaI');
+      await user.selectOptions(select, 'XbaI');
+      // Only 1:11193 carries an XbaI site, and at one row the caption is singular.
+      const rows = within(screen.getByRole('table', { name: /cannot be designed/ })).getAllByRole('row');
+      expect(rows).toHaveLength(2);
+      expect(within(rows[1]!).getByText('XbaI')).toBeTruthy();
+    });
+
+    it('honours a host-supplied enzyme panel', async () => {
+      const fake = new FakePrimersClient();
+      fake.onListVariants = () => variantList;
+      render(<VariantPicker client={fake} {...base({ sequenceForRegion, enzymes: [] })} />);
+      const table = await screen.findByRole('table', { name: /variants/ });
+      // An empty panel discriminates nothing, but that is "None", not "Unknown".
+      await waitFor(() => expect(within(table).getAllByText('None')).toHaveLength(variantList.variants.length));
+      expect(screen.getByRole('combobox', { name: 'Enzyme' })).toBeDisabled();
+    });
   });
 });
 
