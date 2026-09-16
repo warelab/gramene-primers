@@ -5,6 +5,16 @@ All notable changes to this project are documented here. The format follows
 [semantic versioning](https://semver.org/). `0.x` releases are published with
 `--tag next`; `1.0.0` follows once `/primers` is live on data.sorghumbase.org.
 
+## [0.3.1] — 2026-09-16
+
+### Changed
+- **The variant table scrolls in place**, so a window listing hundreds of variants no longer pushes the assay options and the rest of the form off the page. Its headers stay pinned while you scroll.
+- **Every column sorts** — position, change, kind, ids, consequence and designability. Click a header to sort and again to reverse; equal values keep genome order. Sorting by designability brings the rows you can actually use to the top.
+- **Filtering is closer to the table it affects:** the search box now sits in a toolbar directly above it, next to a **Designable only** toggle and a count of how many rows are shown. The Filters group keeps only the choices that change what the server returns (variant kinds, EMS mutations).
+
+### Fixed
+- A test that asserted nothing: every variant in the listing fixture is designable, so its "cannot be designed" check never ran.
+
 ## [0.3.0] — 2026-09-16
 
 ### Added
