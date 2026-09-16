@@ -2356,6 +2356,11 @@
   font-size: 0.85em;
 }
 
+/* ---- genotyping: variant facet filters ------------------------------------- */
+.gpr-root .gpr-variant-facet {
+  min-width: 170px;
+}
+
 /* `hidden` must win over the display rules above (Bootstrap uses !important; this relies on source order). */
 .gpr-root [hidden] {
   display: none;

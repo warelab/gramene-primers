@@ -595,6 +595,79 @@ describe('VariantPicker', () => {
     expect(positions()[0]).not.toBe('11,282');
   });
 
+  it('builds the consequence filter from the listing', async () => {
+    const listing = JSON.parse(JSON.stringify(variantList)) as VariantListResponse;
+    listing.variants[0]!.consequence = 'missense_variant';
+    const fake = new FakePrimersClient();
+    fake.onListVariants = () => listing;
+    const user = userEvent.setup();
+    render(<VariantPicker client={fake} {...base()} />);
+    await screen.findByRole('table', { name: /variants/ });
+
+    const select = screen.getByRole('combobox', { name: 'Consequence' });
+    // "Any consequence" plus one option per consequence actually present.
+    expect(within(select).getAllByRole('option')).toHaveLength(3);
+    await user.selectOptions(select, 'missense_variant');
+    // One row left, so the caption reads "1 variant": match the stable half.
+    expect(within(screen.getByRole('table', { name: /cannot be designed/ })).getAllByRole('row')).toHaveLength(2);
+  });
+
+  it('offers no choice when every row shares one consequence', async () => {
+    const fake = new FakePrimersClient();
+    fake.onListVariants = () => variantList;
+    render(<VariantPicker client={fake} {...base()} />);
+    await screen.findByRole('table', { name: /variants/ });
+    expect(new Set(variantList.variants.map((v) => v.consequence)).size).toBe(1);
+    expect(screen.getByRole('combobox', { name: 'Consequence' })).toBeDisabled();
+  });
+
+  it('filters by the source a variant was reported from', async () => {
+    const fake = new FakePrimersClient();
+    fake.onListVariants = () => variantList;
+    const user = userEvent.setup();
+    render(<VariantPicker client={fake} {...base()} />);
+    await screen.findByRole('table', { name: /variants/ });
+
+    const sources = [...new Set(variantList.variants.flatMap((v) => v.records.map((r) => r.source)))];
+    expect(sources.length).toBeGreaterThan(1);
+    const target = sources[0]!;
+    const expected = variantList.variants.filter((v) => v.records.some((r) => r.source === target)).length;
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Source' }), target);
+    expect(within(screen.getByRole('table', { name: /variants/ })).getAllByRole('row')).toHaveLength(expected + 1);
+  });
+
+  it('filters to indels that can slide', async () => {
+    const fake = new FakePrimersClient();
+    fake.onListVariants = () => variantList;
+    const user = userEvent.setup();
+    render(<VariantPicker client={fake} {...base()} />);
+    await screen.findByRole('table', { name: /variants/ });
+    const shiftable = variantList.variants.filter((v) => typeof v.shift === 'number' && v.shift > 0).length;
+    expect(shiftable).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole('checkbox', { name: 'Can slide' }));
+    expect(within(screen.getByRole('table', { name: /cannot be designed/ })).getAllByRole('row')).toHaveLength(shiftable + 1);
+  });
+
+  it('stays escapable when a filter matches nothing', async () => {
+    const fake = new FakePrimersClient();
+    fake.onListVariants = () => variantList;
+    const user = userEvent.setup();
+    render(<VariantPicker client={fake} {...base()} />);
+    await screen.findByRole('table', { name: /variants/ });
+    // No variant in this window is multi-allelic.
+    expect(variantList.variants.every((v) => !v.multiallelic)).toBe(true);
+
+    await user.click(screen.getByRole('checkbox', { name: 'Multi-allelic only' }));
+    expect(screen.queryByRole('table', { name: /variants/ })).toBeNull();
+    expect(screen.getByText('No variants match these filters.')).toBeTruthy();
+
+    // The way back is still on screen, rather than hidden with the table.
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(within(screen.getByRole('table', { name: /variants/ })).getAllByRole('row')).toHaveLength(variantList.variants.length + 1);
+  });
+
   it('filters to the rows that can actually be designed, and says how many are shown', async () => {
     const fake = new FakePrimersClient();
     const listing = withUndesignable();

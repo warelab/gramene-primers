@@ -53,6 +53,39 @@ function isCompleteManual(v: Partial<ManualVariant>): v is ManualVariant {
   return !!v.region && Number.isInteger(v.position) && !!v.ref && !!v.alt;
 }
 
+/** A value picked from the listing itself, with how many rows carry it. */
+function FacetSelect(p: {
+  id: string;
+  label: string;
+  anyLabel: string;
+  value: string;
+  options: ReadonlyArray<readonly [string, number]>;
+  disabled?: boolean;
+  onChange: (value: string) => void;
+}): JSX.Element {
+  return (
+    <div className="gpr-field gpr-variant-facet">
+      <label className="gpr-label" htmlFor={p.id}>
+        {p.label}
+      </label>
+      <select
+        id={p.id}
+        className="gpr-select gpr-select-small"
+        value={p.value}
+        disabled={p.disabled || p.options.length < 2}
+        onChange={(e) => p.onChange(e.target.value)}
+      >
+        <option value="">{p.anyLabel}</option>
+        {p.options.map(([value, n]) => (
+          <option key={value} value={value}>
+            {value.replace(/_/g, ' ')} ({n})
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function sourceLabel(source: VariantSource | null | undefined): string {
   if (!source?.name) return 'manual entry only';
   return source.release ? `${source.name} ${source.release} variants` : `${source.name} variants`;
@@ -94,6 +127,10 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
   const [manualOpen, setManualOpen] = useState(false);
   const [designableOnly, setDesignableOnly] = useState(false);
   const [sort, setSort] = useState<{ key: VariantSortKey; dir: 1 | -1 }>({ key: 'position', dir: 1 });
+  const [consequence, setConsequence] = useState('');
+  const [source, setSource] = useState('');
+  const [multiallelicOnly, setMultiallelicOnly] = useState(false);
+  const [shiftableOnly, setShiftableOnly] = useState(false);
   const lookupCtrl = useRef<AbortController | null>(null);
 
   const window = p.state.window ?? p.defaultWindow ?? null;
@@ -122,15 +159,41 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
   const search = (filters.query ?? '').trim().toLowerCase();
   const listed = list.data?.variants ?? [];
   const allRows = lookup ? lookup.variants : listed;
+  /** Facet values come from the listing, so only choices that match something are offered. */
+  const facet = (pick: (v: VariantEntry) => string[]): Array<readonly [string, number]> => {
+    const counts = new Map<string, number>();
+    for (const v of allRows) for (const key of pick(v)) counts.set(key, (counts.get(key) ?? 0) + 1);
+    return [...counts].sort((a, b) => a[0].localeCompare(b[0]));
+  };
+  const consequences = useMemo(() => facet((v) => (v.consequence ? [v.consequence] : [])), [allRows]);
+  const sources = useMemo(() => facet((v) => [...new Set(v.records.map((r) => r.source))]), [allRows]);
+  // A new window can retire the chosen value; fall back to "any" rather than showing nothing.
+  const activeConsequence = consequences.some(([c]) => c === consequence) ? consequence : '';
+  const activeSource = sources.some(([c]) => c === source) ? source : '';
+  const anyFilter = !!(search || activeConsequence || activeSource || designableOnly || multiallelicOnly || shiftableOnly);
+
   const rows = useMemo(() => {
     const kept = allRows.filter((v) => {
       if (designableOnly && !v.designable) return false;
+      if (multiallelicOnly && !v.multiallelic) return false;
+      if (shiftableOnly && !(typeof v.shift === 'number' && v.shift > 0)) return false;
+      if (activeConsequence && v.consequence !== activeConsequence) return false;
+      if (activeSource && !v.records.some((r) => r.source === activeSource)) return false;
       if (!search) return true;
       return v.label.toLowerCase().includes(search) || v.ids.some((i) => i.toLowerCase().includes(search));
     });
     const cmp = compareVariants(sort.key);
     return [...kept].sort((a, b) => sort.dir * cmp(a, b));
-  }, [allRows, search, designableOnly, sort]);
+  }, [allRows, search, designableOnly, multiallelicOnly, shiftableOnly, activeConsequence, activeSource, sort]);
+
+  const clearFilters = () => {
+    setConsequence('');
+    setSource('');
+    setDesignableOnly(false);
+    setMultiallelicOnly(false);
+    setShiftableOnly(false);
+    p.onFilters({ ...filters, query: undefined });
+  };
 
   const canLookUp = typeof p.client.getVariant === 'function';
   const runLookup = async () => {
@@ -261,11 +324,11 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
 
           {list.loading ? <p className="gpr-hint">Looking for variants…</p> : null}
 
-          {!list.loading && !rows.length ? (
+          {!list.loading && !allRows.length ? (
             <p className="gpr-hint">{windowValid ? 'No variants in this window.' : 'Choose a window to list variants.'}</p>
           ) : null}
 
-          {rows.length ? (
+          {allRows.length ? (
             <>
               {list.data?.truncated && !lookup ? (
                 <p className="gpr-note" role="note" data-code="VARIANTS_TRUNCATED">
@@ -283,11 +346,39 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
                   className="gpr-variant-search"
                   onChange={(q) => p.onFilters({ ...filters, query: q || undefined })}
                 />
+                <FacetSelect
+                  id={`${idp}-consequence`}
+                  label="Consequence"
+                  anyLabel="Any consequence"
+                  value={activeConsequence}
+                  options={consequences}
+                  disabled={p.disabled}
+                  onChange={setConsequence}
+                />
+                <FacetSelect
+                  id={`${idp}-source`}
+                  label="Source"
+                  anyLabel="Any source"
+                  value={activeSource}
+                  options={sources}
+                  disabled={p.disabled}
+                  onChange={setSource}
+                />
+              </div>
+              <div className="gpr-variant-toolbar">
                 <CheckboxField id={`${idp}-designable`} label="Designable only" checked={designableOnly} onChange={setDesignableOnly} />
+                <CheckboxField id={`${idp}-multiallelic`} label="Multi-allelic only" checked={multiallelicOnly} onChange={setMultiallelicOnly} />
+                <CheckboxField id={`${idp}-shiftable`} label="Can slide" checked={shiftableOnly} onChange={setShiftableOnly} />
                 <span className="gpr-sub">
                   {fmtInt(rows.length)} of {fmtInt(allRows.length)} variant{allRows.length === 1 ? '' : 's'}
                 </span>
+                {anyFilter ? (
+                  <button type="button" className="gpr-btn gpr-btn-small gpr-btn-quiet" onClick={clearFilters}>
+                    Clear filters
+                  </button>
+                ) : null}
               </div>
+              {rows.length ? (
               <div className="gpr-table-wrap gpr-variant-scroll">
                 <table className="gpr-table gpr-variant-table">
                   <caption className="gpr-caption">
@@ -378,6 +469,9 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
                   </tbody>
                 </table>
               </div>
+              ) : (
+                <p className="gpr-hint">No variants match these filters.</p>
+              )}
             </>
           ) : null}
         </>
