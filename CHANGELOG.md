@@ -5,6 +5,24 @@ All notable changes to this project are documented here. The format follows
 [semantic versioning](https://semver.org/). `0.x` releases are published with
 `--tag next`; `1.0.0` follows once `/primers` is live on data.sorghumbase.org.
 
+## [0.7.0] — 2026-09-16
+
+Narrows 0.6.0 to what it should have been. The restriction analysis of a
+predicted product is about the product, not about variants inside it.
+
+### Added
+- **Recognition sites are highlighted in the amplicon sequence**, not just the cut points. Selecting an enzyme in the digest table boxes every occurrence of its site in the sequence and marks where it severs the strand; a site wrapping across a line is highlighted on both.
+- **A Positions column** in the digest table, giving each site's template coordinates, so a site can be found without counting bases.
+- **An enzyme picker on the template map**, listing every enzyme with a site in the template and how many. Choosing one draws its sites across the whole template and marks them in every pair's amplicon at once — the choice is shared, so picking an enzyme in a pair's details marks it on the map too.
+
+### Changed
+- The digest table is now "Restriction sites in the N bp product" and leads with the sites rather than the fragments.
+
+### Removed
+- **CAPS assays from variants inside a product**, added in 0.6.0, along with the variant track on the template map and the variant listing fetched after each design. A restriction map of an amplicon is a question about the amplicon; overlapping it with variants answered a question nobody had asked here, and the variant-based CAPS annotation on the genotyping variant table (0.5.0) is unchanged and still where that belongs.
+- `capsForAmplicon`, `digestsDistinguishable` and `ProductCaps` are gone with it, as are the `variants` and `variantsUnavailable` props on `PairsTable` and `PairDetail`. `DigestPanel` takes `maxCuts` instead, and `PairsTable`/`PairDetail` take `selectedEnzyme`/`onSelectEnzyme` so a host can share the choice. `TemplateMap`'s `variants` prop is replaced by `sites`, `enzymeOptions`, `selectedEnzyme` and `onSelectEnzyme`; `MapVariant` is now `MapSite`.
+- `variantOnTemplate` and `genomicToTemplatePosition` are kept: the second is the inverse of the existing `templateGenomicPosition`, and both are tested against real minus-strand and spliced templates.
+
 ## [0.6.0] — 2026-09-16
 
 ### Added
