@@ -1,18 +1,26 @@
-import type { DesignMode, PrimerDesignerState, RegionSpec } from 'gramene-primers';
+import type { DesignerMode, PrimerDesignerState, RegionSpec } from 'gramene-primers';
 import sequenceFixture from '../../test/components/fixtures/designs/sequence-iupac.json';
 
-export type MockVariant = 'default' | 'verified-gene-pairs' | 'verified-qpcr-pair' | 'repetitive-p5l';
+export type MockVariant =
+  | 'default'
+  | 'verified-gene-pairs'
+  | 'verified-qpcr-pair'
+  | 'repetitive-p5l'
+  | 'genotyping-kasp'
+  | 'genotyping-insertion'
+  | 'genotyping-deletion'
+  | 'genotyping-no-variation';
 
 export interface PlaygroundPage {
   id: string;
-  group: 'Gene' | 'Transcript' | 'Region' | 'Sequence' | 'Check';
+  group: 'Gene' | 'Transcript' | 'Region' | 'Sequence' | 'Check' | 'Genotyping';
   label: string;
   geneId?: string;
   systemName?: string;
   region?: RegionSpec;
   sequence?: string;
-  modes?: DesignMode[];
-  defaultMode: DesignMode;
+  modes?: DesignerMode[];
+  defaultMode: DesignerMode;
   /** Saved state the page starts from (controlled restore). */
   initialState?: PrimerDesignerState;
   mockVariant?: MockVariant;
@@ -130,6 +138,86 @@ export const PAGES: readonly PlaygroundPage[] = [
       check: { checks: ['specificity', 'pangenome'] },
     },
     note: '278 bp on isoforms .1/.2/.3; transcriptome off-targets; transcript-mode pan-genome searches annotated transcripts only.',
+  },
+  {
+    id: 'genotyping-rs871475760',
+    group: 'Genotyping',
+    label: 'KASP on rs871475760 (SNV)',
+    geneId: 'SORBI_3001G000200',
+    systemName: 'sorghum_bicolor',
+    modes: ['gene', 'genotyping'],
+    defaultMode: 'genotyping',
+    mockVariant: 'genotyping-kasp',
+    initialState: {
+      v: 1,
+      mode: 'genotyping',
+      systemName: 'sorghum_bicolor',
+      genotyping: {
+        variantId: 'rs871475760',
+        variantKey: '1:11109:C:A',
+        window: { region: '1', start: 11180, end: 11290 },
+        assay: { type: 'kasp', num_sets: 2 },
+      },
+    },
+    note: 'Two KASP sets: S1 reverse 65 bp (usable), S2 forward 92 bp (poor, tailed-structure issue). Check them to see the allele matrix.',
+  },
+  {
+    id: 'genotyping-insertion-blocked',
+    group: 'Genotyping',
+    label: 'Insertion with a blocked orientation',
+    geneId: 'SORBI_3001G000200',
+    systemName: 'sorghum_bicolor',
+    modes: ['gene', 'genotyping'],
+    defaultMode: 'genotyping',
+    mockVariant: 'genotyping-insertion',
+    initialState: {
+      v: 1,
+      mode: 'genotyping',
+      systemName: 'sorghum_bicolor',
+      genotyping: { variantId: 'tmp_1_11502_C_CGT', variantKey: '1:11502:C:CGT' },
+    },
+    note: 'Forward is blocked by a known variant 4 nt from the 3′ end; only the reverse orientation yields a set, whose ALT primer ends on an inserted base.',
+  },
+  {
+    id: 'genotyping-manual-deletion',
+    group: 'Genotyping',
+    label: 'Deletion entered by hand',
+    geneId: 'SORBI_3001G000200',
+    systemName: 'sorghum_bicolor',
+    modes: ['gene', 'genotyping'],
+    defaultMode: 'genotyping',
+    mockVariant: 'genotyping-deletion',
+    initialState: {
+      v: 1,
+      mode: 'genotyping',
+      systemName: 'sorghum_bicolor',
+      genotyping: { manual: { region: '1', position: 11282, ref: 'CA', alt: 'C' } },
+    },
+    note: 'A shiftable deletion with no requested id: both orientations need relaxation level 1, and the ALT primer spans the deletion in two genomic blocks.',
+  },
+  {
+    id: 'genotyping-no-variation',
+    group: 'Genotyping',
+    label: 'Genome without variant data',
+    geneId: 'SORBI_3001G000200',
+    systemName: 'sorghum_bicolor',
+    modes: ['gene', 'genotyping'],
+    defaultMode: 'genotyping',
+    mockVariant: 'genotyping-no-variation',
+    initialState: { v: 1, mode: 'genotyping', systemName: 'sorghum_bicolor' },
+    note: 'No known variants here: the picker degrades to manual entry and says so, rather than failing.',
+  },
+  {
+    id: 'genotyping-ensembl-down',
+    group: 'Genotyping',
+    label: 'Variant lookups unavailable',
+    geneId: 'SORBI_3001G000200',
+    systemName: 'sorghum_bicolor',
+    modes: ['gene', 'genotyping'],
+    defaultMode: 'genotyping',
+    mockVariant: 'genotyping-kasp',
+    initialState: { v: 1, mode: 'genotyping', systemName: 'sorghum_bicolor' },
+    note: 'Add ?mockError=VARIATION_SOURCE_UNAVAILABLE to see the 503 path: a countdown, and manual entry still offered.',
   },
 ];
 

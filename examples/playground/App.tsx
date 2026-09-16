@@ -99,7 +99,7 @@ export function App({ search = '', mockDelayScale }: AppProps): JSX.Element {
           <button
             type="button"
             onClick={() => {
-              const s = states[page.id] ?? page.initialState ?? { v: 1 as const, mode: page.defaultMode };
+              const s: PrimerDesignerState = states[page.id] ?? page.initialState ?? { v: 1, mode: page.defaultMode };
               setStates((prev) => ({ ...prev, [page.id]: { ...s, designed: true, check: { checks: ['specificity'], ...s.check, jobId: EXPIRED_JOB_ID } } }));
               setEpoch((n) => n + 1);
             }}
@@ -118,7 +118,7 @@ export function App({ search = '', mockDelayScale }: AppProps): JSX.Element {
             systemName={page.systemName}
             region={page.region}
             sequence={page.sequence === 'mock' ? undefined : page.sequence}
-            modes={page.modes ?? ['gene', 'transcript', 'region', 'sequence']}
+            modes={page.modes ?? ['gene', 'transcript', 'region', 'sequence', 'genotyping']}
             defaultMode={page.defaultMode}
             state={controlled ? state ?? page.initialState : undefined}
             onStateChange={(s) => setStates((prev) => ({ ...prev, [page.id]: s }))}

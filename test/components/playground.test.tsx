@@ -17,7 +17,8 @@ describe('playground (?api=mock)', () => {
       </StrictMode>,
     );
     const pageSelect = screen.getByRole('combobox', { name: 'Page' });
-    const designPages = PAGES.filter((p) => p.group !== 'Check');
+    // Genotyping pages have no design form: they are exercised separately below.
+    const designPages = PAGES.filter((p) => p.group !== 'Check' && p.group !== 'Genotyping');
     expect(new Set(designPages.map((p) => p.defaultMode))).toEqual(new Set(['gene', 'transcript', 'region', 'sequence']));
     for (const page of designPages) {
       await user.selectOptions(pageSelect, page.id);
@@ -25,6 +26,17 @@ describe('playground (?api=mock)', () => {
       expect(await screen.findByRole('table', { name: /^5 primer pairs/ }, { timeout: 3000 }), page.id).toBeInTheDocument();
       expect(screen.getByTestId('pg-state')).toHaveTextContent('"designed": true');
     }
+  });
+
+  it('designs a genotyping assay from the mock variant capture', async () => {
+    const user = userEvent.setup();
+    render(<App search="?api=mock&page=genotyping-rs871475760" mockDelayScale={0.01} />);
+    // The picker lists the mock window rather than falling back to manual entry.
+    expect(await screen.findByRole('table', { name: /variant/ }, { timeout: 3000 })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Design assay' }));
+    const sets = await screen.findByRole('table', { name: /primer set/ }, { timeout: 3000 });
+    expect(within(sets).getAllByRole('row').length).toBeGreaterThan(1);
+    expect(screen.getByRole('tab', { name: 'Order sheet' })).toBeInTheDocument();
   });
 
   it('restores the P1/P2/P3 check page and runs a pan-genome check to completion', async () => {

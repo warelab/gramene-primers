@@ -12,10 +12,16 @@ export interface ExplainPanelProps {
   /** Design returned no pairs (`NO_PAIRS`); the panel opens automatically. */
   noPairs: boolean;
   idPrefix: string;
+  /**
+   * Overrides the heading. Several panels can appear on one page (one per
+   * orientation and relaxation level), and landmarks must not share an
+   * accessible name, so each caller gives its own.
+   */
+  title?: string;
 }
 
 /** Primer3 explain counts with plain-language hints (spec §C.3 ExplainPanel). */
-export function ExplainPanel({ explain, open, onToggle, noPairs, idPrefix }: ExplainPanelProps): JSX.Element | null {
+export function ExplainPanel({ explain, open, onToggle, noPairs, idPrefix, title }: ExplainPanelProps): JSX.Element | null {
   const summary = summarizeExplain(explain, 50);
   if (!summary.length && !noPairs) return null;
   const headingId = `${idPrefix}-explain-h`;
@@ -24,7 +30,7 @@ export function ExplainPanel({ explain, open, onToggle, noPairs, idPrefix }: Exp
     <section className="gpr-explain" data-state={open ? 'open' : 'closed'} aria-labelledby={headingId}>
       <h3 className="gpr-h3" id={headingId}>
         <button type="button" className="gpr-disclosure" aria-expanded={open} aria-controls={bodyId} onClick={() => onToggle(!open)}>
-          {noPairs ? 'Why no primer pairs?' : 'Primer3 explain'}
+          {title ?? (noPairs ? 'Why no primer pairs?' : 'Primer3 explain')}
         </button>
       </h3>
       <div id={bodyId} className="gpr-explain-body" hidden={!open}>

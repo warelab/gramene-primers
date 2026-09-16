@@ -8,7 +8,16 @@ import { GenomePicker } from '../../src/components/GenomePicker';
 import { PangenomeMatrix } from '../../src/components/PangenomeMatrix';
 import { designerReducer } from '../../src/components/reducer';
 import { expectedMaskSource, RepeatOptions } from '../../src/components/RepeatOptions';
+import { AlleleMatrix } from '../../src/components/AlleleMatrix';
+import { AssayOptions } from '../../src/components/AssayOptions';
+import { ManualVariantInputs } from '../../src/components/ManualVariantInputs';
+import { OrderSheet } from '../../src/components/OrderSheet';
+import { OrientationExplain } from '../../src/components/OrientationExplain';
+import { VariantPicker } from '../../src/components/VariantPicker';
+import { GenotypingPanel } from '../../src/components/GenotypingPanel';
+import { PrimerDesigner } from '../../src/components/PrimerDesigner';
 import { GprRoot } from '../../src/components/Root';
+import { SetsTable } from '../../src/components/SetsTable';
 import { SpecificityResults } from '../../src/components/SpecificityResults';
 import { niceTicks, packPairLanes, TemplateMap } from '../../src/components/TemplateMap';
 import { toApiError } from '../../src/client';
@@ -17,11 +26,23 @@ import * as api from '../../src/index';
 import { summarizePangenome } from '../../src/pangenome';
 import { unlikelyReason, unlikelyText } from '../../src/results';
 import { initialDesignerState } from '../../src/state';
-import type { CheckResults, GenomeAmplicon, PangenomeGenomeResult, PangenomeResults, PrimerDesignerState, PrimerTemplate } from '../../src/types';
+import type {
+  CheckJob,
+  CheckResults,
+  DesignerMode,
+  GenomeAmplicon,
+  GenotypingDesignResponse,
+  GenotypingState,
+  PangenomeGenomeResult,
+  PangenomeResults,
+  PrimerDesignerState,
+  PrimerTemplate,
+  VariantListResponse,
+} from '../../src/types';
 import { doneCheckJob, gene200, genomeEntry, genomesResponse, transcriptCheckJob } from '../fixtures/samples';
 import { pkgPath } from '../paths';
-import { apiError } from './fakeClient';
-import { designFixture } from './fixtures';
+import { apiError, FakePrimersClient } from './fakeClient';
+import { API, designFixture } from './fixtures';
 
 describe('RepeatOptions', () => {
   const base = { idPrefix: 't', mode: 'gene' as const, avoidRepeats: true, repeatMaskMode: 'n_mask' as const, template: null, hasLowercase: false };
@@ -364,6 +385,448 @@ describe('ErrorBanner', () => {
   });
 });
 
+describe('PrimerDesigner: genotyping mode', () => {
+  const designer = (over: { modes?: DesignerMode[]; defaultMode?: DesignerMode } = {}) => {
+    const fake = new FakePrimersClient();
+    fake.genomes = genomesResponse();
+    render(<PrimerDesigner apiBase={API} client={fake} gene={gene200} modes={over.modes} defaultMode={over.defaultMode} />);
+    return fake;
+  };
+
+  it('offers genotyping only when the host asks for it', () => {
+    const { unmount } = render(<PrimerDesigner apiBase={API} client={new FakePrimersClient()} gene={gene200} />);
+    expect(screen.queryByRole('tab', { name: 'Genotyping (KASP)' })).toBeNull();
+    unmount();
+    designer({ modes: ['gene', 'genotyping'] });
+    expect(screen.getByRole('tab', { name: 'Genotyping (KASP)' })).toBeTruthy();
+  });
+
+  it('swaps the design form for the genotyping panel, and back', async () => {
+    const user = userEvent.setup();
+    designer({ modes: ['gene', 'genotyping'], defaultMode: 'genotyping' });
+    expect(screen.getByRole('button', { name: 'Design assay' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Design primers' })).toBeNull();
+
+    await user.click(screen.getByRole('tab', { name: 'Gene' }));
+    expect(screen.getByRole('button', { name: 'Design primers' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Design assay' })).toBeNull();
+  });
+});
+
+describe('GenotypingPanel', () => {
+  const kasp = (JSON.parse(readFileSync(pkgPath('test', 'fixtures', 'genotyping', 'capture-genotyping-design-rs871475760-kasp.json'), 'utf8')) as {
+    response: GenotypingDesignResponse;
+  }).response;
+
+  const panel = (genotyping: GenotypingState, over: Partial<Record<string, unknown>> = {}) => {
+    const fake = new FakePrimersClient();
+    fake.onDesignGenotyping = () => kasp;
+    const dispatch = vi.fn();
+    const state: PrimerDesignerState = { v: 1, mode: 'genotyping', systemName: 'sorghum_bicolor', genotyping };
+    render(<GenotypingPanel client={fake} state={state} dispatch={dispatch} systemName="sorghum_bicolor" genomes={genomesResponse()} {...over} />);
+    return { fake, dispatch };
+  };
+
+  it('cannot design until a variant is chosen', () => {
+    panel({});
+    expect(screen.getByRole('button', { name: 'Design assay' })).toBeDisabled();
+    expect(screen.getByText('Choose a variant to design against.')).toBeTruthy();
+  });
+
+  it('designs from the chosen variant and defaults the selection to the sets the server packed', async () => {
+    const user = userEvent.setup();
+    const { fake, dispatch } = panel({ variantKey: '1:11109:C:A' });
+    await user.click(screen.getByRole('button', { name: 'Design assay' }));
+    expect(fake.genotypingDesignCalls[0]!.req).toEqual({ system_name: 'sorghum_bicolor', variant: { region: '1', position: 11109, ref: 'C', alt: 'A' } });
+    const done = dispatch.mock.calls.map(([a]) => a).find((a) => a.type === 'genotypingDesignDone');
+    expect(done).toMatchObject({ noSets: false, templateOnly: false, checkedSetKeys: kasp.check!.set_ids.map((id) => kasp.sets.find((s) => s.id === id)!.key) });
+  });
+
+  it('posts exactly the check request the design handed back', async () => {
+    const user = userEvent.setup();
+    const keys = kasp.sets.map((s) => s.key);
+    const { fake } = panel({ variantKey: '1:11109:C:A', checkedSetKeys: keys, check: { checks: ['specificity', 'pangenome'] } });
+    await user.click(screen.getByRole('button', { name: 'Design assay' }));
+    await user.click(await screen.findByRole('button', { name: 'Check selected sets' }));
+    expect(fake.submitCalls[0]!.req).toEqual(kasp.check!.request);
+  });
+
+  it('keeps the allele tab shut until a check has produced calls', async () => {
+    const user = userEvent.setup();
+    panel({ variantKey: '1:11109:C:A' });
+    await user.click(screen.getByRole('button', { name: 'Design assay' }));
+    const alleles = await screen.findByRole('tab', { name: 'Alleles' });
+    expect(alleles).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('tab', { name: 'Sets' })).toHaveAttribute('aria-selected', 'true');
+  });
+});
+
+describe('OrderSheet', () => {
+  const kasp = (JSON.parse(readFileSync(pkgPath('test', 'fixtures', 'genotyping', 'capture-genotyping-design-rs871475760-kasp.json'), 'utf8')) as {
+    response: GenotypingDesignResponse;
+  }).response;
+
+  it('lists three oligos per set, named for ordering', () => {
+    render(<OrderSheet sets={kasp.sets} />);
+    const table = screen.getByRole('table', { name: /oligos/ });
+    expect(within(table).getAllByRole('row')).toHaveLength(kasp.sets.length * 3 + 1);
+    expect(within(table).getByText(kasp.sets[0]!.order[0]!.name)).toBeTruthy();
+  });
+
+  it('does not repeat the sequence for an untailed primer, which is ordered as it anneals', () => {
+    render(<OrderSheet sets={kasp.sets} />);
+    const untailed = kasp.sets.flatMap((s) => s.order).filter((r) => r.order_seq === r.target_seq);
+    expect(untailed.length).toBeGreaterThan(0);
+    // One "same" per untailed oligo, instead of printing the identical string twice.
+    expect(screen.getAllByText('same')).toHaveLength(untailed.length);
+  });
+
+  it('shows the KASP mix and the submission sequence when the assay has them', () => {
+    render(<OrderSheet sets={kasp.sets} kaspMix={kasp.assay.kasp_mix} submissionSequence={kasp.variant.submission_sequence} />);
+    const mix = kasp.assay.kasp_mix!;
+    // "KASP mix:" is its own <strong>, so assert against the paragraph holding the recipe.
+    const note = screen.getByText(/KASP mix:/).closest('p');
+    expect(note).toHaveTextContent(`${mix.as_ref_uL} µL REF + ${mix.as_alt_uL} µL ALT + ${mix.common_uL} µL common at ${mix.stock_uM} µM`);
+    expect(screen.getByRole('button', { name: 'Copy the submission sequence' })).toBeTruthy();
+  });
+
+  it('offers the genotype-calls export only once there are results', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<OrderSheet sets={kasp.sets} />);
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+    expect(screen.getByRole('button', { name: 'Download Order sheet (TSV)' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Download Primers (FASTA)' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Genotype calls/ })).toBeNull();
+    unmount();
+
+    const job = (JSON.parse(readFileSync(pkgPath('test', 'fixtures', 'genotyping', 'capture-check-genotyping-result.json'), 'utf8')) as { response: CheckJob }).response;
+    render(<OrderSheet sets={kasp.sets} results={job.results!.genotyping} />);
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+    expect(screen.getByRole('button', { name: 'Download Genotype calls (TSV)' })).toBeTruthy();
+  });
+});
+
+describe('OrientationExplain', () => {
+  const design = (name: string) =>
+    (JSON.parse(readFileSync(pkgPath('test', 'fixtures', 'genotyping', `${name}.json`), 'utf8')) as { response: GenotypingDesignResponse }).response;
+
+  it('says which orientation was blocked and what blocked it', () => {
+    const d = design('capture-genotyping-design-tmp_1_11502_C_CGT');
+    const forward = d.orientations!.forward;
+    expect(forward.status).toBe('blocked');
+    const blocker = forward.blockers[0]!;
+    render(<OrientationExplain orientations={d.orientations} />);
+    const card = screen.getByRole('region', { name: 'Forward' });
+    expect(card).toHaveTextContent('Blocked');
+    expect(card).toHaveTextContent(`${blocker.distance_from_3p} nt from the 3′ end`);
+    expect(card).toHaveTextContent(blocker.alleles);
+  });
+
+  it('reports the relaxation level each orientation needed', () => {
+    const d = design('capture-genotyping-design-manual-deletion');
+    render(<OrientationExplain orientations={d.orientations} />);
+    for (const which of ['Forward', 'Reverse'] as const) {
+      const report = d.orientations![which.toLowerCase() as 'forward' | 'reverse'];
+      if (report.relaxation_level == null) continue;
+      expect(screen.getByRole('region', { name: which })).toHaveTextContent(`relaxation level ${report.relaxation_level}`);
+    }
+  });
+
+  it('renders nothing for a template-only design, which has no orientations', () => {
+    const { container } = render(<OrientationExplain orientations={null} />);
+    expect(container.firstChild).toBeNull();
+  });
+});
+
+describe('VariantPicker', () => {
+  const variantList = (JSON.parse(readFileSync(pkgPath('test', 'fixtures', 'genotyping', 'capture-variants-list-1_11180-11290.json'), 'utf8')) as { response: VariantListResponse })
+    .response;
+  const window = { region: '1', start: 11180, end: 11290 };
+  const base = (over: Record<string, unknown> = {}) => ({
+    systemName: 'sorghum_bicolor',
+    variationAvailable: true,
+    source: { name: 'Ensembl', release: '115' },
+    state: { window } as GenotypingState,
+    onWindow: vi.fn(),
+    onFilters: vi.fn(),
+    onSelect: vi.fn(),
+    ...over,
+  });
+
+  it('lists the window and marks a row that cannot be designed', async () => {
+    const fake = new FakePrimersClient();
+    fake.onListVariants = () => variantList;
+    render(<VariantPicker client={fake} {...base()} />);
+    const table = await screen.findByRole('table', { name: /variants/ });
+    expect(within(table).getAllByRole('row')).toHaveLength(variantList.variants.length + 1);
+    const undesignable = variantList.variants.filter((v) => !v.designable);
+    for (const v of undesignable) {
+      expect(within(table).getByRole('radio', { name: `Use ${v.label}` })).toBeDisabled();
+    }
+  });
+
+  it('selects by content key, which already names one alternative allele', async () => {
+    const fake = new FakePrimersClient();
+    fake.onListVariants = () => variantList;
+    const p = base();
+    const user = userEvent.setup();
+    render(<VariantPicker client={fake} {...p} />);
+    const first = variantList.variants.find((v) => v.designable)!;
+    await user.click(await screen.findByRole('radio', { name: `Use ${first.label}` }));
+    expect(p.onSelect).toHaveBeenCalledWith({ variantKey: first.key, variantId: first.ids[0], alt: first.vcf.alt });
+  });
+
+  it('refuses a window longer than the server will list', () => {
+    const fake = new FakePrimersClient();
+    fake.onListVariants = () => variantList;
+    render(<VariantPicker client={fake} {...base({ state: { window: { region: '1', start: 1, end: 60_000 } } })} />);
+    expect(screen.getByText(/at most 50,000 bp can be listed/)).toBeTruthy();
+  });
+
+  it('degrades to manual entry when lookups are switched off, instead of disabling the form', async () => {
+    const fake = new FakePrimersClient();
+    fake.onListVariants = () => apiError({ status: 503, code: 'FEATURE_DISABLED', message: 'off' });
+    render(<VariantPicker client={fake} {...base()} />);
+    expect(await screen.findByText(/switched off on this server/)).toBeTruthy();
+    // The manual fields stay usable, and the browser is gone.
+    expect(screen.getByRole('textbox', { name: 'Reference allele' })).not.toBeDisabled();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('validates manual entry only once it is touched, and commits only a complete variant', async () => {
+    const fake = new FakePrimersClient();
+    const p = base({ variationAvailable: false, state: {} });
+    render(<VariantPicker client={fake} {...p} />);
+    // Nothing typed yet: no error shown.
+    expect(screen.queryByText(/Position must be a whole number/)).toBeNull();
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Sequence' }), { target: { value: '1' } });
+    expect(p.onSelect).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Position' }), { target: { value: '11109' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Reference allele' }), { target: { value: 'C' } });
+    expect(p.onSelect).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Alternative allele' }), { target: { value: 'A' } });
+    expect(p.onSelect).toHaveBeenCalledWith({ manual: { region: '1', position: 11109, ref: 'C', alt: 'A' } });
+  });
+});
+
+describe('ManualVariantInputs', () => {
+  const base = () => ({ idPrefix: 't', value: undefined, issues: [], onChange: vi.fn() });
+
+  it('collects the four VCF fields and keeps the rest of the value', () => {
+    const p = base();
+    render(<ManualVariantInputs {...p} value={{ region: '1', position: 11109 }} />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Reference allele' }), { target: { value: 'C' } });
+    expect(p.onChange).toHaveBeenCalledWith({ region: '1', position: 11109, ref: 'C' });
+  });
+
+  it('spells out both accepted styles, since an Ensembl insertion is positioned differently', () => {
+    render(<ManualVariantInputs {...base()} />);
+    const hint = screen.getByText(/Either style works/);
+    expect(hint).toHaveTextContent('after');
+    expect(hint).toHaveTextContent('50 bases');
+  });
+
+  it('routes an issue to its own field and lists ones that name no field', () => {
+    render(
+      <ManualVariantInputs
+        {...base()}
+        value={{ region: '1', position: 0, ref: 'C', alt: 'A' }}
+        issues={[
+          { field: 'position', code: 'INVALID_POSITION', message: 'Position must be a whole number of at least 1' },
+          { field: 'variant', code: 'REQUIRED', message: 'Choose a variant' },
+        ]}
+      />,
+    );
+    expect(screen.getByRole('spinbutton', { name: 'Position' })).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText('Choose a variant')).toBeTruthy();
+  });
+
+  it('names the base the genome actually has when the reference does not match', () => {
+    render(<ManualVariantInputs {...base()} value={{ region: '1', position: 11109, ref: 'G', alt: 'A' }} refMismatch={{ given: 'G', genome: 'C' }} />);
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('has C at this position, not G');
+  });
+
+  it('offers a reference check that designs nothing', async () => {
+    const onCheck = vi.fn();
+    const user = userEvent.setup();
+    render(<ManualVariantInputs {...base()} onCheckReference={onCheck} />);
+    await user.click(screen.getByRole('button', { name: 'Check reference' }));
+    expect(onCheck).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('AlleleMatrix', () => {
+  const genotypeCapture = (name: string) =>
+    (JSON.parse(readFileSync(pkgPath('test', 'fixtures', 'genotyping', `${name}.json`), 'utf8')) as { response: CheckJob }).response;
+  const ambiguous = genotypeCapture('capture-check-genotyping-ambiguous');
+  const runningJob = genotypeCapture('capture-check-genotyping-running');
+  const results = () => ambiguous.results!.genotyping!;
+
+  it('reports the server summary, not a count of the rows it happens to hold', () => {
+    const g = results();
+    render(<AlleleMatrix results={g} />);
+    const readout = screen.getByText(/genomes:/);
+    // The job summarises every genome; the response carries only some of the rows.
+    expect(g.genomes.length).toBeLessThan(g.summary.genomes_total);
+    expect(readout).toHaveTextContent(String(g.summary.genomes_total));
+    expect(readout).toHaveTextContent(`${g.summary.ref} reference`);
+    expect(readout).toHaveTextContent(`${g.summary.alt} alternative`);
+    expect(readout).toHaveTextContent(`${g.genomes.length} shown`);
+  });
+
+  it('renders an ambiguous genome that reports no sequence, rather than treating it as an error', () => {
+    const g = results();
+    const row = g.genomes.find((x) => x.allele === 'ambiguous');
+    expect(row).toBeTruthy();
+    // Copies disagreed, so there is no single observed core to show.
+    expect(row!.observed).toBeNull();
+    render(<AlleleMatrix results={g} />);
+    const cell = screen.getByRole('gridcell', { name: new RegExp(`^${row!.display_name}: Copies disagree`) });
+    expect(cell).toBeTruthy();
+  });
+
+  it('shows a withheld prediction as not predictable, not as a disagreement', () => {
+    const g = results();
+    const withheld = g.sets[0]!.genomes.find((p) => p.predicted === 'unknown');
+    expect(withheld?.agrees).toBeNull();
+    render(<AlleleMatrix results={g} />);
+    expect(screen.getAllByRole('gridcell', { name: /Cannot be predicted/ }).length).toBeGreaterThan(0);
+  });
+
+  it('a running job with an all-zero summary reads as still working', () => {
+    const g = runningJob.results!.genotyping!;
+    expect(g.summary.genomes_total).toBe(0);
+    render(<AlleleMatrix results={g} running />);
+    expect(screen.getByText(/Calling alleles/)).toBeTruthy();
+    expect(screen.queryByText(/0 genomes:/)).toBeNull();
+  });
+
+  it('does not count a withheld comparison as a disagreement', async () => {
+    const g = results();
+    // Every row here either agrees or cannot be compared; `agrees: null` is not a disagreement.
+    expect(g.sets.every((s) => s.summary.disagree === 0)).toBe(true);
+    expect(g.sets.some((s) => s.summary.not_comparable > 0)).toBe(true);
+    const user = userEvent.setup();
+    render(<AlleleMatrix results={g} />);
+    await user.click(screen.getByRole('checkbox', { name: 'Disagreements only' }));
+    expect(screen.queryByRole('grid')).toBeNull();
+    expect(screen.getByText('No genomes match these filters.')).toBeTruthy();
+  });
+
+  it('keeps exactly the disagreeing genomes when a panel has some', async () => {
+    const g = genotypeCapture('capture-check-genotyping-result').results!.genotyping!;
+    const disagreeing = new Set<string>();
+    for (const s of g.sets) {
+      if (s.reference?.agrees === false) disagreeing.add(s.reference.system_name);
+      for (const r of s.genomes ?? []) if (r.agrees === false) disagreeing.add(r.system_name);
+    }
+    expect(disagreeing.size).toBeGreaterThan(0);
+    const user = userEvent.setup();
+    render(<AlleleMatrix results={g} />);
+    await user.click(screen.getByRole('checkbox', { name: 'Disagreements only' }));
+    // the header row, plus one row per disagreeing genome
+    expect(screen.getAllByRole('row')).toHaveLength(disagreeing.size + 1);
+  });
+});
+
+describe('AssayOptions', () => {
+  const base = () => ({
+    idPrefix: 't',
+    assay: undefined,
+    params: undefined,
+    issues: [],
+    onAssay: vi.fn(),
+    onParam: vi.fn(),
+    onResetParams: vi.fn(),
+    onRepeats: vi.fn(),
+  });
+
+  it('sends the mismatch position as a number, since a select hands back a string', () => {
+    const p = base();
+    render(<AssayOptions {...p} />);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Mismatch position' }), { target: { value: '3' } });
+    expect(p.onAssay).toHaveBeenCalledWith({ mismatch_position: 3 });
+  });
+
+  it('sends the genuinely textual options as strings', () => {
+    const p = base();
+    render(<AssayOptions {...p} />);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Orientation' }), { target: { value: 'reverse' } });
+    expect(p.onAssay).toHaveBeenCalledWith({ orientation: 'reverse' });
+  });
+
+  it('offers tails for KASP and hides them for untailed AS-PCR', () => {
+    const { unmount } = render(<AssayOptions {...base()} />);
+    expect(screen.getByRole('combobox', { name: 'Tails' })).toBeTruthy();
+    unmount();
+    render(<AssayOptions {...base()} assay={{ type: 'as_pcr' }} />);
+    expect(screen.queryByRole('combobox', { name: 'Tails' })).toBeNull();
+  });
+
+  it('says when a parameter was pinned, because a sent value is never relaxed', () => {
+    render(
+      <AssayOptions
+        {...base()}
+        params={{ max_size: 30 }}
+        settings={{ preset: 'kasp', params: {}, pinned: ['max_size'], ladder: [], floors: { as_min_tm: 52, as_min_gc: 15 } }}
+      />,
+    );
+    expect(screen.getByText(/Pinned: this value was sent/)).toBeTruthy();
+  });
+});
+
+describe('SetsTable', () => {
+  const kasp = (JSON.parse(readFileSync(pkgPath('test', 'fixtures', 'genotyping', 'capture-genotyping-design-rs871475760-kasp.json'), 'utf8')) as { response: GenotypingDesignResponse })
+    .response;
+
+  it('identifies a set by its content key, not the positional id', async () => {
+    const onChecked = vi.fn();
+    const user = userEvent.setup();
+    render(<SetsTable sets={kasp.sets} checkedKeys={[]} onCheckedChange={onChecked} />);
+    const table = screen.getByRole('table', { name: /^2 primer sets/ });
+    // header + one row per set
+    expect(within(table).getAllByRole('row')).toHaveLength(3);
+    await user.click(within(table).getByRole('checkbox', { name: 'Check set S1' }));
+    expect(onChecked).toHaveBeenCalledWith([kasp.sets[0]!.key]);
+    expect(kasp.sets[0]!.key).not.toBe(kasp.sets[0]!.id);
+  });
+
+  it('shows the orientation, product size and quality the design reported', () => {
+    render(<SetsTable sets={kasp.sets} />);
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows[0]).toHaveTextContent('reverse');
+    expect(rows[0]).toHaveTextContent('Usable');
+    expect(rows[0]).toHaveTextContent(String(kasp.sets[0]!.products.ref.size));
+    expect(rows[1]).toHaveTextContent('forward');
+    expect(rows[1]).toHaveTextContent('Poor');
+  });
+
+  it('offers the annealing sequence and the tailed order sequence as separate copies', () => {
+    render(<SetsTable sets={kasp.sets} />);
+    expect(screen.getByRole('button', { name: 'Copy the REF primer of set S1' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Copy the tailed order sequence of the REF primer of set S1' })).toBeTruthy();
+    // The common primer is untailed, so there is nothing separate to order.
+    expect(screen.queryByRole('button', { name: /order sequence of the common primer of set S1/ })).toBeNull();
+  });
+
+  it('expands a set into its per-oligo detail table', async () => {
+    const user = userEvent.setup();
+    render(<SetsTable sets={kasp.sets} />);
+    await user.click(screen.getAllByRole('button', { name: /^Details/ })[0]!);
+    expect(screen.getByRole('table', { name: /Primer statistics, set S1/ })).toBeTruthy();
+  });
+
+  it('caps the selection at five sets by disabling the rest', () => {
+    const many = Array.from({ length: 6 }, (_, i) => ({ ...kasp.sets[0]!, id: `S${i + 1}`, key: String(i).repeat(12) }));
+    const checked = many.slice(0, 5).map((s) => s.key);
+    render(<SetsTable sets={many} checkedKeys={checked} onCheckedChange={vi.fn()} />);
+    expect(screen.getByRole('checkbox', { name: 'Check set S1' })).not.toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'Check set S6' })).toBeDisabled();
+  });
+});
+
 describe('designerReducer', () => {
   it('switching mode clears template intervals and follows the default preset unless one was picked', () => {
     const s: PrimerDesignerState = { ...initialDesignerState({ gene: gene200 }), target: [10, 5], excluded: [[1, 2]], params: { opt_tm: 61 } };
@@ -390,6 +853,89 @@ describe('designerReducer', () => {
     expect(designerReducer(s, { type: 'setTab', tab: 'pairs' })).toBe(s);
     expect(designerReducer(s, { type: 'designDone', templateOnly: true, noPairs: false })).toBe(s);
     expect(JSON.parse(JSON.stringify(s))).toEqual(s);
+  });
+});
+
+describe('designerReducer: genotyping', () => {
+  const start = (): PrimerDesignerState => ({ ...initialDesignerState({ gene: gene200 }), mode: 'genotyping' });
+
+  it('a new variant clears the sets, the selection and the check job designed for the old one', () => {
+    let s = start();
+    s = designerReducer(s, { type: 'setGenotypingVariant', variantId: 'rs871475760', variantKey: '1:11109:C:A' });
+    s = designerReducer(s, { type: 'genotypingDesignDone', templateOnly: false, noSets: false, checkedSetKeys: ['f9df650ad116'], selectedSetKey: 'f9df650ad116' });
+    s = designerReducer(s, { type: 'genotypingCheckJob', jobId: 'abc' });
+    expect(s.genotyping).toMatchObject({ designed: true, checkedSetKeys: ['f9df650ad116'], check: { jobId: 'abc' } });
+
+    s = designerReducer(s, { type: 'setGenotypingVariant', variantKey: '1:11283:A:-' });
+    expect(s.genotyping).toEqual({ variantKey: '1:11283:A:-' });
+  });
+
+  it('switching assay type re-derives the defaults, but the first assay keeps its fields', () => {
+    let s = designerReducer(start(), { type: 'setGenotypingAssay', assay: { type: 'kasp', num_sets: 2 } });
+    expect(s.genotyping?.assay).toEqual({ type: 'kasp', num_sets: 2 });
+    s = designerReducer(s, { type: 'setGenotypingAssay', assay: { orientation: 'reverse' } });
+    expect(s.genotyping?.assay).toEqual({ type: 'kasp', num_sets: 2, orientation: 'reverse' });
+    s = designerReducer(s, { type: 'setGenotypingAssay', assay: { type: 'as_pcr' } });
+    expect(s.genotyping?.assay).toEqual({ type: 'as_pcr' });
+  });
+
+  it('caps the checked sets at five and ignores a repeat tick', () => {
+    let s = start();
+    for (const k of ['a', 'b', 'c', 'd', 'e', 'f']) s = designerReducer(s, { type: 'setGenotypingChecked', key: k.repeat(12), checked: true });
+    expect(s.genotyping?.checkedSetKeys).toEqual(['a', 'b', 'c', 'd', 'e'].map((k) => k.repeat(12)));
+    expect(designerReducer(s, { type: 'setGenotypingChecked', key: 'a'.repeat(12), checked: true })).toBe(s);
+    expect(designerReducer(s, { type: 'setGenotypingChecked', key: 'z'.repeat(12), checked: false })).toBe(s);
+    s = designerReducer(s, { type: 'setGenotypingCheckedKeys', keys: ['x'.repeat(12), 'x'.repeat(12), 'y'.repeat(12)] });
+    expect(s.genotyping?.checkedSetKeys).toEqual(['x'.repeat(12), 'y'.repeat(12)]);
+  });
+
+  it('unticking the last set drops the key list, and an empty slice drops with it', () => {
+    // With something else in the slice, only the key list goes.
+    let kept = designerReducer(start(), { type: 'setGenotypingVariant', variantKey: '1:11109:C:A' });
+    kept = designerReducer(kept, { type: 'setGenotypingChecked', key: 'a'.repeat(12), checked: true });
+    kept = designerReducer(kept, { type: 'setGenotypingChecked', key: 'a'.repeat(12), checked: false });
+    expect(kept.genotyping).toEqual({ variantKey: '1:11109:C:A' });
+
+    // With nothing else, the slice itself is dropped rather than left empty.
+    let bare = designerReducer(start(), { type: 'setGenotypingChecked', key: 'a'.repeat(12), checked: true });
+    bare = designerReducer(bare, { type: 'setGenotypingChecked', key: 'a'.repeat(12), checked: false });
+    expect(bare).not.toHaveProperty('genotyping');
+  });
+
+  it('keeps params compact and drops the slice once it holds nothing', () => {
+    let s = designerReducer(start(), { type: 'setGenotypingParam', key: 'max_size', value: 30 });
+    expect(s.genotyping?.params).toEqual({ max_size: 30 });
+    s = designerReducer(s, { type: 'setGenotypingParam', key: 'max_size', value: undefined });
+    expect(s).not.toHaveProperty('genotyping');
+    s = designerReducer(s, { type: 'setGenotypingParam', key: 'opt_tm', value: 60 });
+    s = designerReducer(s, { type: 'resetGenotypingParams' });
+    expect(s).not.toHaveProperty('genotyping');
+  });
+
+  it('carries the check slice and stays JSON-serializable', () => {
+    let s = designerReducer(start(), { type: 'setGenotypingVariant', variantKey: '1:11109:C:A' });
+    s = designerReducer(s, { type: 'setGenotypingPangenome', enabled: true });
+    s = designerReducer(s, { type: 'setGenotypingGenomes', genomes: ['sorghum_is19953'] });
+    s = designerReducer(s, { type: 'setGenotypingCheckParam', key: 'ignore_mismatches', value: 5 });
+    s = designerReducer(s, {
+      type: 'genotypingCheckJob',
+      jobId: 'job1',
+      submitted: [{ id: 'S1', ref: { id: 'S1_REF', left: 'ACGT', right: 'TTGG' }, alt: { id: 'S1_ALT', left: 'ACGA', right: 'TTGG' } }],
+    });
+    expect(s.genotyping?.check).toMatchObject({ checks: ['specificity', 'pangenome'], genomes: ['sorghum_is19953'], params: { ignore_mismatches: 5 }, jobId: 'job1' });
+    s = designerReducer(s, { type: 'clearGenotypingCheckJob' });
+    expect(s.genotyping?.check).not.toHaveProperty('jobId');
+    expect(s.genotyping?.check).not.toHaveProperty('submitted');
+    expect(JSON.parse(JSON.stringify(s))).toEqual(s);
+  });
+
+  it('a template-only design changes nothing, and a design with no sets stays on the sets tab', () => {
+    const s = designerReducer(start(), { type: 'setGenotypingVariant', variantKey: '1:11109:C:A' });
+    expect(designerReducer(s, { type: 'genotypingDesignDone', templateOnly: true, noSets: false })).toBe(s);
+    const none = designerReducer(s, { type: 'genotypingDesignDone', templateOnly: false, noSets: true });
+    expect(none.genotyping).toMatchObject({ designed: true, view: { tab: 'sets' } });
+    expect(designerReducer(none, { type: 'setGenotypingTab', tab: 'sets' })).toBe(none);
+    expect(designerReducer(none, { type: 'setGenotypingTab', tab: 'alleles' }).genotyping?.view).toEqual({ tab: 'alleles' });
   });
 });
 

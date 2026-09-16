@@ -9,10 +9,15 @@ import type {
   DesignRequest,
   DesignResponse,
   GenomesResponse,
+  GenotypingDesignRequest,
+  GenotypingDesignResponse,
   GrameneGene,
   PollOptions,
   PrimersClient,
   RequestOptions,
+  VariantListQuery,
+  VariantListResponse,
+  VariantLookupResponse,
 } from '../../src/types';
 
 export interface Deferred<T> {
@@ -87,11 +92,17 @@ export class FakePrimersClient implements PrimersClient {
   readonly pollCalls: PollCall[] = [];
   readonly genomesCalls: string[] = [];
   readonly geneCalls: string[] = [];
+  readonly variantListCalls: Array<Call<VariantListQuery, VariantListResponse>> = [];
+  readonly variantLookupCalls: Array<Call<{ id: string; query: { system_name: string } }, VariantLookupResponse>> = [];
+  readonly genotypingDesignCalls: Array<Call<GenotypingDesignRequest, GenotypingDesignResponse>> = [];
 
   /** Answers design calls immediately when set; otherwise tests resolve `designCalls[i]`. */
   onDesign?: Responder<DesignRequest, DesignResponse>;
   onSubmit?: Responder<CheckRequest, CheckJob & { created: boolean }>;
   onGetCheck?: Responder<string, CheckJob>;
+  onListVariants?: Responder<VariantListQuery, VariantListResponse>;
+  onGetVariant?: Responder<{ id: string; query: { system_name: string } }, VariantLookupResponse>;
+  onDesignGenotyping?: Responder<GenotypingDesignRequest, GenotypingDesignResponse>;
   genomes: GenomesResponse | Error | null = null;
   gene: GrameneGene | null = null;
 
@@ -120,6 +131,18 @@ export class FakePrimersClient implements PrimersClient {
 
   getCheck(jobId: string, o?: RequestOptions): Promise<CheckJob> {
     return this.record(this.getCheckCalls, jobId, o, this.onGetCheck);
+  }
+
+  listVariants(query: VariantListQuery, o?: RequestOptions): Promise<VariantListResponse> {
+    return this.record(this.variantListCalls, query, o, this.onListVariants);
+  }
+
+  getVariant(variantId: string, query: { system_name: string }, o?: RequestOptions): Promise<VariantLookupResponse> {
+    return this.record(this.variantLookupCalls, { id: variantId, query }, o, this.onGetVariant);
+  }
+
+  designGenotyping(req: GenotypingDesignRequest, o?: RequestOptions): Promise<GenotypingDesignResponse> {
+    return this.record(this.genotypingDesignCalls, req, o, this.onDesignGenotyping);
   }
 
   pollCheck(jobId: string, options: PollOptions = {}): Promise<CheckJob> {

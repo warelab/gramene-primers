@@ -3,10 +3,14 @@ import type {
   CheckJob,
   CheckParams,
   CheckPrimerInfo,
+  CheckRequest,
   CheckResults,
+  GenotypeSetResults,
+  GenotypingSet,
   PangenomePairResult,
   PrimerPair,
   SpecificityPairResult,
+  SubmittedGenotypingSet,
   SubmittedPair,
   TranscriptomePairResult,
 } from './types';
@@ -134,4 +138,104 @@ export function unlikelyText(reason: UnlikelyReason | null, params?: Partial<Che
 /** Whether a primer is flagged repetitive in the results. */
 export function isRepetitivePrimer(results: CheckResults | null | undefined, seq: string): boolean {
   return !!results?.primers?.[seq.toUpperCase()]?.repetitive;
+}
+
+// ---------------------------------------------------------------------------
+// Genotyping
+// ---------------------------------------------------------------------------
+
+/**
+ * Identity of a genotyping set for matching: the REF and ALT pairs by UPPERCASE
+ * target sequence. `S1`/`S2` are positional and change when a design is re-run,
+ * and the tail is never part of a check, so neither id nor `order_seq` can be
+ * used here.
+ */
+export function genotypingSetTriple(ref: { left: string; right: string }, alt: { left: string; right: string }): string {
+  return `${pairKey(ref.left, ref.right)}#${pairKey(alt.left, alt.right)}`;
+}
+
+/** The triple of a designed set, taken from the check block the design handed back. */
+export function designSetTriple(set: Pick<GenotypingSet, 'check'>): string | null {
+  const plan = set.check;
+  if (!plan?.set || !Array.isArray(plan.pairs)) return null;
+  const ref = plan.pairs.find((p) => p.id === plan.set.ref_pair);
+  const alt = plan.pairs.find((p) => p.id === plan.set.alt_pair);
+  if (!ref || !alt) return null;
+  return genotypingSetTriple(ref, alt);
+}
+
+export interface GenotypingSetMatch {
+  /** The submitted set id (`S1`), which may differ from the current design's. */
+  id: string;
+  results: GenotypeSetResults | null;
+}
+
+export interface MatchedGenotypingResults {
+  /** By `sets[].key` of the current design. */
+  bySetKey: Map<string, GenotypingSetMatch>;
+  /** Designed sets that were not part of this job. */
+  notChecked: string[];
+  /** Submitted set ids with no set in the current design ("results for primers not in this design"). */
+  orphanIds: string[];
+}
+
+/**
+ * Matches allele-call results to designed sets by their target-sequence triple,
+ * so a re-design that renumbers sets still lines up. Submitted sets come from
+ * `job.request` (the normalized echo), falling back to the saved state.
+ */
+export function matchGenotypingResults(
+  sets: ReadonlyArray<Pick<GenotypingSet, 'key' | 'check'>>,
+  job: Pick<CheckJob, 'request' | 'results'> | null | undefined,
+  submitted?: ReadonlyArray<SubmittedGenotypingSet> | null,
+): MatchedGenotypingResults {
+  const idByTriple = new Map<string, string>();
+  const request = job?.request;
+  const requestSets = request?.genotyping?.sets ?? [];
+  if (requestSets.length && request?.pairs?.length) {
+    const byId = new Map(request.pairs.map((p) => [p.id, p]));
+    for (const s of requestSets) {
+      const ref = byId.get(s.ref_pair);
+      const alt = byId.get(s.alt_pair);
+      if (ref && alt) idByTriple.set(genotypingSetTriple(ref, alt), s.id);
+    }
+  }
+  for (const s of submitted ?? []) {
+    const triple = genotypingSetTriple(s.ref, s.alt);
+    if (!idByTriple.has(triple)) idByTriple.set(triple, s.id);
+  }
+
+  const resultsById = new Map((job?.results?.genotyping?.sets ?? []).map((s) => [s.id, s]));
+  const bySetKey = new Map<string, GenotypingSetMatch>();
+  const notChecked: string[] = [];
+  const used = new Set<string>();
+  for (const set of sets) {
+    const triple = designSetTriple(set);
+    const id = triple ? idByTriple.get(triple) : undefined;
+    if (!id) {
+      notChecked.push(set.key);
+      continue;
+    }
+    used.add(id);
+    bySetKey.set(set.key, { id, results: resultsById.get(id) ?? null });
+  }
+  const orphanIds = [...new Set(idByTriple.values())].filter((id) => !used.has(id));
+  return { bySetKey, notChecked, orphanIds };
+}
+
+/** The `submitted` sets to keep in state, by UPPERCASE target sequence. */
+export function submittedGenotypingSets(req: Pick<CheckRequest, 'pairs' | 'genotyping'>): SubmittedGenotypingSet[] {
+  const byId = new Map((req.pairs ?? []).map((p) => [p.id, p]));
+  const out: SubmittedGenotypingSet[] = [];
+  for (const s of req.genotyping?.sets ?? []) {
+    const ref = byId.get(s.ref_pair);
+    const alt = byId.get(s.alt_pair);
+    if (!ref || !alt) continue;
+    out.push({
+      id: s.id,
+      ref: { id: ref.id, left: ref.left.toUpperCase(), right: ref.right.toUpperCase() },
+      alt: { id: alt.id, left: alt.left.toUpperCase(), right: alt.right.toUpperCase() },
+    });
+  }
+  return out;
 }

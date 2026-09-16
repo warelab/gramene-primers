@@ -1,0 +1,14 @@
+{
+  "system_name": "sorghum_bicolor",
+  "variant": {
+    "region": "1",
+    "position": 11109,
+    "ref": "C",
+    "alt": "A"
+  },
+  "assay": {
+    "type": "as_pcr",
+    "orientation": "forward",
+    "num_sets": 3
+  }
+}

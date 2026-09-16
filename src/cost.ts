@@ -23,6 +23,11 @@ export const REALIGN_CPU_S_PER_PRIMER_TASK = 0.6;
 export const PANGENOME_CPU_FACTOR = 2.0;
 /** Size charged for a genome whose `total_bases` is unknown. Mirrors `FALLBACK_GENOME_GB` in `check/cost.js`. */
 export const FALLBACK_GENOME_GB = 1.0;
+/**
+ * Allele calling, charged per genome task (the reference plus each pan-genome
+ * genome) and not per primer. Mirrors `check.genotype_cpu_s_per_genome`.
+ */
+export const GENOTYPE_CPU_S_PER_GENOME = 0.2;
 
 export type WordSize = 5 | 6 | 7;
 
@@ -36,6 +41,8 @@ export interface CheckCpuInput {
   referenceTotalBases: number | null | undefined;
   /** Pan-genome genomes (sizes or entries); omit for specificity only. */
   pangenome?: ReadonlyArray<GenomeSize> | null;
+  /** The request carries a `genotyping` block: allele calling is charged per genome task. */
+  genotyping?: boolean;
   wordSizeReference?: WordSize;
   wordSizePangenome?: WordSize;
   cdnaGb?: number;
@@ -51,6 +58,8 @@ export interface CheckCpuEstimate {
   pangenome_cpu_s: number;
   /** `unique_primers × genome_tasks × REALIGN_CPU_S_PER_PRIMER_TASK`. */
   realign_cpu_s: number;
+  /** `genome_tasks × GENOTYPE_CPU_S_PER_GENOME`, or 0 without a `genotyping` block. */
+  genotyping_cpu_s: number;
   /** Re-aligned genome tasks: 1 reference genome, plus each pan-genome genome outside transcript mode. */
   genome_tasks: number;
   unique_primers: number;
@@ -114,7 +123,9 @@ export function estimateCheckCpu(input: CheckCpuInput): CheckCpuEstimate {
   const pangenome = uniq * panGb * cPan * PANGENOME_CPU_FACTOR;
   const genomeTasks = 1 + (transcript ? 0 : pan.length);
   const realign = uniq * genomeTasks * REALIGN_CPU_S_PER_PRIMER_TASK;
-  const total = reference + transcriptome + pangenome + realign;
+  // Allele calling is charged per genome (reference + pan-genome), not per primer.
+  const genotyping = input.genotyping ? (1 + pan.length) * GENOTYPE_CPU_S_PER_GENOME : 0;
+  const total = reference + transcriptome + pangenome + realign + genotyping;
   return {
     // Server ceilCpu: Math.ceil(Math.round(x × 1e6) / 1e6).
     cpu_s: Math.max(0, Math.ceil(Math.round(total * 1e6) / 1e6)),
@@ -122,6 +133,7 @@ export function estimateCheckCpu(input: CheckCpuInput): CheckCpuEstimate {
     transcriptome_cpu_s: transcriptome,
     pangenome_cpu_s: pangenome,
     realign_cpu_s: realign,
+    genotyping_cpu_s: genotyping,
     genome_tasks: genomeTasks,
     unique_primers: uniq,
     genomes: pan.length,

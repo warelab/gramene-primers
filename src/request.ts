@@ -1,5 +1,8 @@
-import { CHECK_DEFAULTS, defaultPresetFor, effectiveDesignParams, PRESETS } from './presets';
+import { estimateCheckCpu } from './cost';
+import { designModeOf } from './modes';
+import { CHECK_DEFAULTS, changedGenotypingAssay, changedGenotypingParams, defaultPresetFor, effectiveDesignParams, PRESETS } from './presets';
 import type {
+  CheckGenotypingSet,
   CheckName,
   CheckPairInput,
   CheckParams,
@@ -9,12 +12,16 @@ import type {
   DesignRequest,
   GenomeEntry,
   GenomesResponse,
+  GenotypingDesignRequest,
+  GenotypingSet,
+  GenotypingVariantInput,
   GrameneGene,
   Interval,
   PrimerDesignerState,
   PrimerPair,
   RegionSpec,
   Strand,
+  VariantEntry,
 } from './types';
 import { DESIGN_PARAM_LIMITS, NUMERIC_DESIGN_PARAM_KEYS } from './validate';
 
@@ -46,7 +53,11 @@ export type CheckRequestErrorCode =
   | 'PRODUCT_TOO_LONG_TO_CHECK'
   | 'TOO_MANY_GENOMES'
   /** A saved genome selection none of whose genomes can be searched in this mode. */
-  | 'NO_GENOMES';
+  | 'NO_GENOMES'
+  /** Genotyping: more than `GENOTYPING_CHECK_LIMITS.maxSets` sets selected. */
+  | 'TOO_MANY_SETS'
+  /** The mirrored cost estimate is above the server's job limit. */
+  | 'OVER_CPU_LIMIT';
 
 export class CheckRequestError extends Error {
   readonly code: CheckRequestErrorCode;
@@ -128,7 +139,9 @@ export function regionFromGene(gene: GrameneGene | null | undefined): { region: 
 
 /** Builds a `POST /primers/design` body from designer state; only mode-relevant fields and changed params are sent. */
 export function buildDesignRequest(state: PrimerDesignerState, ctx: DesignContext = {}): DesignRequest {
-  const mode = state.mode;
+  // Genotyping designs go through `buildGenotypingRequest`; this builder only
+  // ever sends a mode `POST /primers/design` accepts.
+  const mode: DesignMode = designModeOf(state.mode);
   const req: DesignRequest = { mode };
   const geneId = ctx.gene?._id ?? ctx.geneId ?? undefined;
 
@@ -266,6 +279,22 @@ export function availableGenomeNames(
     names = defaultPangenomeGenomes(entries, mode, query).map((g) => g.system_name);
   }
   return [...new Set(names)].filter((g) => g !== systemName).sort();
+}
+
+/**
+ * The genome entries behind an `allGenomes` source, or null when the host passed
+ * bare names: sizes live only on the entries, and a job cannot be priced without
+ * them.
+ */
+function genomeEntriesOf(
+  source: ReadonlyArray<string> | GenomesResponse | ReadonlyArray<GenomeEntry> | null | undefined,
+): ReadonlyArray<GenomeEntry> | null {
+  if (!source) return null;
+  if (Array.isArray(source)) {
+    if (source.every((g) => typeof g === 'string')) return null;
+    return source as ReadonlyArray<GenomeEntry>;
+  }
+  return (source as GenomesResponse).genomes ?? null;
 }
 
 /** Per-field limits of `PrimerCheckRequest.params` (spec §A.2.3). */
@@ -485,4 +514,187 @@ export function buildCheckRequest(input: BuildCheckRequestInput): CheckRequest {
     throw new CheckRequestError('PRODUCT_TOO_LONG_TO_CHECK', `Products longer than ${CHECK_LIMITS.maxProductSize} bp cannot be checked`, { largest: info.largestExpected });
   }
   return built;
+}
+
+// ---------------------------------------------------------------------------
+// Genotyping
+// ---------------------------------------------------------------------------
+
+/**
+ * What `POST /primers/check` accepts for a genotyping job. These are the
+ * endpoint's caps; the design's own packing caps (5 sets, 13 distinct primers)
+ * only bound the request the server hands back, and never block Submit.
+ *
+ * `maxUniquePrimers` cannot bind here, and is kept only to mirror the endpoint.
+ * The server requires a set's two pairs to share exactly one primer on the same
+ * side (`check/genotype.js`, else 400 `GENOTYPING_SET_INVALID` with
+ * `reason: "no_shared_common"`), so a set is exactly three distinct primers and
+ * N sets give 2N pairs and at most 3N primers: the 5-set ceiling is 10 pairs and
+ * 15 primers. Only the set cap and the cost guard can actually block a
+ * genotyping check.
+ */
+export const GENOTYPING_CHECK_LIMITS = Object.freeze({
+  maxSets: 5,
+  maxPairs: CHECK_LIMITS.maxPairs,
+  maxUniquePrimers: CHECK_LIMITS.maxUniquePrimers,
+});
+
+export interface GenotypingRequestContext {
+  /** The reference genome; the gene's when the host passed a gene. */
+  systemName?: string | null;
+  /** Returns the template, variant and neighbours without designing. */
+  templateOnly?: boolean;
+}
+
+/**
+ * The `POST /primers/genotyping/design` body for a genotyping state, or null
+ * when no variant has been chosen yet. The variant is sent as VCF fields from
+ * `variantKey`/`manual` where possible, since ids are for lookup only.
+ */
+export function buildGenotypingRequest(state: PrimerDesignerState, ctx: GenotypingRequestContext = {}): GenotypingDesignRequest | null {
+  const g = state.genotyping;
+  const systemName = ctx.systemName ?? state.systemName ?? '';
+  if (!g || !systemName) return null;
+
+  let variant: GenotypingVariantInput | null = null;
+  if (g.manual && typeof g.manual.region === 'string' && Number.isInteger(g.manual.position)) {
+    variant = { region: String(g.manual.region), position: g.manual.position, ref: g.manual.ref, alt: g.manual.alt };
+  } else if (g.variantKey) {
+    // `region:position:REF:ALT`; the region itself may contain colons, so split from the right.
+    const parts = g.variantKey.split(':');
+    if (parts.length >= 4) {
+      const alt = parts[parts.length - 1] as string;
+      const ref = parts[parts.length - 2] as string;
+      const position = Number(parts[parts.length - 3]);
+      const region = parts.slice(0, parts.length - 3).join(':');
+      if (region && Number.isInteger(position)) variant = { region, position, ref, alt };
+    }
+  }
+  if (!variant && g.variantId) {
+    variant = g.alt ? { id: g.variantId, alt: g.alt } : { id: g.variantId };
+  }
+  if (!variant) return null;
+
+  const req: GenotypingDesignRequest = { system_name: systemName, variant };
+  const assay = changedGenotypingAssay(g.assay);
+  if (Object.keys(assay).length) req.assay = assay;
+  const params = changedGenotypingParams(g.params);
+  if (Object.keys(params).length) req.params = params;
+  if (g.avoidRepeats) {
+    req.avoid_repeats = true;
+    if (g.repeatMaskMode) req.repeat_mask_mode = g.repeatMaskMode;
+  }
+  if (g.label) req.label = g.label;
+  if (ctx.templateOnly) req.template_only = true;
+  return req;
+}
+
+export interface BuildGenotypingCheckInput {
+  /** The designed sets the user ticked, in display order. */
+  sets: ReadonlyArray<GenotypingSet>;
+  /** The design's variant (its `vcf` and `region` become the check's `genotyping.variant`). */
+  variant: Pick<VariantEntry, 'region' | 'vcf'>;
+  systemName: string | null | undefined;
+  /** `gene` when a gene is in hand, else `region`; genotyping is rejected in other modes. */
+  mode?: Extract<DesignMode, 'gene' | 'region'>;
+  geneId?: string | null;
+  checks?: ReadonlyArray<CheckName>;
+  genomes?: ReadonlyArray<string> | null;
+  allGenomes?: ReadonlyArray<string> | GenomesResponse | ReadonlyArray<GenomeEntry> | null;
+  params?: Partial<CheckParams> | null;
+}
+
+/**
+ * Builds a `POST /primers/check` body for genotyping sets. Pairs come from each
+ * set's own `check` block, so the check always receives untailed `target_seq`
+ * values with their REF-product `expected`; `order_seq` would fail the endpoint's
+ * primer pattern. Throws `CheckRequestError` when the selection exceeds a cap.
+ */
+export function buildGenotypingCheckRequest(input: BuildGenotypingCheckInput): CheckRequest {
+  const systemName = input.systemName ?? '';
+  if (!systemName) throw new CheckRequestError('NO_SYSTEM_NAME', 'Choose a genome to check against');
+  const sets = input.sets ?? [];
+  if (!sets.length) throw new CheckRequestError('NO_PAIRS', 'Select at least one set');
+  if (sets.length > GENOTYPING_CHECK_LIMITS.maxSets) {
+    throw new CheckRequestError('TOO_MANY_SETS', `At most ${GENOTYPING_CHECK_LIMITS.maxSets} sets can be checked at once`, { sets: sets.length });
+  }
+  const mode = input.mode ?? (input.geneId ? 'gene' : 'region');
+  if (mode === 'gene' && !input.geneId) throw new CheckRequestError('GENE_ID_REQUIRED', 'A gene id is required in gene mode');
+
+  const pairs: CheckPairInput[] = [];
+  const genotypingSets: CheckGenotypingSet[] = [];
+  for (const set of sets) {
+    const plan = set.check;
+    if (!plan?.set || !Array.isArray(plan.pairs)) continue;
+    genotypingSets.push({ id: plan.set.id, ref_pair: plan.set.ref_pair, alt_pair: plan.set.alt_pair });
+    for (const p of plan.pairs) pairs.push({ ...p, ...(p.expected ? { expected: { ...p.expected } } : {}) });
+  }
+  if (!pairs.length) throw new CheckRequestError('NO_PAIRS', 'These sets carry no check pairs');
+  if (pairs.length > GENOTYPING_CHECK_LIMITS.maxPairs) {
+    throw new CheckRequestError('TOO_MANY_PAIRS', `At most ${GENOTYPING_CHECK_LIMITS.maxPairs} pairs can be checked at once`, { pairs: pairs.length });
+  }
+  const unique = uniquePrimers(pairs).length;
+  if (unique > GENOTYPING_CHECK_LIMITS.maxUniquePrimers) {
+    throw new CheckRequestError('TOO_MANY_PRIMERS', `At most ${GENOTYPING_CHECK_LIMITS.maxUniquePrimers} distinct primers can be checked at once`, { unique });
+  }
+
+  const req: CheckRequest = { system_name: systemName, mode, pairs };
+  if (mode === 'gene' && input.geneId) req.gene_id = input.geneId;
+
+  const checks: CheckName[] = ['specificity'];
+  if (input.checks?.includes('pangenome')) checks.push('pangenome');
+  req.checks = checks;
+
+  if (checks.includes('pangenome') && input.genomes) {
+    let selected = [...new Set(input.genomes)].filter((g) => g !== systemName).sort();
+    const all = availableGenomeNames(input.allGenomes, mode, systemName);
+    if (all !== null) {
+      const known = new Set(all);
+      const usable = selected.filter((g) => known.has(g));
+      if (selected.length > 0 && usable.length === 0) {
+        throw new CheckRequestError('NO_GENOMES', 'None of the selected genomes can be searched; select genomes again', { genomes: selected });
+      }
+      selected = usable;
+    }
+    const allSelected = all !== null && all.length === selected.length && all.every((g, i) => g === selected[i]);
+    if (!allSelected) {
+      if (selected.length > CHECK_LIMITS.maxGenomes) {
+        throw new CheckRequestError('TOO_MANY_GENOMES', `At most ${CHECK_LIMITS.maxGenomes} genomes`, { genomes: selected.length });
+      }
+      req.genomes = selected;
+    }
+  }
+
+  const params = changedCheckParams(input.params);
+  if (Object.keys(params).length) req.params = params;
+
+  req.genotyping = {
+    variant: { region: String(input.variant.region), position: input.variant.vcf.position, ref: input.variant.vcf.ref, alt: input.variant.vcf.alt },
+    sets: genotypingSets,
+  };
+
+  // Cost guard, last because it prices the finished request. Allele calling adds a
+  // per-genome term, so on a full pan-genome panel the 6,000 CPU-s budget binds
+  // before any count cap does, while on a small subset a count cap binds first —
+  // whichever it is, the caller gets that code. Priced only when sizes are known.
+  const entries = genomeEntriesOf(input.allGenomes);
+  if (entries) {
+    const searchable = checks.includes('pangenome') ? defaultPangenomeGenomes(entries, mode, systemName) : [];
+    const panEntries = input.genomes ? searchable.filter((g) => input.genomes?.includes(g.system_name)) : searchable;
+    const estimate = estimateCheckCpu({
+      primers: pairs.map((p) => ({ left: p.left, right: p.right })),
+      mode,
+      referenceTotalBases: entries.find((g) => g.system_name === systemName)?.total_bases ?? null,
+      pangenome: checks.includes('pangenome') ? panEntries : null,
+      genotyping: true,
+    });
+    if (estimate.over_limit) {
+      throw new CheckRequestError(
+        'OVER_CPU_LIMIT',
+        `This check needs about ${estimate.cpu_s.toLocaleString('en-US')} CPU-seconds, over the ${estimate.limit.toLocaleString('en-US')} limit; check fewer sets or fewer genomes`,
+        { estimate_cpu_s: estimate.cpu_s, limit: estimate.limit },
+      );
+    }
+  }
+  return req;
 }

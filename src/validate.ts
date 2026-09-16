@@ -1,4 +1,4 @@
-import type { DesignMode, DesignParams, Interval, NumericDesignParamKey } from './types';
+import type { DesignMode, DesignParams, GenotypingParamKey, GenotypingParams, Interval, NumericDesignParamKey } from './types';
 
 /** Server-side design limits (spec §A.2.1, §A.6). */
 export const DESIGN_LIMITS = Object.freeze({
@@ -203,6 +203,197 @@ export interface CleanedSequence {
    */
   records: number;
   ok: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Genotyping (KASP / AS-PCR)
+// ---------------------------------------------------------------------------
+
+/** An allele: 1–50 bases of A/C/G/T, or `-` in the Ensembl style. */
+export const VARIANT_ALLELE_PATTERN = /^([ACGTacgt]{1,50}|-)$/;
+
+/** Server limits of the variant and genotyping endpoints. */
+export const GENOTYPING_LIMITS = Object.freeze({
+  /** `400 VARIANT_WINDOW_TOO_LONG` above this. */
+  maxWindow: 50_000,
+  maxAlleleLength: 50,
+  defaultVariantLimit: 2000,
+  maxVariantLimit: 5000,
+  minSets: 1,
+  maxSets: 10,
+  maxRelaxation: 2,
+  minProductSize: 20,
+  maxProductSize: 1000,
+  maxProductRanges: 4,
+  /** An indel that slides further is `400 VARIANT_TOO_REPETITIVE`. */
+  maxShift: 1000,
+});
+
+/** The design params `POST /primers/genotyping/design` accepts (no `num_return`, `max_ns` or junction params). */
+export const GENOTYPING_PARAM_LIMITS: Readonly<Record<Exclude<GenotypingParamKey, 'product_size_ranges'>, ParamLimit>> = Object.freeze({
+  opt_size: DESIGN_PARAM_LIMITS.opt_size,
+  min_size: DESIGN_PARAM_LIMITS.min_size,
+  max_size: DESIGN_PARAM_LIMITS.max_size,
+  opt_tm: DESIGN_PARAM_LIMITS.opt_tm,
+  min_tm: DESIGN_PARAM_LIMITS.min_tm,
+  max_tm: DESIGN_PARAM_LIMITS.max_tm,
+  opt_gc: DESIGN_PARAM_LIMITS.opt_gc,
+  min_gc: DESIGN_PARAM_LIMITS.min_gc,
+  max_gc: DESIGN_PARAM_LIMITS.max_gc,
+  max_tm_diff: DESIGN_PARAM_LIMITS.max_tm_diff,
+  max_poly_x: DESIGN_PARAM_LIMITS.max_poly_x,
+  gc_clamp: DESIGN_PARAM_LIMITS.gc_clamp,
+  max_end_stability: DESIGN_PARAM_LIMITS.max_end_stability,
+  salt_monovalent: DESIGN_PARAM_LIMITS.salt_monovalent,
+  salt_divalent: DESIGN_PARAM_LIMITS.salt_divalent,
+  dntp_conc: DESIGN_PARAM_LIMITS.dntp_conc,
+  dna_conc: DESIGN_PARAM_LIMITS.dna_conc,
+});
+
+export const GENOTYPING_NUMERIC_PARAM_KEYS = Object.freeze(
+  Object.keys(GENOTYPING_PARAM_LIMITS) as Array<Exclude<GenotypingParamKey, 'product_size_ranges'>>,
+);
+
+/**
+ * The shortest product the design can make: both allele-specific primers meet at
+ * the variant, so a product spans at most `max_size` on each side of it.
+ */
+export function effectiveMinProductSize(maxSize: number | null | undefined): number | null {
+  return isFiniteNumber(maxSize) ? 2 * Math.round(maxSize) + 1 : null;
+}
+
+/** Mirrors the genotyping endpoint's param validation; pass the effective params. */
+export function validateGenotypingParams(params: Partial<GenotypingParams> | null | undefined): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  if (!params) return issues;
+  const p = params as Record<string, unknown>;
+
+  for (const key of GENOTYPING_NUMERIC_PARAM_KEYS) {
+    const v = p[key];
+    if (v === undefined || v === null) continue;
+    const lim = GENOTYPING_PARAM_LIMITS[key];
+    if (!isFiniteNumber(v)) {
+      issues.push({ field: key, code: 'NOT_A_NUMBER', message: `${key} must be a number` });
+      continue;
+    }
+    if (lim.integer && !Number.isInteger(v)) issues.push({ field: key, code: 'NOT_AN_INTEGER', message: `${key} must be a whole number` });
+    if (v < lim.min || v > lim.max) issues.push({ field: key, code: 'OUT_OF_RANGE', message: `${key} must be between ${lim.min} and ${lim.max}` });
+  }
+
+  for (const [label, lo, opt, hi] of [
+    ['size', 'min_size', 'opt_size', 'max_size'],
+    ['Tm', 'min_tm', 'opt_tm', 'max_tm'],
+    ['GC', 'min_gc', 'opt_gc', 'max_gc'],
+  ] as const) {
+    const a = p[lo];
+    const o = p[opt];
+    const b = p[hi];
+    if (isFiniteNumber(a) && isFiniteNumber(b) && a > b) {
+      issues.push({ field: lo, code: 'MIN_GT_MAX', message: `Minimum ${label} must not exceed maximum ${label}` });
+    }
+    if (isFiniteNumber(o) && isFiniteNumber(a) && o < a) issues.push({ field: opt, code: 'OPT_LT_MIN', message: `Optimal ${label} must be at least the minimum` });
+    if (isFiniteNumber(o) && isFiniteNumber(b) && o > b) issues.push({ field: opt, code: 'OPT_GT_MAX', message: `Optimal ${label} must not exceed the maximum` });
+  }
+
+  const ranges = p.product_size_ranges;
+  if (ranges !== undefined) {
+    if (!Array.isArray(ranges) || ranges.length < 1) {
+      issues.push({ field: 'product_size_ranges', code: 'REQUIRED', message: 'At least one product size range is required' });
+    } else {
+      if (ranges.length > GENOTYPING_LIMITS.maxProductRanges) {
+        issues.push({ field: 'product_size_ranges', code: 'TOO_MANY', message: `At most ${GENOTYPING_LIMITS.maxProductRanges} product size ranges` });
+      }
+      const floor = effectiveMinProductSize(isFiniteNumber(p.max_size) ? p.max_size : null);
+      ranges.forEach((r, i) => {
+        const field = `product_size_ranges[${i}]`;
+        if (!Array.isArray(r) || r.length !== 2 || !r.every((x) => isFiniteNumber(x) && Number.isInteger(x))) {
+          issues.push({ field, code: 'INVALID_RANGE', message: 'Product size range must be two whole numbers' });
+          return;
+        }
+        const [a, b] = r as [number, number];
+        if (a < GENOTYPING_LIMITS.minProductSize || b > GENOTYPING_LIMITS.maxProductSize) {
+          issues.push({ field, code: 'OUT_OF_RANGE', message: `Product sizes must be between ${GENOTYPING_LIMITS.minProductSize} and ${GENOTYPING_LIMITS.maxProductSize}` });
+        }
+        if (!(a < b)) issues.push({ field, code: 'MIN_GE_MAX', message: 'Range start must be smaller than its end' });
+        if (floor !== null && b < floor) {
+          issues.push({
+            field,
+            code: 'BELOW_EFFECTIVE_MINIMUM',
+            message: `Both primers meet at the variant, so no product is shorter than 2 × max_size + 1 = ${floor} bp`,
+          });
+        }
+      });
+    }
+  }
+  return issues;
+}
+
+export interface VariantInputById {
+  id?: string;
+  alt?: string;
+}
+
+export interface VariantInputManual {
+  region?: string;
+  position?: number | string;
+  ref?: string;
+  alt?: string;
+}
+
+export type VariantInput = VariantInputById & VariantInputManual;
+
+/**
+ * Mirrors the endpoint's variant rules: either an Ensembl id or a manual
+ * region/position/REF/ALT (never both, `400 INVALID_VARIANT {reason:
+ * id_or_manual}`); alleles are A/C/G/T or `-` and must differ; `-` on both sides
+ * is not a variant.
+ */
+export function validateVariantInput(input: VariantInput | null | undefined): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const id = typeof input?.id === 'string' ? input.id.trim() : '';
+  const region = typeof input?.region === 'string' ? input.region.trim() : '';
+  const hasPosition = input?.position !== undefined && input?.position !== null && String(input.position).trim() !== '';
+  const ref = typeof input?.ref === 'string' ? input.ref.trim() : '';
+  const manualFields = [region, hasPosition ? 'p' : '', ref].filter(Boolean).length;
+  const alt = typeof input?.alt === 'string' ? input.alt.trim() : '';
+
+  if (!id && manualFields === 0) {
+    issues.push({ field: 'variant', code: 'REQUIRED', message: 'Choose a variant, or enter its region, position, REF and ALT' });
+    return issues;
+  }
+  if (id && manualFields > 0) {
+    issues.push({ field: 'variant', code: 'ID_OR_MANUAL', message: 'Give either a variant id or region, position, REF and ALT — not both' });
+    return issues;
+  }
+
+  if (id) {
+    if (id.length > DESIGN_LIMITS.maxIdLength) issues.push({ field: 'id', code: 'TOO_LONG', message: `A variant id is at most ${DESIGN_LIMITS.maxIdLength} characters` });
+    // `alt` is optional here; it picks one allele of a multi-allelic site.
+    if (alt && !VARIANT_ALLELE_PATTERN.test(alt)) {
+      issues.push({ field: 'alt', code: 'INVALID_ALLELE', message: 'ALT must be 1–50 bases of A, C, G or T, or `-`' });
+    }
+    return issues;
+  }
+
+  if (!region) issues.push({ field: 'region', code: 'REQUIRED', message: 'Enter the sequence region' });
+  const position = Number(String(input?.position ?? '').trim());
+  if (!hasPosition || !Number.isInteger(position) || position < 1) {
+    issues.push({ field: 'position', code: 'INVALID_POSITION', message: 'Position must be a whole number of at least 1' });
+  }
+  for (const [field, value] of [
+    ['ref', ref],
+    ['alt', alt],
+  ] as const) {
+    if (!value) issues.push({ field, code: 'REQUIRED', message: `Enter ${field.toUpperCase()}` });
+    else if (!VARIANT_ALLELE_PATTERN.test(value)) {
+      issues.push({ field, code: 'INVALID_ALLELE', message: `${field.toUpperCase()} must be 1–50 bases of A, C, G or T, or \`-\`` });
+    }
+  }
+  if (ref && alt) {
+    if (ref.toUpperCase() === alt.toUpperCase()) issues.push({ field: 'alt', code: 'REF_EQUALS_ALT', message: 'REF and ALT must differ' });
+    if (ref === '-' && alt === '-') issues.push({ field: 'ref', code: 'INVALID_ALLELE', message: 'REF and ALT cannot both be `-`' });
+  }
+  return issues;
 }
 
 /**

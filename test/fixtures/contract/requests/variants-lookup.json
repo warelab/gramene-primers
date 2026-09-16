@@ -1,0 +1,9 @@
+{
+  "method": "GET",
+  "path": "/primers/variants/{id}",
+  "query": {
+    "id": "tmp_1_11502_C_CGT",
+    "system_name": "sorghum_bicolor"
+  },
+  "expect": "valid"
+}
