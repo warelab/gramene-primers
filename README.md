@@ -39,7 +39,7 @@ import { PrimerDesigner } from 'gramene-primers';
   apiBase="https://data.sorghumbase.org/sorghum_v11"
   gene={gene}                      // Gramene gene doc; or geneId, systemName+region, sequence
   systemName={gene.system_name}
-  modes={['gene', 'transcript', 'region', 'sequence']}
+  modes={['gene', 'transcript', 'region', 'sequence', 'genotyping']}
   state={saved} onStateChange={save} persistSequence={false}
   geneHref={(id) => `?idList=${encodeURIComponent(id)}`}
 />;
@@ -56,12 +56,12 @@ import { PrimerDesigner } from 'gramene-primers';
 | `systemName` | `string` | the gene's | Reference genome; enables Region mode |
 | `region` | `{region, start, end, strand?}` | the gene location | Region prefill |
 | `sequence` | `string` | | Sequence-mode prefill |
-| `modes` | `DesignMode[]` | all four | Offered modes; a mode without its inputs is hidden |
+| `modes` | `DesignerMode[]` | the four design modes | Offered modes; a mode without its inputs is hidden. `genotyping` is opt-in: list it to offer KASP/AS-PCR design (it needs a genome) |
 | `defaultMode`, `defaultParams` | | | Initial mode and Primer3 parameter overrides |
 | `state`, `onStateChange` | `PrimerDesignerState` | uncontrolled | Controlled, JSON-serializable `{v: 1, …}` state |
 | `persistSequence` | `boolean` | `true` | `false` keeps the pasted sequence out of emitted state (it survives only while mounted) |
 | `onDesign(res, req)`, `onCheckUpdate(job)`, `onError(err)` | | | `err` is a `PrimersApiError` |
-| `features` | `{check, pangenome, export, map}` | each `true` | |
+| `features` | `{check, pangenome, export, map, genotyping}` | each `true` | `genotyping: false` hides the mode even when it is listed in `modes` |
 | `geneHref(id, systemName?)`, `onGeneClick(id, systemName?)` | | | Gene links in results; `onGeneClick` handles plain left clicks, modified clicks follow `geneHref` |
 | `geneLabel` | `string` | gene name or id | Used in export file names and FASTA headers |
 | `theme` | `'light' \| 'dark' \| 'auto'` | `'auto'` | `auto` follows `prefers-color-scheme` |
