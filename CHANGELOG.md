@@ -5,6 +5,23 @@ All notable changes to this project are documented here. The format follows
 [semantic versioning](https://semver.org/). `0.x` releases are published with
 `--tag next`; `1.0.0` follows once `/primers` is live on data.sorghumbase.org.
 
+## [0.5.0] — 2026-09-16
+
+### Added
+- **A CAPS column in the variant table.** Many variants can be typed by digesting an ordinary PCR product instead of by allele-specific priming, which is cheaper and needs no labelled probes. The column says which: **CAPS** when the variant itself creates or destroys a restriction site, **dCAPS** when a deliberate mismatch in the primer would create one, **None** when nothing in the panel discriminates. Each verdict is a glyph, a colour and a word, so it reads the same without colour.
+- **An enzyme filter and a CAPS-able only toggle**, beside the existing consequence, source and property filters. The enzyme menu is built from the listing and offers only enzymes that actually discriminate something in the window, with counts.
+- **CAPS-able variants are ringed in the region browser**, not recoloured — colour already carries consequence there — with a matching legend key that appears only when something in view is cut.
+- **`sequenceForRegion`**, a new optional prop. A variant listing carries coordinates and alleles but no bases, so reference sequence comes from the host, exactly as gene models do. Without it the column reads **Unknown** rather than **None**: that a site cannot be found is not the same claim as that none exists.
+- **`enzymes`**, a new optional prop. The bundled panel of 48 widely stocked enzymes is a default, not a fixed list — what matters is what a given lab actually stocks. Recognition sequences and cut positions follow [REBASE](https://rebase.neb.com).
+- The engine is exported headless: `annotateVariants`, `capsCall`, `differentialSites`, `dcapsOpportunities`, `findSites`, `digestFragments`, `isResolvable`, `iupacMatcher`, `variantContext`, `verifyWindow`, `enzymeCounts`, and the `COMMON_ENZYMES` panel with `findEnzyme`, `enzymeSpecificity` and `isSixCutter`.
+
+### Notes
+- **The sequence source must be the same release the variants come from.** A gene track from the wrong release looks wrong; sequence from the wrong release produces a confident, wrong enzyme call. Every window is therefore checked against the reference alleles the API reports, and a single disagreement marks the whole window unknown with an explanation, rather than annotating three of four rows plausibly and one wrongly.
+- **Six-cutters rank above four-cutters.** Four-cutters discriminate far more variants but cut an amplicon too often for a readable gel. Ranking is by informative bases rather than site length, so an interrupted site such as `XmnI` (`GAANNNNTTC`) is correctly treated as a six-cutter and a degenerate one such as `AccI` (`GTMKAC`) as weaker than a plain six.
+- **dCAPS reports the opportunity, not the primer** — the enzyme, which side of the variant the mismatch sits on, how far away and which base. Designing a primer around a deliberate mismatch needs the thermodynamics the server owns.
+- **Methylation is not modelled.** Digests are computed from sequence alone, so a Dam- or Dcm-sensitive enzyme may fail on DNA this annotation calls cuttable.
+- CAPS is an annotation, not a third assay type: a genotyping set is three oligos by definition, which CAPS does not fit. Nothing about designing, checking or ordering sets changes, and `/primers` is unchanged.
+
 ## [0.4.0] — 2026-09-16
 
 ### Added
