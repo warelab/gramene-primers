@@ -37,9 +37,11 @@ import { ModeTabs } from './ModeTabs';
 import { PairsTable } from './PairsTable';
 import { PangenomeMatrix } from './PangenomeMatrix';
 import { ParamsPanel } from './ParamsPanel';
+import { Primer3Credit } from './Primer3Help';
 import { MASK_SOURCE_LABELS, RepeatOptions } from './RepeatOptions';
 import { RootMarker, themeClass, useStyleInjection } from './Root';
 import { SpecificityResults } from './SpecificityResults';
+import { Splitter } from './Splitter';
 import { TemplateMap } from './TemplateMap';
 import { cx, fmtInt, fmtPercent, sameJson, useIdPrefix } from './util';
 import { Warnings } from './Warnings';
@@ -520,6 +522,7 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
                   </fieldset>
                 </form>
               </div>
+              <Splitter controls={inputsPanelId} width={state.view?.formWidth} onChange={(width) => dispatch({ type: 'setFormWidth', width })} />
               <section className="gpr-results" aria-labelledby={`${idp}-results-h`} aria-busy={running ? true : undefined}>
                 <h3 className="gpr-visually-hidden" id={`${idp}-results-h`}>
                   Results
@@ -572,6 +575,7 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
                         </div>
                       </div>
                     ) : null}
+                    {!templateOnlyResponse ? <Primer3Credit version={response.engine?.primer3} /> : null}
                   </>
                 ) : null}
                 {features.check && (pairs.length > 0 || check.state.status !== 'idle') ? (

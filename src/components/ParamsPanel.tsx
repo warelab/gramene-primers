@@ -1,17 +1,19 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { effectiveDesignParams, PRESETS, PRIMER3_DEFAULTS } from '../presets';
+import type { Primer3DocTopic } from '../primer3Docs';
 import type { DesignMode, DesignParamKey, DesignParams, DesignRequest, DesignSettings, NumericDesignParamKey, PresetName, ProductSizeRange } from '../types';
 import { DESIGN_LIMITS, DESIGN_PARAM_LIMITS, type ValidationIssue } from '../validate';
 import { NumberField } from './fields';
+import { HelpButton, Primer3DocText, Primer3ManualLink } from './Primer3Help';
 import { fmtInt } from './util';
 
-const TRIPLES: ReadonlyArray<{ label: string; unit: string; keys: readonly [NumericDesignParamKey, NumericDesignParamKey, NumericDesignParamKey] }> = [
-  { label: 'Primer size', unit: 'nt', keys: ['min_size', 'opt_size', 'max_size'] },
-  { label: 'Melting temperature', unit: '°C', keys: ['min_tm', 'opt_tm', 'max_tm'] },
-  { label: 'GC content', unit: '%', keys: ['min_gc', 'opt_gc', 'max_gc'] },
+const TRIPLES: ReadonlyArray<{ label: string; unit: string; topic: Primer3DocTopic; keys: readonly [NumericDesignParamKey, NumericDesignParamKey, NumericDesignParamKey] }> = [
+  { label: 'Primer size', unit: 'nt', topic: 'size', keys: ['min_size', 'opt_size', 'max_size'] },
+  { label: 'Melting temperature', unit: '°C', topic: 'tm', keys: ['min_tm', 'opt_tm', 'max_tm'] },
+  { label: 'GC content', unit: '%', topic: 'gc', keys: ['min_gc', 'opt_gc', 'max_gc'] },
 ];
 
-const ADVANCED: ReadonlyArray<{ key: NumericDesignParamKey; label: string; transcriptOnly?: boolean }> = [
+const ADVANCED: ReadonlyArray<{ key: NumericDesignParamKey & Primer3DocTopic; label: string; transcriptOnly?: boolean }> = [
   { key: 'max_poly_x', label: 'Max mononucleotide run (nt)' },
   { key: 'gc_clamp', label: 'GC clamp (3′ G/C bases)' },
   { key: 'max_end_stability', label: 'Max 3′ end stability (kcal/mol)' },
@@ -62,14 +64,28 @@ export interface ParamsPanelProps {
   disabled?: boolean;
 }
 
+/** A small legend with a help button; the fieldset takes its name from `textId`, not from the button. */
+function HelpLegend(props: { textId: string; label: string; helpId: string; open: boolean; onToggle: () => void }): JSX.Element {
+  return (
+    <legend className="gpr-legend gpr-legend-small">
+      <span className="gpr-label-row">
+        <span id={props.textId}>{props.label}</span>
+        <HelpButton subject={props.label} expanded={props.open} controls={props.helpId} onToggle={props.onToggle} />
+      </span>
+    </legend>
+  );
+}
+
 function ProductRanges(props: {
   idPrefix: string;
   ranges: ProductSizeRange[];
   changed: boolean;
   issues: ReadonlyArray<ValidationIssue>;
   onChange: (ranges: ProductSizeRange[] | undefined) => void;
+  helpOpen: boolean;
+  onHelp: () => void;
 }): JSX.Element {
-  const { idPrefix, ranges, changed, issues, onChange } = props;
+  const { idPrefix, ranges, changed, issues, onChange, helpOpen, onHelp } = props;
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const a = Number(from);
@@ -90,9 +106,16 @@ function ProductRanges(props: {
     }
   };
   const errId = `${idPrefix}-ranges-err`;
+  const legendId = `${idPrefix}-ranges-legend`;
+  const helpId = `${idPrefix}-help-product_size_ranges`;
   return (
-    <fieldset className="gpr-subfieldset gpr-ranges" data-state={changed ? 'changed' : undefined}>
-      <legend className="gpr-legend gpr-legend-small">Product size ranges (bp)</legend>
+    <fieldset className="gpr-subfieldset gpr-ranges" data-state={changed ? 'changed' : undefined} aria-labelledby={legendId}>
+      <HelpLegend textId={legendId} label="Product size ranges (bp)" helpId={helpId} open={helpOpen} onToggle={onHelp} />
+      {helpOpen ? (
+        <p id={helpId} className="gpr-hint gpr-help-text">
+          <Primer3DocText topic="product_size_ranges" />
+        </p>
+      ) : null}
       <ul className="gpr-range-chips" aria-describedby={issues.length ? errId : undefined}>
         {ranges.map((r, i) => (
           <li key={`${r[0]}-${r[1]}-${i}`} className="gpr-range-chip">
@@ -155,34 +178,51 @@ function ProductRanges(props: {
   );
 }
 
-/** Presets plus Primer3 parameters with inline validation; only changed values are sent (spec §C.3). */
+/** Presets plus Primer3 parameters with inline validation and Primer3 help; only changed values are sent (spec §C.3). */
 export function ParamsPanel(p: ParamsPanelProps): JSX.Element {
+  // One help text at a time.
+  const [help, setHelp] = useState<Primer3DocTopic | null>(null);
+  const toggleHelp = (topic: Primer3DocTopic) => setHelp((open) => (open === topic ? null : topic));
   const effective = effectiveDesignParams(p.preset, p.params);
   const issuesFor = (field: string) => p.issues.filter((i) => i.field === field);
   const overrides = (p.params ?? {}) as Record<string, unknown>;
-  const field = (key: NumericDesignParamKey, label: React.ReactNode) => {
+  const field = (key: NumericDesignParamKey, label: React.ReactNode, doc?: { topic: Primer3DocTopic; subject: string }) => {
     const lim = DESIGN_PARAM_LIMITS[key];
     const v = overrides[key];
+    const id = `${p.idPrefix}-param-${key}`;
+    const helpId = `${id}-help`;
+    const helpOpen = !!doc && help === doc.topic;
     return (
-      <NumberField
-        key={key}
-        id={`${p.idPrefix}-param-${key}`}
-        label={label}
-        value={typeof v === 'number' ? v : undefined}
-        placeholder={paramPlaceholder(key, p.preset, p.mode, p.settings, p.lastRequest)}
-        min={lim.min}
-        max={lim.max}
-        step={lim.integer ? 1 : 'any'}
-        issues={issuesFor(key)}
-        changed={typeof v === 'number'}
-        onChange={(value) => p.onParam(key, value)}
-      />
+      <Fragment key={key}>
+        <NumberField
+          id={id}
+          label={label}
+          value={typeof v === 'number' ? v : undefined}
+          placeholder={paramPlaceholder(key, p.preset, p.mode, p.settings, p.lastRequest)}
+          min={lim.min}
+          max={lim.max}
+          step={lim.integer ? 1 : 'any'}
+          issues={issuesFor(key)}
+          changed={typeof v === 'number'}
+          labelAddon={doc ? <HelpButton subject={doc.subject} expanded={helpOpen} controls={helpId} onToggle={() => toggleHelp(doc.topic)} /> : undefined}
+          describedBy={helpOpen ? helpId : undefined}
+          onChange={(value) => p.onParam(key, value)}
+        />
+        {doc && helpOpen ? (
+          <p id={helpId} className="gpr-hint gpr-help-text gpr-help-wide">
+            <Primer3DocText topic={doc.topic} />
+          </p>
+        ) : null}
+      </Fragment>
     );
   };
   const rangeIssues = p.issues.filter((i) => i.field === 'product_size_ranges' || i.field.startsWith('product_size_ranges['));
   return (
     <fieldset className="gpr-fieldset gpr-params" disabled={p.disabled}>
       <legend className="gpr-legend">Primer3 parameters</legend>
+      <p className="gpr-hint">
+        Settings for Primer3; an empty field uses the value shown in grey. <Primer3ManualLink anchor="globalTags">Primer3 manual</Primer3ManualLink>
+      </p>
       <fieldset className="gpr-subfieldset gpr-presets">
         <legend className="gpr-legend gpr-legend-small">Preset</legend>
         {(['pcr', 'qpcr'] as const).map((id) => (
@@ -205,21 +245,28 @@ export function ParamsPanel(p: ParamsPanelProps): JSX.Element {
           </div>
         ))}
       </fieldset>
-      {TRIPLES.map((g) => (
-        <fieldset className="gpr-subfieldset gpr-triple" key={g.label}>
-          <legend className="gpr-legend gpr-legend-small">
-            {g.label} ({g.unit})
-          </legend>
-          <div className="gpr-triple-grid">
-            {field(g.keys[0], <><span className="gpr-visually-hidden">{g.label}</span> min</>)}
-            {field(g.keys[1], <><span className="gpr-visually-hidden">{g.label}</span> opt</>)}
-            {field(g.keys[2], <><span className="gpr-visually-hidden">{g.label}</span> max</>)}
-          </div>
-        </fieldset>
-      ))}
+      {TRIPLES.map((g) => {
+        const legendId = `${p.idPrefix}-legend-${g.topic}`;
+        const helpId = `${p.idPrefix}-help-${g.topic}`;
+        return (
+          <fieldset className="gpr-subfieldset gpr-triple" key={g.label} aria-labelledby={legendId}>
+            <HelpLegend textId={legendId} label={`${g.label} (${g.unit})`} helpId={helpId} open={help === g.topic} onToggle={() => toggleHelp(g.topic)} />
+            {help === g.topic ? (
+              <p id={helpId} className="gpr-hint gpr-help-text">
+                <Primer3DocText topic={g.topic} />
+              </p>
+            ) : null}
+            <div className="gpr-triple-grid">
+              {field(g.keys[0], <><span className="gpr-visually-hidden">{g.label}</span> min</>)}
+              {field(g.keys[1], <><span className="gpr-visually-hidden">{g.label}</span> opt</>)}
+              {field(g.keys[2], <><span className="gpr-visually-hidden">{g.label}</span> max</>)}
+            </div>
+          </fieldset>
+        );
+      })}
       <div className="gpr-field-grid">
-        {field('max_tm_diff', 'Max Tm difference (°C)')}
-        {field('num_return', 'Pairs to return')}
+        {field('max_tm_diff', 'Max Tm difference (°C)', { topic: 'max_tm_diff', subject: 'Max Tm difference (°C)' })}
+        {field('num_return', 'Pairs to return', { topic: 'num_return', subject: 'Pairs to return' })}
       </div>
       <ProductRanges
         idPrefix={p.idPrefix}
@@ -227,10 +274,14 @@ export function ParamsPanel(p: ParamsPanelProps): JSX.Element {
         changed={Array.isArray(p.params?.product_size_ranges)}
         issues={rangeIssues}
         onChange={(ranges) => p.onParam('product_size_ranges', ranges)}
+        helpOpen={help === 'product_size_ranges'}
+        onHelp={() => toggleHelp('product_size_ranges')}
       />
       <details className="gpr-details">
         <summary className="gpr-summary">Advanced parameters</summary>
-        <div className="gpr-field-grid">{ADVANCED.filter((a) => !a.transcriptOnly || p.mode === 'transcript').map((a) => field(a.key, a.label))}</div>
+        <div className="gpr-field-grid">
+          {ADVANCED.filter((a) => !a.transcriptOnly || p.mode === 'transcript').map((a) => field(a.key, a.label, { topic: a.key, subject: a.label }))}
+        </div>
       </details>
       <div className="gpr-button-row">
         <button type="button" className="gpr-btn gpr-btn-small gpr-btn-quiet" disabled={!p.params} onClick={p.onReset}>

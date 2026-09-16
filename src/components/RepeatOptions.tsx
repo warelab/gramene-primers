@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import type { DesignMode, GenomeEntry, MaskSource, PrimerTemplate, RepeatMaskMode, RepeatMasking } from '../types';
 import { CheckboxField } from './fields';
+import { HelpButton, Primer3DocText } from './Primer3Help';
 import { fmtPercent } from './util';
 
 type KnownMaskSource = Exclude<MaskSource, null>;
@@ -39,11 +41,14 @@ export interface RepeatOptionsProps {
 }
 
 export function RepeatOptions(p: RepeatOptionsProps): JSX.Element {
+  const [helpOpen, setHelpOpen] = useState(false);
   const expected = expectedMaskSource(p.mode, p.genome, p.hasLowercase);
   const tpl = p.template && p.template.mode === p.mode ? p.template : null;
   const actual = tpl?.mask_source ?? null;
   const source = actual ?? expected;
   const name = `${p.idPrefix}-maskmode`;
+  const legendId = `${p.idPrefix}-maskmode-legend`;
+  const helpId = `${p.idPrefix}-help-repeat_masking`;
   let sourceText: JSX.Element | string;
   if (source) {
     sourceText = (
@@ -61,8 +66,19 @@ export function RepeatOptions(p: RepeatOptionsProps): JSX.Element {
     <fieldset className="gpr-fieldset" disabled={p.disabled}>
       <legend className="gpr-legend">Repeats</legend>
       <CheckboxField id={`${p.idPrefix}-avoid-repeats`} label="Avoid repeats" checked={p.avoidRepeats} onChange={(v) => p.onChange({ avoidRepeats: v })} />
-      <fieldset className="gpr-subfieldset" disabled={p.disabled || !p.avoidRepeats}>
-        <legend className="gpr-legend gpr-legend-small">Masked bases</legend>
+      <fieldset className="gpr-subfieldset" disabled={p.disabled || !p.avoidRepeats} aria-labelledby={legendId}>
+        {/* The first legend's button stays usable while the fieldset is disabled. */}
+        <legend className="gpr-legend gpr-legend-small">
+          <span className="gpr-label-row">
+            <span id={legendId}>Masked bases</span>
+            <HelpButton subject="Masked bases" expanded={helpOpen} controls={helpId} onToggle={() => setHelpOpen((o) => !o)} />
+          </span>
+        </legend>
+        {helpOpen ? (
+          <p id={helpId} className="gpr-hint gpr-help-text">
+            <Primer3DocText topic="repeat_masking" />
+          </p>
+        ) : null}
         <div className="gpr-radio-row">
           <input
             type="radio"

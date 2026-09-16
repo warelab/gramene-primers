@@ -5,6 +5,17 @@ All notable changes to this project are documented here. The format follows
 [semantic versioning](https://semver.org/). `0.x` releases are published with
 `--tag next`; `1.0.0` follows once `/primers` is live on data.sorghumbase.org.
 
+## [0.2.0] — 2026-09-15
+
+### Added
+- **Primer3 help in the designer:**
+  - A **?** button on each Primer3 setting (size, Tm and GC ranges, Max Tm difference, pairs to return, product size ranges, the advanced parameters and the repeat-masking choice) shows what it does, with links to its tags in the Primer3 2.6.1 manual.
+  - The interval, junction and explain texts link to the Primer3 tags they map to.
+  - `PairsTable` has an "About these columns" section for its statistics.
+  - The results end with a credit: the Primer3 version and its citation (Untergasser et al. 2012).
+  - Manual links open in a new tab.
+- **Resizable form and results columns:** in the two-column layout, a splitter between them can be dragged, or moved with the arrow keys, Home and End; double-click resets it. The width is saved in `state.view.formWidth` (300 px or more, with at least 360 px left for the results).
+
 ## [0.1.1] — 2026-09-15
 
 ### Fixed

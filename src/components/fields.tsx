@@ -19,6 +19,10 @@ export interface NumberFieldProps {
   disabled?: boolean;
   /** Marks a value that differs from the preset (`data-state="changed"`). */
   changed?: boolean;
+  /** Shown after the label, e.g. a help button. */
+  labelAddon?: ReactNode;
+  /** Ids of more descriptions outside the field, e.g. an open help text. */
+  describedBy?: string;
   className?: string;
 }
 
@@ -45,12 +49,22 @@ export function NumberField(p: NumberFieldProps): JSX.Element {
   const issues = p.issues ?? [];
   const errId = `${p.id}-err`;
   const hintId = `${p.id}-hint`;
-  const describedBy = [p.hint ? hintId : null, issues.length ? errId : null].filter(Boolean).join(' ') || undefined;
+  const describedBy = [p.hint ? hintId : null, p.describedBy ?? null, issues.length ? errId : null].filter(Boolean).join(' ') || undefined;
+  const label = (
+    <label className="gpr-label" htmlFor={p.id}>
+      {p.label}
+    </label>
+  );
   return (
     <div className={cx('gpr-field', p.className)} data-state={issues.length ? 'invalid' : p.changed ? 'changed' : undefined}>
-      <label className="gpr-label" htmlFor={p.id}>
-        {p.label}
-      </label>
+      {p.labelAddon ? (
+        <span className="gpr-label-row">
+          {label}
+          {p.labelAddon}
+        </span>
+      ) : (
+        label
+      )}
       <input
         id={p.id}
         className="gpr-input gpr-input-number"

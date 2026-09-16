@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Interval } from '../types';
 import { DESIGN_LIMITS, validateInterval, type ValidationIssue } from '../validate';
+import { Primer3Links } from './Primer3Help';
 import { fmtInt } from './util';
 
 interface Draft {
@@ -155,7 +156,8 @@ export function IntervalsEditor(p: IntervalsEditorProps): JSX.Element {
     <fieldset className="gpr-fieldset gpr-intervals" disabled={p.disabled}>
       <legend className="gpr-legend">Target and excluded regions</legend>
       <p className="gpr-hint">
-        1-based template positions as start and length{p.templateLength ? ` (template ${fmtInt(p.templateLength)} bp)` : ''}. The product must cover the target; primers stay inside the included region and outside excluded regions.
+        1-based template positions as start and length{p.templateLength ? ` (template ${fmtInt(p.templateLength)} bp)` : ''}. The product must cover the target; primers stay inside the included region and outside excluded regions.{' '}
+        <Primer3Links topic="intervals" />
       </p>
       {row('target', 'Target', `${p.idPrefix}-iv-target`, drafts.target, (d) => apply({ ...drafts, target: d }), clearButton('Target', drafts.target, (d) => apply({ ...drafts, target: d })))}
       {row('included', 'Included region', `${p.idPrefix}-iv-included`, drafts.included, (d) => apply({ ...drafts, included: d }), clearButton('Included region', drafts.included, (d) => apply({ ...drafts, included: d })))}

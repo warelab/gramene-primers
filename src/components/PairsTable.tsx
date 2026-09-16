@@ -1,13 +1,27 @@
 import { Fragment, useMemo, useState } from 'react';
 import { amplifiesFraction, truncatedGenomeCount } from '../pangenome';
+import type { Primer3DocTopic } from '../primer3Docs';
 import { canAddPairToCheck, CHECK_LIMITS, pairCheckability } from '../request';
 import { matchCheckResults } from '../results';
 import type { CheckJob, CheckPrimerInfo, PrimerOligo, PrimerPair, PrimerTemplate, SubmittedPair } from '../types';
 import { CopyButton } from './CopyButton';
 import { PairDetail } from './PairDetail';
+import { Primer3DocText } from './Primer3Help';
 import { GprRoot, type StyleProps } from './Root';
 import { VerdictChip } from './VerdictChip';
 import { fmtInt, fmtNum, useIdPrefix } from './util';
+
+/** "About these columns": the table's Primer3 statistics, plus those in a pair's Details. */
+const COLUMN_HELP: ReadonlyArray<readonly [string, Primer3DocTopic]> = [
+  ['Tm °C, GC %', 'tm_gc'],
+  ['Product bp', 'product'],
+  ['Penalty', 'penalty'],
+  ['Compl. any/3′', 'complementarity'],
+  ['Hairpin', 'hairpin'],
+  ['Self-complementarity (Details)', 'self_complementarity'],
+  ['3′ end stability (Details)', 'end_stability'],
+  ['Product Tm (Details)', 'product_tm'],
+];
 
 export interface PairsTableProps extends StyleProps {
   pairs: ReadonlyArray<PrimerPair>;
@@ -268,6 +282,19 @@ export function PairsTable(props: PairsTableProps): JSX.Element {
           </tbody>
         </table>
       </div>
+      <details className="gpr-details gpr-column-help">
+        <summary className="gpr-summary">About these columns</summary>
+        <dl className="gpr-dl gpr-column-help-list">
+          {COLUMN_HELP.map(([term, topic]) => (
+            <div className="gpr-dl-row" key={topic}>
+              <dt>{term}</dt>
+              <dd>
+                <Primer3DocText topic={topic} />
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </details>
     </GprRoot>
   );
 }

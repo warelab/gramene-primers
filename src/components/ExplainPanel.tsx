@@ -1,5 +1,6 @@
 import { summarizeExplain } from '../explain';
 import type { DesignExplain } from '../types';
+import { Primer3DocText } from './Primer3Help';
 import { fmtInt } from './util';
 
 const SIDE_LABEL = { left: 'Left primers', right: 'Right primers', pair: 'Primer pairs' } as const;
@@ -56,6 +57,9 @@ export function ExplainPanel({ explain, open, onToggle, noPairs, idPrefix }: Exp
             </div>
           ))}
         </div>
+        <p className="gpr-hint gpr-explain-docs">
+          <Primer3DocText topic="explain" />
+        </p>
       </div>
     </section>
   );

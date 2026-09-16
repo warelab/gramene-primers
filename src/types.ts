@@ -691,7 +691,8 @@ export interface PrimerDesignerState {
   selectedRank?: number;
   checkedRanks?: number[];
   check?: PrimerDesignerCheckState;
-  view?: { resultsTab: ResultsTab; explainOpen?: boolean };
+  /** Results tab, explain panel, and the form-column width set with the splitter (px; absent means the default layout). */
+  view?: { resultsTab: ResultsTab; explainOpen?: boolean; formWidth?: number };
 }
 
 export interface PrimerDesignerFeatures {

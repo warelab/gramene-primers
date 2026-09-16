@@ -205,9 +205,18 @@ export function normalizeDesignerState(raw: unknown, ctx: DesignerContext = {}):
     const tab = RESULTS_TABS.includes(raw.view.resultsTab as ResultsTab) ? (raw.view.resultsTab as ResultsTab) : 'pairs';
     s.view = { resultsTab: tab };
     if (typeof raw.view.explainOpen === 'boolean') s.view.explainOpen = raw.view.explainOpen;
+    if (typeof raw.view.formWidth === 'number' && Number.isFinite(raw.view.formWidth)) s.view.formWidth = clampFormWidth(raw.view.formWidth);
   }
 
   return ctx.persistSequence === false ? toPersistedState(s, { persistSequence: false }) : s;
+}
+
+/** Form-column limits (px) for `view.formWidth`; the results column keeps at least `resultsMin` beside the splitter. */
+export const LAYOUT_LIMITS = Object.freeze({ formMin: 300, formDefault: 380, formMax: 2400, splitter: 18, resultsMin: 360 });
+
+/** A form-column width rounded and kept within `LAYOUT_LIMITS`. */
+export function clampFormWidth(width: number): number {
+  return Math.min(LAYOUT_LIMITS.formMax, Math.max(LAYOUT_LIMITS.formMin, Math.round(width)));
 }
 
 /** The state to emit to the host (`persistSequence: false` drops `sequence`); always JSON-serializable. */

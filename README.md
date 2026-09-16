@@ -11,7 +11,7 @@ endpoints:
 - React 18 is a peer dependency; the package has **no runtime dependencies**.
 - ESM + CJS builds with TypeScript declarations; styles are injected at runtime and also shipped as `gramene-primers/style.css`.
 
-> Status: `0.1.1`. The API endpoints are under development on the
+> Status: `0.2.0`. The API endpoints are under development on the
 > gramene-swagger `primer-design` branch. Check results follow check algorithm version 2.
 
 ## Install
@@ -23,8 +23,8 @@ npm install gramene-primers react@^18.2 react-dom@^18.2
 During development, link a tarball rather than `npm link` (a symlink would load a second React):
 
 ```bash
-npm run pack:local                       # gramene-primers-0.1.1.tgz
-cd ../gramene-search && npm install --no-save ../gramene-primers/gramene-primers-0.1.1.tgz && rm -rf .parcel-cache
+npm run pack:local                       # gramene-primers-0.2.0.tgz
+cd ../gramene-search && npm install --no-save ../gramene-primers/gramene-primers-0.2.0.tgz && rm -rf .parcel-cache
 ```
 
 `npm run lint:pkg` packs into a temporary directory, so it never deletes that tarball, whichever runs last.
@@ -79,6 +79,13 @@ import { PrimerDesigner } from 'gramene-primers';
 - **Checks:** results are matched to pairs by UPPERCASE primer sequence, not by rank. Check job ids are shared: when `POST /primers/check` answers with a job that already finished (status only, no results), the job is read once with `GET`.
 - **Pasted FASTA:** several records are joined into one template; the Sequence input notes it (server warning `MULTIPLE_RECORDS`).
 
+### Primer3 help
+
+- **Settings:** each Primer3 setting (size, Tm and GC ranges, Max Tm difference, pairs to return, product size ranges, every advanced parameter and the repeat-masking choice) has a **?** button. It shows what the setting does and links to its tag in the [Primer3 2.6.1 manual](https://primer3.org/manual.html); one help text is open at a time.
+- **Inputs and explain:** the interval, junction and explain texts link to the Primer3 tags they map to.
+- **Results:** `PairsTable` ends with "About these columns", and the designer's results end with a credit naming the Primer3 version (`engine.primer3`) and its citation.
+- Manual links open in a new tab, so a design and a running check stay put.
+
 ## Other components
 
 Each takes `theme`, `injectStyles`, `className` and `style` (`StyleProps`). Used on their own they render a `.gpr-root`; inside a `PrimerDesigner` they share the designer's.
@@ -108,6 +115,7 @@ Reading check results (algorithm version 2):
   ```
 - **`ensureStylesInjected(target?)`** injects into `document` or a `ShadowRoot`. It returns `true` when it added the element and is safe outside browsers. `STYLE_ELEMENT_ID` and `PRIMERS_CSS` (the text) are exported too.
 - **Scoping:** every rule sits under `.gpr-root`, with `gpr-` class names and `--gpr-*` custom properties and no `!important`. A defensive reset beats the Bootstrap 4 reboot. Themes are `.gpr-theme-light`, `.gpr-theme-dark` and `auto`; the layout uses two columns at a container width of 960 px or more.
+- **Resizable columns:** in the two-column layout, drag the bar between the form and the results, or focus it and use the arrow keys (Shift for bigger steps), Home and End. Double-click resets the default. The form column stays at least 300 px and the results at least 360 px; the width is kept in `state.view.formWidth`.
 
 ## mount (hosts without React)
 
@@ -259,7 +267,7 @@ npm run typecheck
 npm test                  # vitest + jsdom unit and component tests
 npm run build             # dist/gramene-primers.{js,cjs,css}, dist/index.d.{ts,cts}
 npm run lint:pkg          # publint + @arethetypeswrong/cli on a tarball packed in a temp dir
-npm run pack:local        # build, then gramene-primers-0.1.1.tgz
+npm run pack:local        # build, then gramene-primers-0.2.0.tgz
 npm run fixtures          # contract request fixtures (below)
 npm run dev               # playground on :5174
 ```

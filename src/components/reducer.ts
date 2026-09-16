@@ -37,7 +37,8 @@ export type DesignerAction =
   | { type: 'checkJob'; jobId: string; submitted?: SubmittedPair[] }
   | { type: 'clearCheckJob' }
   | { type: 'setTab'; tab: ResultsTab }
-  | { type: 'setExplainOpen'; open: boolean };
+  | { type: 'setExplainOpen'; open: boolean }
+  | { type: 'setFormWidth'; width: number | undefined };
 
 /** Returns a copy without keys whose value is `undefined` (keeps emitted state JSON-clean). */
 function compact<T extends object>(obj: T): T {
@@ -138,6 +139,9 @@ export function designerReducer(s: PrimerDesignerState, a: DesignerAction): Prim
     case 'setExplainOpen':
       if (!!view(s).explainOpen === a.open) return s;
       return { ...s, view: { ...view(s), explainOpen: a.open } };
+    case 'setFormWidth':
+      if (view(s).formWidth === a.width) return s;
+      return { ...s, view: compact({ ...view(s), formWidth: a.width }) };
     default:
       return s;
   }

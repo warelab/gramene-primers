@@ -348,6 +348,64 @@
   font-size: 0.88em;
 }
 
+/* ---- Primer3 help ---------------------------------------------------------- */
+.gpr-root .gpr-label-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 5px;
+}
+
+.gpr-root .gpr-help-button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--gpr-border);
+  border-radius: 50%;
+  background-color: var(--gpr-bg);
+  color: var(--gpr-muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gpr-root .gpr-help-button:hover,
+.gpr-root .gpr-help-button[aria-expanded="true"] {
+  border-color: var(--gpr-accent);
+  color: var(--gpr-accent);
+}
+
+.gpr-root .gpr-help-text {
+  margin: 0 0 6px;
+}
+
+.gpr-root .gpr-help-wide {
+  grid-column: 1 / -1;
+}
+
+.gpr-root .gpr-p3-tag {
+  font-family: var(--gpr-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+}
+
+.gpr-root .gpr-column-help {
+  margin-top: 8px;
+}
+
+.gpr-root .gpr-column-help-list dd {
+  margin: 0;
+}
+
+.gpr-root .gpr-p3-credit {
+  margin-top: 10px;
+}
+
 .gpr-root .gpr-field-error {
   color: var(--gpr-danger);
   font-size: 0.88em;
@@ -439,16 +497,68 @@
   align-items: start;
 }
 
+/* Form/results splitter: only in the two-column layout, where its 18 px column replaces the gap. */
+.gpr-root .gpr-splitter {
+  display: none;
+  position: relative;
+  align-self: stretch;
+  min-height: 48px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.gpr-root .gpr-splitter::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 8px;
+  width: 2px;
+  border-radius: 1px;
+  background-color: var(--gpr-border);
+  transition: background-color 0.15s ease;
+}
+
+.gpr-root .gpr-splitter:hover::before,
+.gpr-root .gpr-splitter:focus-visible::before,
+.gpr-root .gpr-splitter[data-state="dragging"]::before {
+  background-color: var(--gpr-accent);
+}
+
+.gpr-root .gpr-layout[data-dragging] {
+  cursor: col-resize;
+  user-select: none;
+}
+
 @container gpr (min-width: 960px) {
   .gpr-root .gpr-layout {
-    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+    grid-template-columns: minmax(300px, 380px) 18px minmax(0, 1fr);
+    column-gap: 0;
+  }
+
+  .gpr-root .gpr-layout[data-resized] {
+    grid-template-columns: clamp(300px, var(--gpr-form-width), calc(100% - 378px)) 18px minmax(0, 1fr);
+  }
+
+  .gpr-root .gpr-splitter {
+    display: block;
   }
 }
 
 @supports not (container-type: inline-size) {
   @media (min-width: 1000px) {
     .gpr-root .gpr-layout {
-      grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+      grid-template-columns: minmax(300px, 380px) 18px minmax(0, 1fr);
+      column-gap: 0;
+    }
+
+    .gpr-root .gpr-layout[data-resized] {
+      grid-template-columns: clamp(300px, var(--gpr-form-width), calc(100% - 378px)) 18px minmax(0, 1fr);
+    }
+
+    .gpr-root .gpr-splitter {
+      display: block;
     }
   }
 }
@@ -1814,7 +1924,8 @@
 @media (prefers-reduced-motion: reduce) {
   .gpr-root .gpr-btn,
   .gpr-root .gpr-progress-bar,
-  .gpr-root .gpr-disclosure::before {
+  .gpr-root .gpr-disclosure::before,
+  .gpr-root .gpr-splitter::before {
     transition: none;
   }
 

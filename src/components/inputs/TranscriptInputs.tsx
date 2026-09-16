@@ -1,5 +1,6 @@
 import type { GrameneGene, Interval } from '../../types';
 import { CheckboxField } from '../fields';
+import { Primer3Links } from '../Primer3Help';
 import { fmtInt, selectedTranscript } from '../util';
 import { TranscriptSelect } from './selects';
 
@@ -50,6 +51,9 @@ export function TranscriptInputs(p: TranscriptInputsProps): JSX.Element {
         onChange={p.onJunctionSpanning}
         hint={hint}
       />
+      <p className="gpr-hint">
+        <Primer3Links topic="junction" />
+      </p>
       <div className="gpr-button-row">
         <button type="button" className="gpr-btn gpr-btn-small" disabled={!cdsInterval || restricted} onClick={() => cdsInterval && p.onIncluded(cdsInterval)}>
           Restrict to CDS
