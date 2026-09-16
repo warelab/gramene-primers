@@ -12,6 +12,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['test/setup.ts'],
     restoreMocks: true,
+    // axe-core on a rendered designer takes ~1.5 s here and several times that on CI runners.
+    testTimeout: 30_000,
     env: { GRAMENE_PRIMERS_ROOT: __dirname },
   },
 });

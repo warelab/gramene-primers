@@ -9,6 +9,8 @@ import { expect } from 'vitest';
 export async function expectNoAxeViolations(container: Element, label = 'axe'): Promise<void> {
   const results = await axe.run(container, {
     runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'] },
+    // Only violations are asserted; aggregating the other result types is the slow part.
+    resultTypes: ['violations'],
     rules: {
       'color-contrast': { enabled: false },
       region: { enabled: false },
