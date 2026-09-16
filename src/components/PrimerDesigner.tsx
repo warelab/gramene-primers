@@ -5,10 +5,11 @@ import { ampliconsToFasta, offTargetsToTSV, pairsToTSV, pangenomeToTSV, primersT
 import { isTranscriptModelsOnly } from '../pangenome';
 import { availableGenomeNames, buildCheckRequest, buildDesignRequest, defaultPangenomeGenomes, isCheckablePair } from '../request';
 import { pairKey, submittedPairs } from '../results';
-import { availableModes, designerIdentity, initialDesignerState, type DesignerContext } from '../state';
+import { availableModes, designerIdentity, designModeOf, initialDesignerState, type DesignerContext } from '../state';
 import type {
   CheckJob,
   CheckRequest,
+  DesignerMode,
   DesignMode,
   DesignRequest,
   DesignResponse,
@@ -16,13 +17,14 @@ import type {
   PrimerDesignerState,
   ResultsTab,
 } from '../types';
-import { cleanSequenceInput, type ValidationIssue } from '../validate';
+import { cleanSequenceInput, GENOTYPING_LIMITS, type ValidationIssue } from '../validate';
 import { CheckPanel } from './CheckPanel';
 import { analyzeDesignInputs, PREVIEW_IGNORED_PARAM_CODES, restoreBlockers } from './designChecks';
 import { ErrorBanner, isDisablingError } from './ErrorBanner';
 import { ExplainPanel } from './ExplainPanel';
 import { ExportMenu, type ExportItem } from './ExportMenu';
 import { TabList, tabDomId, type TabItem } from './fields';
+import { GenotypingPanel } from './GenotypingPanel';
 import { useLiveRegions } from './hooks/announcer';
 import { useCheckJob } from './hooks/useCheckJob';
 import { useDesign, type DesignMeta } from './hooks/useDesign';
@@ -77,6 +79,7 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
     pangenome: props.features?.pangenome !== false,
     export: props.features?.export !== false,
     map: props.features?.map !== false,
+    genotyping: props.features?.genotyping !== false,
   };
   useStyleInjection(props.injectStyles !== false);
   const idp = useIdPrefix('gpr');
@@ -256,7 +259,8 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
   const results = job?.results ?? null;
   const checkRequest: CheckRequest | null = job?.request ?? check.state.request ?? null;
   const submitted = state.check?.submitted ?? null;
-  const checkMode: DesignMode = template?.mode ?? state.mode;
+  // A check never runs in genotyping mode from here; the genotyping panel builds its own request.
+  const checkMode: DesignMode = template?.mode ?? designModeOf(state.mode);
   const checkSystem = checkMode === 'sequence' ? state.systemName ?? template?.system_name ?? null : template?.system_name ?? geneDoc?.system_name ?? state.systemName ?? null;
   const checkGeneId = template?.gene_id ?? geneId;
   const checkTranscriptId = template?.transcript_id ?? null;
@@ -337,11 +341,21 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
 
   const templateSystem = state.mode === 'region' ? state.systemName ?? null : state.mode === 'sequence' ? null : geneDoc?.system_name ?? props.systemName ?? null;
   const templateGenome = genomeList?.find((g) => g.system_name === templateSystem) ?? null;
-  const modeDisabled: Partial<Record<DesignMode, string>> = tooLong ? { gene: 'the gene is longer than 50,000 bp — use Transcript or Region.' } : {};
-  const modes = availableModes(ctx);
+  const modeDisabled: Partial<Record<DesignerMode, string>> = tooLong ? { gene: 'the gene is longer than 50,000 bp — use Transcript or Region.' } : {};
+  // A host can turn the mode off even when the inputs would allow it.
+  const modes = availableModes(ctx).filter((m) => m !== 'genotyping' || features.genotyping);
   const inputsPanelId = `${idp}-inputs`;
   const issuesId = `${idp}-issues`;
   const mapIntervals = template && template.mode === state.mode ? { target: state.target, included: state.included, excluded: state.excluded } : {};
+  // The variant listing defaults to the gene span ± 2 kb, clamped to the window the server will list.
+  // The padding is symmetric, so strand does not come into it.
+  const genotypingWindow = geneDoc?.location
+    ? (() => {
+        const pad = 2000;
+        const start = Math.max(1, geneDoc.location.start - pad);
+        return { region: geneDoc.location.region, start, end: Math.min(geneDoc.location.end + pad, start + GENOTYPING_LIMITS.maxWindow - 1) };
+      })()
+    : undefined;
 
   let tabContent: JSX.Element | null = null;
   if (activeTab === 'pairs') {
@@ -408,6 +422,28 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
             <div className="gpr-header">
               <ModeTabs modes={modes} value={state.mode} onChange={(mode) => dispatch({ type: 'setMode', mode })} disabled={modeDisabled} idPrefix={idp} panelId={inputsPanelId} />
             </div>
+            {state.mode === 'genotyping' ? (
+              <div
+                className="gpr-layout gpr-layout-genotyping"
+                role="tabpanel"
+                id={inputsPanelId}
+                aria-labelledby={tabDomId(`${idp}-mode`, state.mode)}
+              >
+                <GenotypingPanel
+                  client={client}
+                  state={state}
+                  dispatch={dispatch}
+                  systemName={homeSystem}
+                  genomes={genomes.data}
+                  defaultWindow={genotypingWindow}
+                  geneId={geneId}
+                  pangenomeFeature={features.pangenome}
+                  exportFeature={features.export}
+                  disabled={formDisabled}
+                  idPrefix={idp}
+                />
+              </div>
+            ) : (
             <div className="gpr-layout">
               <div className="gpr-inputs" role="tabpanel" id={inputsPanelId} aria-labelledby={tabDomId(`${idp}-mode`, state.mode)}>
                 <form className="gpr-form" onSubmit={onSubmit} noValidate>
@@ -464,7 +500,7 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
                     ) : null}
                     <RepeatOptions
                       idPrefix={idp}
-                      mode={state.mode}
+                      mode={designModeOf(state.mode)}
                       avoidRepeats={!!state.avoidRepeats}
                       repeatMaskMode={state.repeatMaskMode ?? 'n_mask'}
                       onChange={(c) => dispatch({ type: 'setRepeats', ...c })}
@@ -483,7 +519,7 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
                     />
                     <ParamsPanel
                       idPrefix={idp}
-                      mode={state.mode}
+                      mode={designModeOf(state.mode)}
                       preset={preset}
                       params={state.params}
                       onPreset={(p) => dispatch({ type: 'setPreset', preset: p })}
@@ -610,6 +646,7 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
                 {features.export && pairs.length ? <ExportMenu items={exportItems} idPrefix={idp} /> : null}
               </section>
             </div>
+            )}
           </div>
         </div>
       </RootMarker>

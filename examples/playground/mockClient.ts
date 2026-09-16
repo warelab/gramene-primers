@@ -24,6 +24,13 @@ import {
   type DesignResponse,
   type GenomeEntry,
   type GenomesResponse,
+  type GenotypeAllele,
+  type GenotypeGenomeRow,
+  type GenotypePredictionRow,
+  type GenotypeResults,
+  type GenotypeSetResults,
+  type GenotypingDesignRequest,
+  type GenotypingDesignResponse,
   type GrameneGene,
   type OffTarget,
   type PangenomeGenomeResult,
@@ -33,6 +40,9 @@ import {
   type PrimerPair,
   type PrimersClient,
   type RequestOptions,
+  type VariantListQuery,
+  type VariantListResponse,
+  type VariantLookupResponse,
   type SpecificityPairResult,
   type TranscriptomePairResult,
 } from 'gramene-primers';
@@ -50,6 +60,11 @@ import tx200Design from '../../test/components/fixtures/designs/transcript-SORBI
 import tx46200a from '../../test/components/fixtures/designs/transcript-SORBI_3001G046200.1.json';
 import tx46200b from '../../test/components/fixtures/designs/transcript-SORBI_3001G046200.2.json';
 import tx87700Design from '../../test/components/fixtures/designs/transcript-SORBI_3004G087700.3.json';
+import kaspDesignCapture from '../../test/fixtures/genotyping/capture-genotyping-design-rs871475760-kasp.json';
+import insertionDesignCapture from '../../test/fixtures/genotyping/capture-genotyping-design-tmp_1_11502_C_CGT.json';
+import deletionDesignCapture from '../../test/fixtures/genotyping/capture-genotyping-design-manual-deletion.json';
+import variantsListCapture from '../../test/fixtures/genotyping/capture-variants-list-1_11180-11290.json';
+import variantsLookupCapture from '../../test/fixtures/genotyping/capture-variants-lookup-tmp_1_11502_C_CGT.json';
 import type { MockVariant } from './pages';
 
 export const GENES: Readonly<Record<string, GrameneGene>> = Object.freeze({
@@ -292,6 +307,8 @@ export function mockGenomes(systemName: string): GenomesResponse {
   return {
     system_name: systemName,
     species: { taxon_id: 4558, name: 'Sorghum bicolor' },
+    // Without this the variant picker correctly falls back to manual entry only.
+    variation: { available: true, source: 'ensembl', release: '115' },
     counts: { total: genomes.length, with_blastdb: genomes.filter((g) => g.has_blastdb).length, with_cdna_blastdb: genomes.filter((g) => g.has_cdna_blastdb).length },
     genomes,
   };
@@ -333,11 +350,15 @@ export class MockPrimersClient implements PrimersClient {
     return wait(ms * (this.options.delayScale ?? 1), signal);
   }
 
-  private takeFailure(kind: 'design' | 'check'): PrimersApiError | null {
+  private takeFailure(kind: 'design' | 'check' | 'variants'): PrimersApiError | null {
     const code = this.failWith;
     if (!code) return null;
     const designCodes = ['BUSY', 'VALIDATION', 'FEATURE_DISABLED', 'PRIMER3_UNAVAILABLE'];
-    if ((kind === 'design') !== designCodes.includes(code)) return null;
+    // Codes only the variant endpoints raise; design and check keep their existing split.
+    const variantCodes = ['VARIATION_SOURCE_UNAVAILABLE', 'NO_VARIATION_DATA', 'UNKNOWN_VARIANT', 'REF_MISMATCH'];
+    const handles =
+      kind === 'variants' ? variantCodes.includes(code) : kind === 'design' ? designCodes.includes(code) : !designCodes.includes(code) && !variantCodes.includes(code);
+    if (!handles) return null;
     this.failWith = null;
     switch (code) {
       case 'BUSY':
@@ -348,6 +369,14 @@ export class MockPrimersClient implements PrimersClient {
         return new PrimersApiError({ status: 503, code, message: 'The check queue is full', details: { retry_after_s: 10 }, retryAfterMs: 10000 });
       case 'JOB_TOO_LARGE':
         return new PrimersApiError({ status: 422, code, message: 'Estimated CPU time exceeds the limit', details: { estimate_cpu_s: 7250, limit: 6000 } });
+      case 'VARIATION_SOURCE_UNAVAILABLE':
+        return new PrimersApiError({ status: 503, code, message: 'Variant lookups are temporarily unavailable', details: { retry_after_s: 30, reason: 'timeout' }, retryAfterMs: 30000 });
+      case 'NO_VARIATION_DATA':
+        return new PrimersApiError({ status: 422, code, message: 'No known variants for this genome', details: { system_name: 'sorghum_bicolor' } });
+      case 'UNKNOWN_VARIANT':
+        return new PrimersApiError({ status: 404, code, message: 'Ensembl does not know that id', details: { id: 'rsUnknown', system_name: 'sorghum_bicolor' } });
+      case 'REF_MISMATCH':
+        return new PrimersApiError({ status: 400, code, message: 'The genome has C at 1:11109', details: { region: '1', position: 11109, given: 'G', genome: 'C' } });
       default:
         return new PrimersApiError({ status: 503, code, message: `${code} (mock)` });
     }
@@ -395,6 +424,61 @@ export class MockPrimersClient implements PrimersClient {
     o?.onUpdate?.(job);
     if (job.status === 'done' || job.status === 'error') return job;
     return pollCheckJob(this, job.job_id, { ...o, resubmit: req, initialJob: job });
+  }
+
+  async listVariants(query: VariantListQuery, o?: RequestOptions): Promise<VariantListResponse> {
+    await this.delay(220, o?.signal);
+    const failure = this.takeFailure('variants');
+    if (failure) throw failure;
+    if (this.options.variant === 'genotyping-no-variation') {
+      throw new PrimersApiError({ status: 422, code: 'NO_VARIATION_DATA', message: 'No known variants for this genome', details: { system_name: query.system_name } });
+    }
+    const base = clone(variantsListCapture.response) as VariantListResponse;
+    const kept = base.variants.filter(
+      (v) =>
+        v.vcf.position >= query.start &&
+        v.vcf.position <= query.end &&
+        (!query.types || query.types.includes(v.kind)) &&
+        (query.include_ems === false ? !v.ems : true),
+    );
+    return { ...base, region: query.region, start: query.start, end: query.end, total: kept.length, returned: kept.length, truncated: false, variants: kept };
+  }
+
+  async getVariant(variantId: string, query: { system_name: string }, o?: RequestOptions): Promise<VariantLookupResponse> {
+    await this.delay(180, o?.signal);
+    const failure = this.takeFailure('variants');
+    if (failure) throw failure;
+    const lookup = clone(variantsLookupCapture.response) as VariantLookupResponse;
+    const known = variantId === lookup.requested_id || lookup.variants.some((v) => v.ids.includes(variantId));
+    if (!known) {
+      throw new PrimersApiError({ status: 404, code: 'UNKNOWN_VARIANT', message: `Ensembl does not know ${variantId}`, details: { id: variantId, system_name: query.system_name } });
+    }
+    return { ...lookup, requested_id: variantId };
+  }
+
+  async designGenotyping(req: GenotypingDesignRequest, o?: RequestOptions): Promise<GenotypingDesignResponse> {
+    await this.delay(600, o?.signal);
+    const failure = this.takeFailure('design');
+    if (failure) throw failure;
+    // The input is a union of VCF fields and an id; narrow on it rather than casting.
+    const v = req.variant;
+    const key = 'region' in v ? `${v.region}:${v.position}:${v.ref}:${v.alt}` : null;
+    const id = 'id' in v ? v.id : null;
+    const byKey: Record<string, unknown> = {
+      '1:11109:C:A': kaspDesignCapture.response,
+      '1:11502:C:CGT': insertionDesignCapture.response,
+      '1:11282:CA:C': deletionDesignCapture.response,
+    };
+    const byId: Record<string, unknown> = {
+      rs871475760: kaspDesignCapture.response,
+      tmp_1_11502_C_CGT: insertionDesignCapture.response,
+      rs5413863549: insertionDesignCapture.response,
+      rs5413864115: deletionDesignCapture.response,
+    };
+    const chosen = (key ? byKey[key] : null) ?? (id ? byId[id] : null) ?? kaspDesignCapture.response;
+    const res = clone(chosen) as GenotypingDesignResponse;
+    // `template_only` verifies the reference and returns the template, never sets.
+    return req.template_only ? { ...res, sets: [], orientations: null, check: null } : res;
   }
 
   async listGenomes(systemName: string, o?: RequestOptions): Promise<GenomesResponse> {
@@ -483,8 +567,115 @@ export class MockPrimersClient implements PrimersClient {
       specificity,
       transcriptome,
       pangenome,
+      ...(req.genotyping ? { genotyping: this.genotypeResults(job, genomes, fraction) } : {}),
       warnings,
       timings_ms: { reference: 11000 },
+    };
+  }
+
+  /**
+   * Synthetic allele calls. The captures only ever show ref/alt with a normal
+   * strength, so the states that matter for the UI — a third allele, copies that
+   * disagree, a missing ortholog, a withheld prediction — are generated here,
+   * deterministically per genome so a page looks the same on every reload.
+   */
+  private genotypeResults(job: StoredJob, genomes: string[], fraction: number): GenotypeResults {
+    const block = job.request.genotyping!;
+    const reference = job.request.system_name;
+    // The reference is called first; pan-genome genomes arrive one per tick.
+    const panCount = Math.floor((Math.max(0, fraction - 0.2) / 0.8) * genomes.length);
+    const called = genomes.slice(0, panCount);
+
+    const alleleFor = (name: string): { allele: GenotypeAllele; observed: string | null; reason: string | null; source: 'amplicon' | 'megablast' | null; copies: number; paralogs: number } => {
+      const r = rng(`allele|${block.variant.ref}|${name}`)();
+      if (r < 0.45) return { allele: 'ref', observed: block.variant.ref, reason: null, source: 'amplicon', copies: 1, paralogs: 0 };
+      if (r < 0.72) return { allele: 'alt', observed: block.variant.alt, reason: null, source: 'amplicon', copies: 1, paralogs: 0 };
+      if (r < 0.80) return { allele: 'alt', observed: block.variant.alt, reason: null, source: 'megablast', copies: 2, paralogs: 1 };
+      // A third core: reachable per copy in real data, so it is worth rendering.
+      if (r < 0.87) return { allele: 'other', observed: `${block.variant.ref}${block.variant.ref}`, reason: null, source: 'amplicon', copies: 1, paralogs: 0 };
+      // Copies read different cores, so there is no single observed sequence.
+      if (r < 0.92) return { allele: 'ambiguous', observed: null, reason: null, source: 'amplicon', copies: 2, paralogs: 0 };
+      if (r < 0.97) return { allele: 'missing', observed: null, reason: r < 0.95 ? 'no_orthologous_copy' : 'fallback_budget', source: null, copies: 0, paralogs: 0 };
+      return { allele: 'unavailable', observed: null, reason: 'fallback_failed', source: null, copies: 0, paralogs: 0 };
+    };
+
+    const genomeRows: GenotypeGenomeRow[] = [
+      { system_name: reference, display_name: reference, is_reference: true, allele: 'ref', observed: block.variant.ref, source: 'amplicon', copies: [], orthologous_copies: 1, paralog_copies: 0, reason: null },
+      ...called.map((name): GenotypeGenomeRow => {
+        const a = alleleFor(name);
+        return {
+          system_name: name,
+          display_name: mockGenomes(reference).genomes.find((g) => g.system_name === name)?.display_name ?? name,
+          is_reference: false,
+          allele: a.allele,
+          observed: a.observed,
+          source: a.source,
+          copies: [],
+          orthologous_copies: a.copies,
+          paralog_copies: a.paralogs,
+          reason: a.reason,
+        };
+      }),
+    ];
+
+    const call = (setId: string, row: GenotypeGenomeRow): GenotypePredictionRow => {
+      const r = rng(`pred|${setId}|${row.system_name}`)();
+      const primer = (status: string) => ({ status, likelihood: null, mm_pos: null, residual_mm_pos: null });
+      // A withheld prediction: the 3' base sits in a shiftable tract, so it is not a disagreement.
+      if (r < 0.06) return { system_name: row.system_name, ref_primer: primer('uncertain'), alt_primer: primer('uncertain'), common_primer: primer('match'), predicted: 'unknown', strength: null, agrees: null, reasons: ['shift_tract_uncertain'], off_locus_products: 0 };
+      // A 3' mismatch on the common primer silences both dyes.
+      if (r < 0.10) return { system_name: row.system_name, ref_primer: primer('match'), alt_primer: primer('terminal_mismatch'), common_primer: primer('blocked'), predicted: 'no_call', strength: null, agrees: null, reasons: ['common_primer_3p_mismatch'], off_locus_products: 0 };
+      if (row.allele === 'missing' || row.allele === 'unavailable') {
+        return { system_name: row.system_name, ref_primer: primer('no_product'), alt_primer: primer('no_product'), common_primer: primer('no_product'), predicted: 'none', strength: null, agrees: row.allele === 'missing' ? true : null, reasons: [row.reason ?? 'no_orthologous_copy'], off_locus_products: 0 };
+      }
+      if (row.allele === 'ambiguous' || row.allele === 'other') {
+        return { system_name: row.system_name, ref_primer: primer('match'), alt_primer: primer('match'), common_primer: primer('match'), predicted: 'both', strength: 'normal', agrees: row.allele === 'other' ? false : null, reasons: row.allele === 'other' ? ['third_allele'] : [], off_locus_products: 1 };
+      }
+      const predicted = row.allele === 'ref' ? 'ref' : 'alt';
+      const weak = r > 0.88;
+      return { system_name: row.system_name, ref_primer: primer(predicted === 'ref' ? 'match' : 'terminal_mismatch'), alt_primer: primer(predicted === 'alt' ? 'match' : 'terminal_mismatch'), common_primer: primer('match'), predicted, strength: weak ? 'weak' : 'normal', agrees: true, reasons: [], off_locus_products: 0 };
+    };
+
+    const sets: GenotypeSetResults[] = block.sets.map((s, i): GenotypeSetResults => {
+      const rows = genomeRows.filter((g) => !g.is_reference).map((g) => call(s.id, g));
+      const count = (fn: (p: GenotypePredictionRow) => boolean) => rows.filter(fn).length;
+      // One set's reference control fails, so the warning path is visible in the mock.
+      const controlFails = i === 1 && genomes.length > 4;
+      return {
+        id: s.id,
+        ref_pair: s.ref_pair,
+        alt_pair: s.alt_pair,
+        orientation: i % 2 === 0 ? 'reverse' : 'forward',
+        deliberate_mismatch_positions: [],
+        specificity: { ref_pair: { verdict: 'specific', consistent_with_allele: true }, alt_pair: { verdict: 'specific', consistent_with_allele: true }, off_target_count: 0 },
+        control: controlFails ? { status: 'fail', allele: 'alt', reasons: ['reference_read_alt'] } : { status: 'pass', allele: 'ref', reasons: [] },
+        reference: call(s.id, genomeRows[0]!),
+        summary: {
+          genomes_total: rows.length,
+          predicted_ref: count((p) => p.predicted === 'ref'),
+          predicted_alt: count((p) => p.predicted === 'alt'),
+          both: count((p) => p.predicted === 'both'),
+          none: count((p) => p.predicted === 'none'),
+          no_call: count((p) => p.predicted === 'no_call'),
+          unknown: count((p) => p.predicted === 'unknown'),
+          weak: count((p) => p.strength === 'weak'),
+          agree: count((p) => p.agrees === true),
+          disagree: count((p) => p.agrees === false),
+          not_comparable: count((p) => p.agrees === null),
+        },
+        genomes: rows,
+      };
+    });
+
+    const pan = genomeRows.filter((g) => !g.is_reference);
+    const tally = (a: GenotypeAllele) => pan.filter((g) => g.allele === a).length;
+    return {
+      algorithm_version: 'g1',
+      variant: { key: `${block.variant.region}:${block.variant.position}:${block.variant.ref}:${block.variant.alt}`, region: block.variant.region, position: block.variant.position, ref: block.variant.ref, alt: block.variant.alt, core: { ref: block.variant.ref, alt: block.variant.alt } },
+      // The reference is never counted in a summary.
+      summary: { genomes_total: pan.length, ref: tally('ref'), alt: tally('alt'), other: tally('other'), ambiguous: tally('ambiguous'), missing: tally('missing'), unavailable: tally('unavailable') },
+      genomes: genomeRows,
+      sets,
     };
   }
 

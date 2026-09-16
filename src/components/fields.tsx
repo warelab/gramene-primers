@@ -99,6 +99,57 @@ export function NumberField(p: NumberFieldProps): JSX.Element {
   );
 }
 
+export interface TextFieldProps {
+  id: string;
+  label: ReactNode;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  hint?: ReactNode;
+  issues?: ReadonlyArray<IssueLike>;
+  disabled?: boolean;
+  /** Narrow input, for short values such as an allele or a region name. */
+  short?: boolean;
+  type?: 'text' | 'search';
+  className?: string;
+}
+
+/** Single-line text input with the same label, hint and error wiring as `NumberField`. */
+export function TextField(p: TextFieldProps): JSX.Element {
+  const issues = p.issues ?? [];
+  const errId = `${p.id}-err`;
+  const hintId = `${p.id}-hint`;
+  const describedBy = [p.hint ? hintId : null, issues.length ? errId : null].filter(Boolean).join(' ') || undefined;
+  return (
+    <div className={cx('gpr-field', p.className)} data-state={issues.length ? 'invalid' : undefined}>
+      <label className="gpr-label" htmlFor={p.id}>
+        {p.label}
+      </label>
+      <input
+        id={p.id}
+        className={cx('gpr-input', p.short && 'gpr-input-short')}
+        type={p.type ?? 'text'}
+        value={p.value}
+        placeholder={p.placeholder}
+        disabled={p.disabled}
+        aria-invalid={issues.length ? true : undefined}
+        aria-describedby={describedBy}
+        onChange={(e) => p.onChange(e.target.value)}
+      />
+      {p.hint ? (
+        <span id={hintId} className="gpr-hint">
+          {p.hint}
+        </span>
+      ) : null}
+      {issues.length ? (
+        <span id={errId} className="gpr-field-error">
+          {issues.map((i) => i.message).join(' ')}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export interface CheckboxFieldProps {
   id: string;
   label: ReactNode;
@@ -131,6 +182,54 @@ export function CheckboxField(p: CheckboxFieldProps): JSX.Element {
         </span>
       ) : null}
     </div>
+  );
+}
+
+export interface PresetOption<T extends string> {
+  id: T;
+  label: ReactNode;
+  description?: ReactNode;
+}
+
+export interface PresetRadiosProps<T extends string> {
+  idPrefix: string;
+  legend: string;
+  options: ReadonlyArray<PresetOption<T>>;
+  value: T;
+  onChange: (id: T) => void;
+}
+
+/** A radio group of presets; the set of presets differs by mode (design vs genotyping assay). */
+export function PresetRadios<T extends string>(p: PresetRadiosProps<T>): JSX.Element {
+  return (
+    <fieldset className="gpr-subfieldset gpr-presets">
+      <legend className="gpr-legend gpr-legend-small">{p.legend}</legend>
+      {p.options.map((o) => {
+        const id = `${p.idPrefix}-preset-${o.id}`;
+        const descId = `${id}-desc`;
+        return (
+          <div className="gpr-radio-row" key={o.id}>
+            <input
+              type="radio"
+              className="gpr-radio"
+              id={id}
+              name={`${p.idPrefix}-preset`}
+              checked={p.value === o.id}
+              aria-describedby={o.description ? descId : undefined}
+              onChange={() => p.onChange(o.id)}
+            />
+            <label className="gpr-label gpr-label-inline" htmlFor={id}>
+              {o.label}
+            </label>
+            {o.description ? (
+              <span id={descId} className="gpr-hint gpr-preset-desc">
+                {o.description}
+              </span>
+            ) : null}
+          </div>
+        );
+      })}
+    </fieldset>
   );
 }
 

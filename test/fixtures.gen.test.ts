@@ -11,17 +11,23 @@ import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { effectiveDesignParams } from '../src/presets';
-import { buildCheckRequest, buildDesignRequest, CHECK_LIMITS, validateCheckParams } from '../src/request';
+import { buildCheckRequest, buildDesignRequest, buildGenotypingCheckRequest, buildGenotypingRequest, CHECK_LIMITS, validateCheckParams } from '../src/request';
 import { initialDesignerState } from '../src/state';
-import type { CheckRequest, DesignRequest, PrimerDesignerState, PrimerPair } from '../src/types';
-import { cleanSequenceInput, DESIGN_LIMITS, validateDesignParams } from '../src/validate';
+import type { CheckRequest, DesignRequest, GenotypingDesignRequest, GenotypingSet, PrimerDesignerState, PrimerPair, VariantEntry } from '../src/types';
+import { readFileSync } from 'node:fs';
+import { cleanSequenceInput, DESIGN_LIMITS, validateDesignParams, validateGenotypingParams } from '../src/validate';
 import { gene200, gene46200, gene700, gene87700, genePair, genePairs, genomesResponse, qpcrCheckPair, readSequenceFixture, SEQS, sequencePair } from './fixtures/samples';
 import { fixturePath } from './paths';
 
 const REQ_DIR = fixturePath('contract', 'requests');
 const MANIFEST = fixturePath('contract', 'manifest.json');
 
-type Case = { name: string; kind: 'design'; body: DesignRequest } | { name: string; kind: 'check'; body: CheckRequest };
+type Case =
+  | { name: string; kind: 'design'; body: DesignRequest }
+  | { name: string; kind: 'check'; body: CheckRequest }
+  | { name: string; kind: 'genotyping'; body: GenotypingDesignRequest }
+  /** GETs have no body: the wrapper form carries `query` instead. */
+  | { name: string; kind: 'variants'; method: 'GET'; path: string; query: Record<string, unknown> };
 
 const st = (ctx: Parameters<typeof initialDesignerState>[0], over: Partial<PrimerDesignerState>): PrimerDesignerState => ({ ...initialDesignerState(ctx), ...over });
 
@@ -32,6 +38,12 @@ function withSeqs(p: PrimerPair, left: string, right: string): PrimerPair {
 // Real cDNA (SORBI_3001G000200.1) for the sequence-mode bodies: the server rejects a design whose template is shorter
 // than every product_size_ranges start (spec §A.5), and api.it.test.ts designs every fixture live.
 const CDNA_200_1 = readSequenceFixture('SORBI_3001G000200.1.cdna.txt');
+
+const KASP_CAPTURE = JSON.parse(readFileSync(fixturePath('genotyping', 'capture-genotyping-design-rs871475760-kasp.json'), 'utf8')) as {
+  response: { sets: GenotypingSet[]; variant: VariantEntry };
+};
+const KASP_SETS = KASP_CAPTURE.response.sets;
+const KASP_VARIANT = KASP_CAPTURE.response.variant;
 
 const cases: Case[] = [
   // ---- design ----
@@ -138,16 +150,82 @@ const cases: Case[] = [
       pairs: Array.from({ length: 10 }, (_, i) => withSeqs(genePair(i, SEQS.P2_L, SEQS.P2_R, 7423537, 7423746), `${'ACGT'.repeat(4)}${'ACGT'.slice(0, (i % 4) + 1)}${'T'.repeat(i)}`, `${'TTGCA'.repeat(3)}${'G'.repeat(i + 1)}`)),
     }),
   },
+
+  // ---- genotyping design ----
+  { name: 'genotyping-design-id', kind: 'genotyping', body: buildGenotypingRequest({ v: 1, mode: 'genotyping', systemName: 'sorghum_bicolor', genotyping: { variantId: 'rs871475760' } })! },
+  { name: 'genotyping-design-vcf', kind: 'genotyping', body: buildGenotypingRequest({ v: 1, mode: 'genotyping', systemName: 'sorghum_bicolor', genotyping: { variantKey: '1:11109:C:A' } })! },
+  {
+    name: 'genotyping-design-aspcr',
+    kind: 'genotyping',
+    body: buildGenotypingRequest({ v: 1, mode: 'genotyping', systemName: 'sorghum_bicolor', genotyping: { variantKey: '1:11109:C:A', assay: { type: 'as_pcr', orientation: 'forward', deliberate_mismatch: 'auto', num_sets: 3 } } })!,
+  },
+  {
+    name: 'genotyping-design-manual-deletion',
+    kind: 'genotyping',
+    body: buildGenotypingRequest({ v: 1, mode: 'genotyping', systemName: 'sorghum_bicolor', genotyping: { manual: { region: '1', position: 11282, ref: 'CA', alt: 'C' } } })!,
+  },
+  {
+    name: 'genotyping-design-template-only',
+    kind: 'genotyping',
+    body: buildGenotypingRequest({ v: 1, mode: 'genotyping', systemName: 'sorghum_bicolor', genotyping: { variantKey: '1:11109:C:A' } }, { templateOnly: true })!,
+  },
+  {
+    name: 'genotyping-design-all-fields',
+    kind: 'genotyping',
+    body: buildGenotypingRequest({
+      v: 1,
+      mode: 'genotyping',
+      systemName: 'sorghum_bicolor',
+      genotyping: {
+        variantKey: '1:11109:C:A',
+        label: 'contract',
+        avoidRepeats: true,
+        repeatMaskMode: 'three_prime',
+        assay: { type: 'kasp', orientation: 'both', tails: 'ref_hex_alt_fam', deliberate_mismatch: 'auto', mismatch_position: 3, num_sets: 4, max_relaxation: 1, neighbour_policy: 'ignore' },
+        params: { opt_size: 22, min_size: 18, max_size: 30, opt_tm: 60, min_tm: 57, max_tm: 63, min_gc: 30, max_gc: 70, max_tm_diff: 3, max_poly_x: 5, product_size_ranges: [[61, 120]] },
+      },
+    })!,
+  },
+
+  // ---- genotyping check (the design hands back a ready body) ----
+  {
+    name: 'check-genotyping-two-sets',
+    kind: 'check',
+    body: buildGenotypingCheckRequest({ sets: KASP_SETS, variant: KASP_VARIANT, systemName: 'sorghum_bicolor', mode: 'region', checks: ['specificity', 'pangenome'] }),
+  },
+  {
+    name: 'check-genotyping-gene-mode',
+    kind: 'check',
+    body: buildGenotypingCheckRequest({ sets: KASP_SETS.slice(0, 1), variant: KASP_VARIANT, systemName: 'sorghum_bicolor', mode: 'gene', geneId: 'SORBI_3001G000200', checks: ['specificity'] }),
+  },
+
+  // ---- variant lookups (GET: query, no body) ----
+  { name: 'variants-list', kind: 'variants', method: 'GET', path: '/primers/variants', query: { system_name: 'sorghum_bicolor', region: '1', start: 11180, end: 11290, types: 'snv,deletion', include_ems: false, limit: 500 } },
+  { name: 'variants-lookup', kind: 'variants', method: 'GET', path: '/primers/variants/{id}', query: { id: 'tmp_1_11502_C_CGT', system_name: 'sorghum_bicolor' } },
 ];
 
 const DESIGN_KEYS = new Set(['mode', 'gene_id', 'transcript_id', 'system_name', 'region', 'sequence', 'flank_up', 'flank_down', 'target', 'included', 'excluded', 'avoid_repeats', 'repeat_mask_mode', 'junction_spanning', 'template_only', 'params']);
-const CHECK_KEYS = new Set(['system_name', 'mode', 'gene_id', 'transcript_id', 'checks', 'genomes', 'params', 'pairs']);
+const CHECK_KEYS = new Set(['system_name', 'mode', 'gene_id', 'transcript_id', 'checks', 'genomes', 'params', 'pairs', 'genotyping']);
+const GENOTYPING_KEYS = new Set(['system_name', 'variant', 'assay', 'params', 'avoid_repeats', 'repeat_mask_mode', 'label', 'template_only']);
 
 describe('contract request fixtures', () => {
   it('builds schema-shaped bodies for every mode', () => {
     for (const c of cases) {
+      if (c.kind === 'variants') {
+        // A GET has no body; the wrapper carries its query.
+        expect(JSON.parse(JSON.stringify(c.query)), c.name).toEqual(c.query);
+        expect(c.path.startsWith('/primers/variants'), c.name).toBe(true);
+        expect(c.query.system_name, c.name).toBe('sorghum_bicolor');
+        continue;
+      }
       const body = c.body as unknown as Record<string, unknown>;
       expect(JSON.parse(JSON.stringify(body)), c.name).toEqual(body);
+      if (c.kind === 'genotyping') {
+        for (const k of Object.keys(body)) expect(GENOTYPING_KEYS.has(k), `${c.name}: ${k}`).toBe(true);
+        expect(c.body.system_name).toMatch(DESIGN_LIMITS.systemNamePattern);
+        expect(validateGenotypingParams(c.body.params), c.name).toEqual([]);
+        continue;
+      }
       if (c.kind === 'design') {
         for (const k of Object.keys(body)) expect(DESIGN_KEYS.has(k), `${c.name}: ${k}`).toBe(true);
         const d = c.body;
@@ -160,7 +238,7 @@ describe('contract request fixtures', () => {
         expect(validateDesignParams(effective, { mode: d.mode, junctionSpanning: d.junction_spanning, templateLength: cleaned?.length }), c.name).toEqual([]);
       } else {
         for (const k of Object.keys(body)) expect(CHECK_KEYS.has(k), `${c.name}: ${k}`).toBe(true);
-        const r = c.body;
+        const r = c.body as CheckRequest;
         expect(r.pairs.length).toBeGreaterThanOrEqual(1);
         expect(r.pairs.length).toBeLessThanOrEqual(CHECK_LIMITS.maxPairs);
         for (const p of r.pairs) {
@@ -182,15 +260,19 @@ describe('contract request fixtures', () => {
     mkdirSync(REQ_DIR, { recursive: true });
     const names = new Set(cases.map((c) => `${c.name}.json`));
     for (const f of readdirSync(REQ_DIR)) {
-      if (/^(design|check)-.*\.json$/.test(f) && !names.has(f)) rmSync(join(REQ_DIR, f));
+      if (/^(design|check|genotyping|variants)-.*\.json$/.test(f) && !names.has(f)) rmSync(join(REQ_DIR, f));
     }
-    for (const c of cases) writeFileSync(join(REQ_DIR, `${c.name}.json`), `${JSON.stringify(c.body, null, 2)}\n`);
-    const manifest = cases.map((c) => ({
-      file: `requests/${c.name}.json`,
-      method: 'POST',
-      path: c.kind === 'design' ? '/primers/design' : '/primers/check',
-      definition: c.kind === 'design' ? 'PrimerDesignRequest' : 'PrimerCheckRequest',
-    }));
+    for (const c of cases) {
+      const contents = c.kind === 'variants' ? { method: c.method, path: c.path, query: c.query, expect: 'valid' } : c.body;
+      writeFileSync(join(REQ_DIR, `${c.name}.json`), `${JSON.stringify(contents, null, 2)}\n`);
+    }
+    const PATHS = { design: '/primers/design', check: '/primers/check', genotyping: '/primers/genotyping/design' } as const;
+    const DEFS = { design: 'PrimerDesignRequest', check: 'PrimerCheckRequest', genotyping: 'PrimerGenotypingRequest' } as const;
+    const manifest = cases.map((c) =>
+      c.kind === 'variants'
+        ? { file: `requests/${c.name}.json`, method: c.method, path: c.path }
+        : { file: `requests/${c.name}.json`, method: 'POST', path: PATHS[c.kind], definition: DEFS[c.kind] },
+    );
     writeFileSync(MANIFEST, `${JSON.stringify({ generator: 'gramene-primers test/fixtures.gen.test.ts', requests: manifest }, null, 2)}\n`);
     expect(readdirSync(REQ_DIR).filter((f) => f.endsWith('.json')).sort()).toEqual([...names].sort());
   });

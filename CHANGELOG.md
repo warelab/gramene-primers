@@ -5,6 +5,22 @@ All notable changes to this project are documented here. The format follows
 [semantic versioning](https://semver.org/). `0.x` releases are published with
 `--tag next`; `1.0.0` follows once `/primers` is live on data.sorghumbase.org.
 
+## [0.3.0] — 2026-09-16
+
+### Added
+- **Genotyping mode (KASP and AS-PCR).** A new `genotyping` mode designs allele-specific assays for a known or hand-entered variant, checks them against the pan-genome, and reads back what allele every assembly carries. It is opt-in: pass `genotyping` in `modes` (and it needs a genome), or switch it off with `features={{ genotyping: false }}`.
+  - **Choosing the variant:** browse known variants in a window (at most 50,000 bp) with filters by kind and EMS status and a text search, look one up by id, or enter one by hand in either VCF or Ensembl style. Rows that cannot be designed are listed with the reason rather than hidden. When variant lookups are switched off or unreachable the picker degrades to manual entry with a retry countdown instead of failing.
+  - **Assay options:** KASP or AS-PCR, orientation, tails and dyes, deliberate mismatch and its position, how many sets to design, and how far constraints may be relaxed. Primer3 parameters are shown with the relaxation ladder and the hard floors; a parameter you set is pinned and never relaxed.
+  - **Sets table:** one row per set, identified by its content key rather than its position, with the annealing sequence and the tailed order sequence copied separately, product sizes, Tm balance, neighbouring variants, quality and issue chips.
+  - **Allele matrix:** genomes × sets, with the observed allele and each set's predicted dye, glyph plus colour plus text throughout, filters for disagreements and issues, and a per-genome breakdown of the orthologous copies behind a call. A withheld prediction is shown as "cannot be predicted", never as a disagreement.
+  - **Orientation cards** explain why an orientation was blocked or yielded no sets, including each relaxation attempt's Primer3 explain counts.
+  - **Order sheet** with the oligos to order, the KASP mix, the submission sequence, and TSV/FASTA exports plus a genotype-calls export once a check has run.
+  - The check's cost is mirrored client-side, so Submit is disabled before the server would refuse an over-budget job.
+- **Public headless API for genotyping:** request builders, validation, presets, results matching, exporters and the allele/prediction display metadata are all exported, alongside the new component and domain types.
+
+### Fixed
+- `features.genotyping` is now honoured; it was previously declared but never read.
+
 ## [0.2.0] — 2026-09-15
 
 ### Added

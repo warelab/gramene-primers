@@ -1,3 +1,4 @@
+import { designModeOf } from '../modes';
 import { defaultPresetFor, effectiveDesignParams } from '../presets';
 import type { DesignParams, GrameneGene, PresetName, PrimerDesignerState } from '../types';
 import { cleanSequenceInput, DESIGN_LIMITS, validateDesignParams, validateIntervals, type CleanedSequence, type ValidationIssue } from '../validate';
@@ -47,9 +48,10 @@ export function analyzeDesignInputs(state: PrimerDesignerState, ctx: DesignInput
   const templateLength = estimateTemplateLength(state, gene, state.mode === 'sequence' ? seq.length : null);
   const singleExon = isSingleExon(gene, state.transcriptId);
   const junctionSpanning = state.mode === 'transcript' && !singleExon && state.junctionSpanning !== false;
-  const preset = state.preset ?? defaultPresetFor(state.mode);
+  const designMode = designModeOf(state.mode);
+  const preset = state.preset ?? defaultPresetFor(designMode);
   const effective = effectiveDesignParams(preset, state.params);
-  const paramIssues = validateDesignParams(effective, { mode: state.mode, junctionSpanning, templateLength });
+  const paramIssues = validateDesignParams(effective, { mode: designMode, junctionSpanning, templateLength });
   const tooLong = geneTooLong(gene);
   const modeIssues: string[] = [];
   switch (state.mode) {

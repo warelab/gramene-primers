@@ -132,6 +132,64 @@
       "method": "POST",
       "path": "/primers/check",
       "definition": "PrimerCheckRequest"
+    },
+    {
+      "file": "requests/genotyping-design-id.json",
+      "method": "POST",
+      "path": "/primers/genotyping/design",
+      "definition": "PrimerGenotypingRequest"
+    },
+    {
+      "file": "requests/genotyping-design-vcf.json",
+      "method": "POST",
+      "path": "/primers/genotyping/design",
+      "definition": "PrimerGenotypingRequest"
+    },
+    {
+      "file": "requests/genotyping-design-aspcr.json",
+      "method": "POST",
+      "path": "/primers/genotyping/design",
+      "definition": "PrimerGenotypingRequest"
+    },
+    {
+      "file": "requests/genotyping-design-manual-deletion.json",
+      "method": "POST",
+      "path": "/primers/genotyping/design",
+      "definition": "PrimerGenotypingRequest"
+    },
+    {
+      "file": "requests/genotyping-design-template-only.json",
+      "method": "POST",
+      "path": "/primers/genotyping/design",
+      "definition": "PrimerGenotypingRequest"
+    },
+    {
+      "file": "requests/genotyping-design-all-fields.json",
+      "method": "POST",
+      "path": "/primers/genotyping/design",
+      "definition": "PrimerGenotypingRequest"
+    },
+    {
+      "file": "requests/check-genotyping-two-sets.json",
+      "method": "POST",
+      "path": "/primers/check",
+      "definition": "PrimerCheckRequest"
+    },
+    {
+      "file": "requests/check-genotyping-gene-mode.json",
+      "method": "POST",
+      "path": "/primers/check",
+      "definition": "PrimerCheckRequest"
+    },
+    {
+      "file": "requests/variants-list.json",
+      "method": "GET",
+      "path": "/primers/variants"
+    },
+    {
+      "file": "requests/variants-lookup.json",
+      "method": "GET",
+      "path": "/primers/variants/{id}"
     }
   ]
 }

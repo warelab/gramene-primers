@@ -7,11 +7,16 @@ import type {
   DesignRequest,
   DesignResponse,
   GenomesResponse,
+  GenotypingDesignRequest,
+  GenotypingDesignResponse,
   GrameneGene,
   PollOptions,
   PrimersClient,
   PrimersClientOptions,
   RequestOptions,
+  VariantListQuery,
+  VariantListResponse,
+  VariantLookupResponse,
 } from './types';
 
 export { PrimersApiError, isAbortError } from './errors';
@@ -76,6 +81,14 @@ function invalidResponse(status: number, message: string): PrimersApiError {
   return new PrimersApiError({ status, code: `HTTP_${status}`, message });
 }
 
+/** Cache key of a variant listing; every field that changes the answer is in it. */
+function variantsKey(q: VariantListQuery): string {
+  const types = q.types?.length ? [...q.types].join(',') : '';
+  const ems = q.include_ems === false ? '0' : '';
+  const limit = typeof q.limit === 'number' && Number.isFinite(q.limit) ? String(q.limit) : '';
+  return [q.system_name, q.region, q.start, q.end, types, ems, limit].join('|');
+}
+
 export function createPrimersClient(options: PrimersClientOptions): PrimersClient {
   if (!options || typeof options.apiBase !== 'string') {
     throw new TypeError('createPrimersClient: apiBase is required');
@@ -88,6 +101,7 @@ export function createPrimersClient(options: PrimersClientOptions): PrimersClien
   };
   const extraHeaders = options.headers ?? {};
   const genomesCache = new Map<string, Promise<GenomesResponse>>();
+  const variantsCache = new Map<string, Promise<VariantListResponse>>();
 
   async function call<T>(method: Method, path: string, body: unknown, timeoutMs: number, signal?: AbortSignal): Promise<CallResult<T>> {
     if (!fetchImpl) throw new PrimersApiError({ status: 0, code: 'NETWORK', message: 'fetch is not available' });
@@ -168,6 +182,13 @@ export function createPrimersClient(options: PrimersClientOptions): PrimersClien
     return obj as unknown as CheckJob;
   }
 
+  function asVariants(status: number, body: unknown, what: string): Record<string, unknown> {
+    const obj = asObject(status, body, what);
+    if (!Array.isArray(obj.variants)) throw invalidResponse(status, `Unexpected ${what} response`);
+    if (!Array.isArray(obj.warnings)) obj.warnings = [];
+    return obj;
+  }
+
   const client: PrimersClient = {
     apiBase,
 
@@ -228,6 +249,49 @@ export function createPrimersClient(options: PrimersClientOptions): PrimersClien
       if (!Array.isArray(body) || body.length === 0) return null;
       const doc = body.find((g) => isObject(g) && g._id === geneId) ?? body[0];
       return isObject(doc) ? (doc as unknown as GrameneGene) : null;
+    },
+
+    /** Memoized per window and filters, like `listGenomes`; one caller's abort never cancels it for the others. */
+    listVariants(query: VariantListQuery, o?: RequestOptions): Promise<VariantListResponse> {
+      const key = variantsKey(query);
+      let shared = variantsCache.get(key);
+      if (!shared) {
+        const params = new URLSearchParams({
+          system_name: query.system_name,
+          region: String(query.region),
+          start: String(query.start),
+          end: String(query.end),
+        });
+        // `types` is a CSV list; `include_ems` is sent only to switch EMS entries off.
+        if (query.types?.length) params.set('types', [...query.types].join(','));
+        if (query.include_ems === false) params.set('include_ems', 'false');
+        if (typeof query.limit === 'number' && Number.isFinite(query.limit)) params.set('limit', String(Math.round(query.limit)));
+        shared = call<unknown>('GET', `/primers/variants?${params.toString()}`, undefined, timeouts.other).then(
+          ({ status, body }) => asVariants(status, body, 'variants') as unknown as VariantListResponse,
+        );
+        variantsCache.set(key, shared);
+        const entry = shared;
+        entry.catch(() => {
+          if (variantsCache.get(key) === entry) variantsCache.delete(key);
+        });
+      }
+      return withCallerSignal(shared, o?.signal);
+    },
+
+    async getVariant(variantId: string, query: { system_name: string }, o?: RequestOptions): Promise<VariantLookupResponse> {
+      // Real ids contain `,` and `*`, so the path segment must be encoded.
+      const path = `/primers/variants/${encodeURIComponent(variantId)}?system_name=${encodeURIComponent(query.system_name)}`;
+      const { status, body } = await call<unknown>('GET', path, undefined, timeouts.other, o?.signal);
+      return asVariants(status, body, 'variant lookup') as unknown as VariantLookupResponse;
+    },
+
+    async designGenotyping(req: GenotypingDesignRequest, o?: RequestOptions): Promise<GenotypingDesignResponse> {
+      const { status, body } = await call<unknown>('POST', '/primers/genotyping/design', req, timeouts.design, o?.signal);
+      const obj = asObject(status, body, 'genotyping design');
+      if (!isObject(obj.template)) throw invalidResponse(status, 'Unexpected genotyping design response');
+      if (!Array.isArray(obj.sets)) obj.sets = [];
+      if (!Array.isArray(obj.warnings)) obj.warnings = [];
+      return obj as unknown as GenotypingDesignResponse;
     },
   };
 

@@ -1934,6 +1934,405 @@
   }
 }
 
+
+/* ---- genotyping: status chips and legends ---------------------------------- */
+.gpr-root .gpr-genotype-chip {
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.gpr-root .gpr-genotype-chip-compact {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.gpr-root .gpr-genotype-chip .gpr-chip-glyph {
+  font-size: 1.05em;
+  line-height: 1;
+}
+
+.gpr-root .gpr-genotype-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 6px 0;
+}
+
+.gpr-root .gpr-genotype-legend-group {
+  min-width: 180px;
+}
+
+.gpr-root .gpr-genotype-legend-title {
+  margin: 0 0 2px;
+  font-weight: 600;
+  font-size: 0.85em;
+  color: var(--gpr-muted);
+}
+
+.gpr-root .gpr-genotype-legend-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+}
+
+.gpr-root .gpr-genotype-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85em;
+}
+
+.gpr-root .gpr-genotype-legend-glyph {
+  font-size: 1.05em;
+  line-height: 1;
+}
+
+.gpr-root .gpr-genotype-legend-label {
+  color: var(--gpr-muted);
+}
+
+.gpr-root .gpr-agreement {
+  font-weight: 600;
+}
+
+.gpr-root .gpr-agreement-ok {
+  color: #009E73;
+}
+
+.gpr-root .gpr-agreement-bad {
+  color: #D55E00;
+}
+
+.gpr-root .gpr-agreement-muted {
+  color: var(--gpr-muted);
+}
+
+/* ---- genotyping: sets table and set detail --------------------------------- */
+.gpr-root .gpr-sets-table .gpr-col-set {
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.gpr-root .gpr-set-primer {
+  min-width: 190px;
+}
+
+/* The 3' base carries the discrimination: weight and underline, never colour alone. */
+.gpr-root .gpr-seq-3p {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.gpr-root .gpr-allele-badge,
+.gpr-root .gpr-dye-badge {
+  font-weight: 600;
+}
+
+.gpr-root .gpr-col-quality {
+  white-space: nowrap;
+}
+
+.gpr-root .gpr-issue-badge {
+  display: inline-block;
+  margin-top: 2px;
+}
+
+.gpr-root .gpr-agreement-line {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.gpr-root .gpr-control-warn {
+  color: #D55E00;
+}
+
+.gpr-root .gpr-set-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.gpr-root .gpr-set-stats {
+  margin: 0;
+}
+
+.gpr-root .gpr-set-issues {
+  margin: 0;
+}
+
+.gpr-root .gpr-set-issue {
+  padding: 2px 0;
+}
+
+.gpr-root .gpr-set-issue-severity {
+  font-weight: 600;
+}
+
+.gpr-root .gpr-set-issue[data-severity="high"] .gpr-set-issue-severity {
+  color: #D55E00;
+}
+
+.gpr-root .gpr-set-issue[data-severity="warn"] .gpr-set-issue-severity {
+  color: #E69F00;
+}
+
+.gpr-root .gpr-set-issue[data-severity="info"] .gpr-set-issue-severity {
+  color: var(--gpr-muted);
+}
+
+.gpr-root .gpr-neighbour-table {
+  font-size: 0.9em;
+}
+
+/* ---- genotyping: assay options --------------------------------------------- */
+.gpr-root .gpr-assay-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gpr-root .gpr-assay-fieldset {
+  margin: 0;
+}
+
+.gpr-root .gpr-assay-advanced {
+  margin-top: 2px;
+}
+
+.gpr-root .gpr-assay-limits {
+  margin: 8px 0 0;
+  font-size: 0.9em;
+  color: var(--gpr-muted);
+}
+
+/* ---- genotyping: allele matrix --------------------------------------------- */
+.gpr-root .gpr-allele-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gpr-root .gpr-allele-grid .gpr-allele-cell,
+.gpr-root .gpr-allele-grid .gpr-prediction-cell {
+  white-space: nowrap;
+  text-align: center;
+}
+
+.gpr-root .gpr-prediction-cell[data-disagrees="true"] {
+  outline: 2px solid #D55E00;
+  outline-offset: -2px;
+}
+
+.gpr-root .gpr-allele-grid tr[data-reference="true"] .gpr-matrix-genome {
+  font-weight: 600;
+}
+
+.gpr-root .gpr-copies {
+  font-size: 0.75em;
+  margin-left: 1px;
+}
+
+.gpr-root .gpr-allele-detail {
+  border: 1px solid var(--gpr-border);
+  border-radius: 4px;
+  padding: 8px;
+}
+
+/* ---- genotyping: manual variant entry -------------------------------------- */
+.gpr-root .gpr-manual-variant {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gpr-root .gpr-manual-issues {
+  margin: 0;
+}
+
+/* ---- genotyping: variant picker -------------------------------------------- */
+.gpr-root .gpr-variant-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gpr-root .gpr-variant-source {
+  font-weight: 600;
+}
+
+.gpr-root .gpr-variant-window,
+.gpr-root .gpr-variant-filters {
+  margin: 0;
+}
+
+.gpr-root .gpr-variant-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+}
+
+.gpr-root .gpr-variant-lookup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gpr-root .gpr-variant-table {
+  font-size: 0.95em;
+}
+
+.gpr-root .gpr-variant-row[data-designable="false"] {
+  color: var(--gpr-muted);
+}
+
+.gpr-root .gpr-variant-row[data-state="selected"] > th,
+.gpr-root .gpr-variant-row[data-state="selected"] > td {
+  background-color: var(--gpr-selected);
+}
+
+.gpr-root .gpr-variant-ids {
+  min-width: 140px;
+}
+
+.gpr-root .gpr-variant-record {
+  margin-right: 6px;
+  white-space: nowrap;
+}
+
+.gpr-root .gpr-variant-manual {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ---- genotyping: orientation cards ----------------------------------------- */
+.gpr-root .gpr-orientation-explain {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr;
+}
+
+@container gpr (min-width: 760px) {
+  .gpr-root .gpr-orientation-explain {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.gpr-root .gpr-orientation-card {
+  border: 1px solid var(--gpr-border);
+  border-radius: var(--gpr-radius);
+  padding: 8px;
+}
+
+.gpr-root .gpr-orientation-card[data-status="blocked"] {
+  border-color: var(--gpr-danger);
+}
+
+.gpr-root .gpr-orientation-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.gpr-root .gpr-orientation-why {
+  margin: 2px 0;
+}
+
+.gpr-root .gpr-orientation-blockers,
+.gpr-root .gpr-orientation-rejected {
+  margin: 4px 0;
+  font-size: 0.9em;
+}
+
+.gpr-root .gpr-orientation-attempt {
+  border-top: 1px solid var(--gpr-border);
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+.gpr-root .gpr-orientation-attempt-head {
+  margin: 0 0 2px;
+}
+
+.gpr-root .gpr-orientation-changes {
+  color: var(--gpr-muted);
+}
+
+.gpr-root .gpr-orientation-reason {
+  color: var(--gpr-muted);
+}
+
+/* ---- genotyping: order sheet ----------------------------------------------- */
+.gpr-root .gpr-order-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gpr-root .gpr-order-note {
+  margin: 0;
+}
+
+.gpr-root .gpr-submission .gpr-seq {
+  word-break: break-all;
+}
+
+.gpr-root .gpr-order-table {
+  font-size: 0.95em;
+}
+
+.gpr-root .gpr-order-seq {
+  min-width: 200px;
+}
+
+.gpr-root .gpr-order-notes {
+  color: var(--gpr-muted);
+  max-width: 260px;
+}
+
+.gpr-root .gpr-order-row[data-role="common"] {
+  border-top: 1px solid var(--gpr-border);
+}
+
+/* ---- genotyping: the mode's panel ------------------------------------------ */
+.gpr-root .gpr-genotyping {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gpr-root .gpr-genotyping-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gpr-root .gpr-genotyping-check {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--gpr-border);
+  border-radius: var(--gpr-radius);
+  padding: 8px;
+}
+
+.gpr-root .gpr-genotyping-cost {
+  margin: 0;
+}
+
+/* Genotyping fills the width: it has no separate form column, so the splitter's
+   two-column grid must not apply. The extra class keeps this winning regardless
+   of where the two-column rules are declared. */
+.gpr-root .gpr-layout.gpr-layout-genotyping {
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: var(--gpr-gap);
+}
+
 /* `hidden` must win over the display rules above (Bootstrap uses !important; this relies on source order). */
 .gpr-root [hidden] {
   display: none;

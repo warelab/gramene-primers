@@ -3,9 +3,16 @@ import { effectiveDesignParams, PRESETS, PRIMER3_DEFAULTS } from '../presets';
 import type { Primer3DocTopic } from '../primer3Docs';
 import type { DesignMode, DesignParamKey, DesignParams, DesignRequest, DesignSettings, NumericDesignParamKey, PresetName, ProductSizeRange } from '../types';
 import { DESIGN_LIMITS, DESIGN_PARAM_LIMITS, type ValidationIssue } from '../validate';
-import { NumberField } from './fields';
+import { NumberField, PresetRadios, type PresetOption } from './fields';
 import { HelpButton, Primer3DocText, Primer3ManualLink } from './Primer3Help';
 import { fmtInt } from './util';
+
+/** The design presets; genotyping passes its own assay types instead. */
+export const DESIGN_PRESET_OPTIONS: ReadonlyArray<PresetOption<PresetName>> = (['pcr', 'qpcr'] as const).map((id) => ({
+  id,
+  label: PRESETS[id].label,
+  description: PRESETS[id].description,
+}));
 
 const TRIPLES: ReadonlyArray<{ label: string; unit: string; topic: Primer3DocTopic; keys: readonly [NumericDesignParamKey, NumericDesignParamKey, NumericDesignParamKey] }> = [
   { label: 'Primer size', unit: 'nt', topic: 'size', keys: ['min_size', 'opt_size', 'max_size'] },
@@ -62,6 +69,8 @@ export interface ParamsPanelProps {
   /** `validateDesignParams` output for the effective params. */
   issues: ReadonlyArray<ValidationIssue>;
   disabled?: boolean;
+  /** Preset choices; defaults to the design presets. */
+  presets?: ReadonlyArray<PresetOption<PresetName>>;
 }
 
 /** A small legend with a help button; the fieldset takes its name from `textId`, not from the button. */
@@ -223,28 +232,13 @@ export function ParamsPanel(p: ParamsPanelProps): JSX.Element {
       <p className="gpr-hint">
         Settings for Primer3; an empty field uses the value shown in grey. <Primer3ManualLink anchor="globalTags">Primer3 manual</Primer3ManualLink>
       </p>
-      <fieldset className="gpr-subfieldset gpr-presets">
-        <legend className="gpr-legend gpr-legend-small">Preset</legend>
-        {(['pcr', 'qpcr'] as const).map((id) => (
-          <div className="gpr-radio-row" key={id}>
-            <input
-              type="radio"
-              className="gpr-radio"
-              id={`${p.idPrefix}-preset-${id}`}
-              name={`${p.idPrefix}-preset`}
-              checked={p.preset === id}
-              aria-describedby={`${p.idPrefix}-preset-${id}-desc`}
-              onChange={() => p.onPreset(id)}
-            />
-            <label className="gpr-label gpr-label-inline" htmlFor={`${p.idPrefix}-preset-${id}`}>
-              {PRESETS[id].label}
-            </label>
-            <span id={`${p.idPrefix}-preset-${id}-desc`} className="gpr-hint gpr-preset-desc">
-              {PRESETS[id].description}
-            </span>
-          </div>
-        ))}
-      </fieldset>
+      <PresetRadios
+        idPrefix={p.idPrefix}
+        legend="Preset"
+        options={p.presets ?? DESIGN_PRESET_OPTIONS}
+        value={p.preset}
+        onChange={p.onPreset}
+      />
       {TRIPLES.map((g) => {
         const legendId = `${p.idPrefix}-legend-${g.topic}`;
         const helpId = `${p.idPrefix}-help-${g.topic}`;

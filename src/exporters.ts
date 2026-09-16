@@ -4,6 +4,10 @@ import type {
   CheckJob,
   CheckResults,
   GenomeAmplicon,
+  GenotypeResults,
+  GenotypingOrderRow,
+  GenotypingSet,
+  KaspMix,
   PangenomeAmplicon,
   PrimerOligo,
   PrimerPair,
@@ -168,6 +172,98 @@ export function offTargetsToTSV(results: CheckResults | null | undefined): strin
     for (const g of p.off_targets ?? []) rows.push(groupRow(p.id, p.verdict, 'off_target', g));
   }
   return toTSV(OFF_TARGETS_TSV_HEADER, rows);
+}
+
+// ---------------------------------------------------------------------------
+// Genotyping: order sheet and allele calls
+// ---------------------------------------------------------------------------
+
+export const ORDER_TSV_HEADER = [
+  'name', 'set_id', 'set_key', 'role', 'allele', 'dye', 'order_seq', 'target_seq', 'tail_seq',
+  'length', 'tm', 'gc', 'orientation', 'product_size_ref', 'product_size_alt', 'variant_key', 'notes',
+] as const;
+
+export interface OrderSheetOptions {
+  /** `assay.kasp_mix`; added as a `#` note line (null for AS-PCR). */
+  kaspMix?: KaspMix | null;
+  /** `variant.submission_sequence`; added as a `#` note line. */
+  submissionSequence?: string | null;
+}
+
+function orderRows(sets: ReadonlyArray<Pick<GenotypingSet, 'order'>>): GenotypingOrderRow[] {
+  return sets.flatMap((s) => s.order ?? []);
+}
+
+/**
+ * The oligos to order: three rows per set (REF, ALT, common). `order_seq` is what
+ * the vendor synthesizes; `target_seq` is what anneals and what a check receives.
+ * The mix and submission string are `#` note lines above the table.
+ */
+export function orderSheetToTSV(sets: ReadonlyArray<Pick<GenotypingSet, 'order'>>, options: OrderSheetOptions = {}): string {
+  const rows = orderRows(sets).map((r) => [
+    r.name, r.set_id, r.set_key, r.role, r.allele, r.dye, r.order_seq, r.target_seq, r.tail_seq,
+    r.length, round(r.tm, 2), round(r.gc, 2), r.orientation, r.product_size_ref, r.product_size_alt, r.variant_key, r.notes,
+  ]);
+  const notes: string[] = [];
+  const mix = options.kaspMix;
+  if (mix) {
+    notes.push(
+      tsvCell(
+        `# KASP mix: ${mix.as_ref_uL} µL REF + ${mix.as_alt_uL} µL ALT + ${mix.common_uL} µL common at ${mix.stock_uM} µM` +
+          ` + ${mix.water_uL} µL water = ${mix.total_uL} µL (${mix.source})`,
+      ),
+    );
+  }
+  if (options.submissionSequence) notes.push(tsvCell(`# Submission sequence: ${options.submissionSequence}`));
+  return (notes.length ? `${notes.join('\n')}\n` : '') + toTSV(ORDER_TSV_HEADER, rows);
+}
+
+/** `>{order name} tm=57.1 gc=37.5 {role}` records; `order[].name` is unique by construction. */
+export function orderRowsToFasta(sets: ReadonlyArray<Pick<GenotypingSet, 'order'>>): string {
+  const out: string[] = [];
+  for (const r of orderRows(sets)) {
+    const parts = [`>${fastaLabel(r.name)}`, `tm=${round(r.tm, 1) ?? ''}`, `gc=${round(r.gc, 1) ?? ''}`, r.role];
+    if (r.dye) parts.push(r.dye);
+    out.push(headerText(parts.join(' ')), r.order_seq.toUpperCase());
+  }
+  return out.length ? `${out.join('\n')}\n` : '';
+}
+
+export const GENOTYPE_CALLS_TSV_HEADER = [
+  'system_name', 'display_name', 'is_reference', 'allele', 'observed', 'source', 'orthologous_copies', 'paralog_copies', 'reason',
+  'set_id', 'orientation', 'predicted', 'strength', 'agrees', 'reasons', 'off_locus_products',
+  'ref_primer', 'alt_primer', 'common_primer',
+] as const;
+
+/**
+ * One row per genome × set. `strength` and `agrees` are often null by design —
+ * a prediction with no on-locus signal has nothing to grade, and a genome that
+ * cannot be compared is not a disagreement — so they stay empty rather than
+ * being filled with a default.
+ */
+export function genotypeCallsToTSV(results: GenotypeResults | null | undefined): string {
+  const rows: Cell[][] = [];
+  const sets = results?.sets ?? [];
+  for (const g of results?.genomes ?? []) {
+    const base: Cell[] = [
+      g.system_name, g.display_name ?? '', g.is_reference, g.allele, g.observed, g.source,
+      g.orthologous_copies ?? null, g.paralog_copies ?? null, g.reason,
+    ];
+    if (!sets.length) {
+      rows.push([...base, '', '', '', '', '', '', '', '', '', '']);
+      continue;
+    }
+    for (const s of sets) {
+      const p = g.is_reference ? s.reference : (s.genomes ?? []).find((r) => r.system_name === g.system_name) ?? null;
+      rows.push([
+        ...base,
+        s.id, s.orientation,
+        p?.predicted ?? '', p?.strength ?? '', p?.agrees ?? null, (p?.reasons ?? []).join(','), p?.off_locus_products ?? null,
+        p?.ref_primer?.status ?? '', p?.alt_primer?.status ?? '', p?.common_primer?.status ?? '',
+      ]);
+    }
+  }
+  return toTSV(GENOTYPE_CALLS_TSV_HEADER, rows);
 }
 
 export const PANGENOME_TSV_HEADER = [

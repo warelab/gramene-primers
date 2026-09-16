@@ -1,20 +1,20 @@
-import type { DesignMode } from '../types';
+import type { DesignerMode } from '../types';
 import { TabList } from './fields';
 import { MODE_LABELS } from './util';
 
 export interface ModeTabsProps {
-  modes: ReadonlyArray<DesignMode>;
-  value: DesignMode;
-  onChange: (mode: DesignMode) => void;
+  modes: ReadonlyArray<DesignerMode>;
+  value: DesignerMode;
+  onChange: (mode: DesignerMode) => void;
   /** Reason text for modes that cannot be used (e.g. gene > 50 kb). */
-  disabled?: Partial<Record<DesignMode, string>>;
+  disabled?: Partial<Record<DesignerMode, string>>;
   idPrefix: string;
   panelId: string;
 }
 
 /** Header tabs, limited to the modes offered (spec §C.3). */
 export function ModeTabs({ modes, value, onChange, disabled, idPrefix, panelId }: ModeTabsProps): JSX.Element {
-  const hintId = (m: DesignMode) => `${idPrefix}-mode-hint-${m}`;
+  const hintId = (m: DesignerMode) => `${idPrefix}-mode-hint-${m}`;
   const items = modes.map((m) => ({
     id: m,
     label: MODE_LABELS[m],

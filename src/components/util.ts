@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import { canonicalTranscriptId, geneLength, geneTemplateExtent, templateToGenomic } from '../coords';
 import type {
-  DesignMode,
+  DesignerMode,
   GrameneGene,
   GrameneTranscript,
   PrimerDesignerState,
@@ -43,11 +43,12 @@ export function useIdPrefix(prefix = 'gpr'): string {
   return `${prefix}-${raw.replace(/[^A-Za-z0-9_-]/g, '')}`;
 }
 
-export const MODE_LABELS: Readonly<Record<DesignMode, string>> = Object.freeze({
+export const MODE_LABELS: Readonly<Record<DesignerMode, string>> = Object.freeze({
   gene: 'Gene',
   transcript: 'Transcript (qPCR)',
   region: 'Region',
   sequence: 'Sequence',
+  genotyping: 'Genotyping (KASP)',
 });
 
 export function geneTranscripts(gene: GrameneGene | null | undefined): GrameneTranscript[] {

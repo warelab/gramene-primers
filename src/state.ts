@@ -1,10 +1,15 @@
-import { CHECK_DEFAULTS, defaultPresetFor } from './presets';
-import { regionFromGene } from './request';
+import { ALL_MODES, DESIGN_MODES, designModeOf, isDesignMode } from './modes';
+import { CHECK_DEFAULTS, changedGenotypingParams, defaultPresetFor } from './presets';
+import { GENOTYPING_CHECK_LIMITS, regionFromGene } from './request';
 import type {
   CheckName,
   CheckParams,
+  DesignerMode,
   DesignMode,
   DesignParams,
+  GenotypingAssay,
+  GenotypingParams,
+  GenotypingTab,
   GrameneGene,
   Interval,
   PresetName,
@@ -13,10 +18,12 @@ import type {
   ResultsTab,
   Strand,
   SubmittedPair,
+  VariantKind,
 } from './types';
-import { DESIGN_LIMITS, DESIGN_PARAM_LIMITS, NUMERIC_DESIGN_PARAM_KEYS } from './validate';
+import { DESIGN_LIMITS, DESIGN_PARAM_LIMITS, GENOTYPING_LIMITS, NUMERIC_DESIGN_PARAM_KEYS } from './validate';
 
-export const ALL_MODES: readonly DesignMode[] = Object.freeze(['gene', 'transcript', 'region', 'sequence']);
+export { ALL_MODES, DESIGN_MODES, designModeOf, isDesignMode };
+
 const RESULTS_TABS: readonly ResultsTab[] = ['pairs', 'specificity', 'transcriptome', 'pangenome'];
 const JOB_ID = /^[0-9a-f]{32}$/;
 const SYSTEM_NAME = /^[a-z0-9_]+$/;
@@ -27,8 +34,8 @@ export interface DesignerContext {
   systemName?: string | null;
   region?: RegionSpec | null;
   sequence?: string | null;
-  modes?: ReadonlyArray<DesignMode> | null;
-  defaultMode?: DesignMode | null;
+  modes?: ReadonlyArray<DesignerMode> | null;
+  defaultMode?: DesignerMode | null;
   defaultParams?: Partial<DesignParams> | null;
   /** Default true; false drops `sequence` from emitted/normalized state. */
   persistSequence?: boolean;
@@ -36,16 +43,17 @@ export interface DesignerContext {
 
 /**
  * Modes offered by the host that have the inputs they need: gene/transcript
- * need a gene, region needs a genome (`systemName` or the gene's), sequence is
- * always possible.
+ * need a gene, region and genotyping need a genome (`systemName` or the gene's),
+ * sequence is always possible. Genotyping is opt-in — a host that does not list
+ * it keeps the four design modes it had before.
  */
-export function availableModes(ctx: DesignerContext = {}): DesignMode[] {
-  const offered = (ctx.modes && ctx.modes.length ? ctx.modes : ALL_MODES).filter((m) => ALL_MODES.includes(m));
+export function availableModes(ctx: DesignerContext = {}): DesignerMode[] {
+  const offered = (ctx.modes && ctx.modes.length ? ctx.modes : DESIGN_MODES).filter((m) => ALL_MODES.includes(m));
   const hasGene = !!(ctx.gene?._id || ctx.geneId);
   const hasGenome = !!(ctx.systemName || ctx.gene?.system_name);
   const out = offered.filter((m) => {
     if (m === 'gene' || m === 'transcript') return hasGene;
-    if (m === 'region') return hasGenome;
+    if (m === 'region' || m === 'genotyping') return hasGenome;
     return true;
   });
   return out.length ? [...new Set(out)] : ['sequence'];
@@ -115,7 +123,7 @@ export function initialDesignerState(ctx: DesignerContext = {}): PrimerDesignerS
   const state: PrimerDesignerState = {
     v: 1,
     mode,
-    preset: defaultPresetFor(mode),
+    preset: defaultPresetFor(designModeOf(mode)),
     flankUp: 0,
     flankDown: 0,
     junctionSpanning: true,
@@ -146,8 +154,8 @@ export function normalizeDesignerState(raw: unknown, ctx: DesignerContext = {}):
   const base = initialDesignerState(ctx);
   if (!isObj(raw) || raw.v !== 1) return base;
   const modes = availableModes(ctx);
-  const mode = typeof raw.mode === 'string' && modes.includes(raw.mode as DesignMode) ? (raw.mode as DesignMode) : base.mode;
-  const s: PrimerDesignerState = { ...base, mode, preset: defaultPresetFor(mode) };
+  const mode = typeof raw.mode === 'string' && modes.includes(raw.mode as DesignerMode) ? (raw.mode as DesignerMode) : base.mode;
+  const s: PrimerDesignerState = { ...base, mode, preset: defaultPresetFor(designModeOf(mode)) };
 
   if (raw.preset === 'pcr' || raw.preset === 'qpcr') s.preset = raw.preset as PresetName;
   if (typeof raw.transcriptId === 'string' && raw.transcriptId.length > 0 && raw.transcriptId.length <= 255) s.transcriptId = raw.transcriptId;
@@ -201,6 +209,9 @@ export function normalizeDesignerState(raw: unknown, ctx: DesignerContext = {}):
     s.check = check;
   }
 
+  const genotyping = cleanGenotyping(raw.genotyping);
+  if (genotyping) s.genotyping = genotyping;
+
   if (isObj(raw.view)) {
     const tab = RESULTS_TABS.includes(raw.view.resultsTab as ResultsTab) ? (raw.view.resultsTab as ResultsTab) : 'pairs';
     s.view = { resultsTab: tab };
@@ -217,6 +228,110 @@ export const LAYOUT_LIMITS = Object.freeze({ formMin: 300, formDefault: 380, for
 /** A form-column width rounded and kept within `LAYOUT_LIMITS`. */
 export function clampFormWidth(width: number): number {
   return Math.min(LAYOUT_LIMITS.formMax, Math.max(LAYOUT_LIMITS.formMin, Math.round(width)));
+}
+
+const SET_KEY = /^[0-9a-f]{12}$/;
+const VARIANT_ALLELE = /^([ACGTacgt]{1,50}|-)$/;
+const VARIANT_KINDS: readonly VariantKind[] = ['snv', 'mnv', 'insertion', 'deletion', 'complex'];
+const GENOTYPING_TABS: readonly GenotypingTab[] = ['sets', 'alleles', 'specificity', 'pangenome', 'order'];
+
+/**
+ * Tolerant reader for the genotyping slice: inputs and selections only, never
+ * response data. Unknown or malformed fields are dropped, so an older saved view
+ * (or a newer one read by an older build) degrades to "pick a variant again"
+ * rather than failing.
+ */
+function cleanGenotyping(raw: unknown): PrimerDesignerState['genotyping'] {
+  if (!isObj(raw)) return undefined;
+  const g: NonNullable<PrimerDesignerState['genotyping']> = {};
+
+  if (typeof raw.variantId === 'string' && raw.variantId.length > 0 && raw.variantId.length <= DESIGN_LIMITS.maxIdLength) g.variantId = raw.variantId;
+  if (typeof raw.variantKey === 'string' && raw.variantKey.length > 0 && raw.variantKey.length <= 600) g.variantKey = raw.variantKey;
+  if (typeof raw.alt === 'string' && VARIANT_ALLELE.test(raw.alt)) g.alt = raw.alt;
+  if (typeof raw.label === 'string' && raw.label.length > 0 && raw.label.length <= 128) g.label = raw.label;
+
+  if (isObj(raw.manual)) {
+    const m = raw.manual;
+    if (typeof m.region === 'string' && m.region.length > 0 && m.region.length <= 255 && isInt(m.position) && m.position >= 1 && typeof m.ref === 'string' && typeof m.alt === 'string' && VARIANT_ALLELE.test(m.ref) && VARIANT_ALLELE.test(m.alt)) {
+      g.manual = { region: m.region, position: m.position, ref: m.ref, alt: m.alt };
+    }
+  }
+  if (isObj(raw.window)) {
+    const w = raw.window;
+    if (typeof w.region === 'string' && w.region.length > 0 && isInt(w.start) && isInt(w.end) && w.start >= 1 && w.end >= w.start && w.end - w.start + 1 <= GENOTYPING_LIMITS.maxWindow) {
+      g.window = { region: w.region, start: w.start, end: w.end };
+    }
+  }
+  if (isObj(raw.filters)) {
+    const f = raw.filters;
+    const filters: NonNullable<typeof g.filters> = {};
+    if (Array.isArray(f.types)) {
+      const types = [...new Set(f.types.filter((t): t is VariantKind => typeof t === 'string' && VARIANT_KINDS.includes(t as VariantKind)))];
+      if (types.length) filters.types = types;
+    }
+    if (typeof f.includeEms === 'boolean') filters.includeEms = f.includeEms;
+    if (typeof f.query === 'string' && f.query.length <= 255) filters.query = f.query;
+    if (Object.keys(filters).length) g.filters = filters;
+  }
+
+  if (isObj(raw.assay)) {
+    const a = raw.assay;
+    const assay: Partial<GenotypingAssay> = {};
+    if (a.type === 'kasp' || a.type === 'as_pcr') assay.type = a.type;
+    if (a.orientation === 'both' || a.orientation === 'forward' || a.orientation === 'reverse') assay.orientation = a.orientation;
+    if (a.tails === 'none' || a.tails === 'ref_fam_alt_hex' || a.tails === 'ref_hex_alt_fam') assay.tails = a.tails;
+    if (a.deliberate_mismatch === 'none' || a.deliberate_mismatch === 'auto') assay.deliberate_mismatch = a.deliberate_mismatch;
+    if (a.mismatch_position === 2 || a.mismatch_position === 3) assay.mismatch_position = a.mismatch_position;
+    if (isInt(a.num_sets) && a.num_sets >= GENOTYPING_LIMITS.minSets && a.num_sets <= GENOTYPING_LIMITS.maxSets) assay.num_sets = a.num_sets;
+    if (isInt(a.max_relaxation) && a.max_relaxation >= 0 && a.max_relaxation <= GENOTYPING_LIMITS.maxRelaxation) assay.max_relaxation = a.max_relaxation;
+    if (a.neighbour_policy === 'avoid_3p' || a.neighbour_policy === 'ignore') assay.neighbour_policy = a.neighbour_policy;
+    if (Object.keys(assay).length) g.assay = assay;
+  }
+  const params = changedGenotypingParams(isObj(raw.params) ? (raw.params as Partial<GenotypingParams>) : undefined);
+  if (Object.keys(params).length) g.params = params;
+
+  if (typeof raw.avoidRepeats === 'boolean') g.avoidRepeats = raw.avoidRepeats;
+  if (raw.repeatMaskMode === 'n_mask' || raw.repeatMaskMode === 'three_prime') g.repeatMaskMode = raw.repeatMaskMode;
+  if (typeof raw.designed === 'boolean') g.designed = raw.designed;
+  if (typeof raw.selectedSetKey === 'string' && SET_KEY.test(raw.selectedSetKey)) g.selectedSetKey = raw.selectedSetKey;
+  if (Array.isArray(raw.checkedSetKeys)) {
+    const keys = [...new Set(raw.checkedSetKeys.filter((k): k is string => typeof k === 'string' && SET_KEY.test(k)))].slice(0, GENOTYPING_CHECK_LIMITS.maxSets);
+    if (keys.length) g.checkedSetKeys = keys;
+  }
+
+  if (isObj(raw.check)) {
+    const c = raw.check;
+    const checks: CheckName[] = ['specificity'];
+    if (Array.isArray(c.checks) && c.checks.includes('pangenome')) checks.push('pangenome');
+    const check: NonNullable<typeof g.check> = { checks };
+    if (Array.isArray(c.genomes)) {
+      check.genomes = [...new Set(c.genomes.filter((x): x is string => typeof x === 'string' && SYSTEM_NAME.test(x) && x.length <= 128))].slice(0, 150);
+    }
+    const cp = cleanCheckParams(c.params);
+    if (cp) check.params = cp;
+    if (typeof c.jobId === 'string' && JOB_ID.test(c.jobId)) check.jobId = c.jobId;
+    if (Array.isArray(c.submitted)) {
+      const submitted = c.submitted
+        .filter((s): s is Record<string, unknown> => isObj(s) && typeof s.id === 'string' && isObj(s.ref) && isObj(s.alt))
+        .slice(0, GENOTYPING_CHECK_LIMITS.maxSets)
+        .map((s) => {
+          const pair = (p: Record<string, unknown>) => ({
+            id: typeof p.id === 'string' ? p.id : '',
+            left: typeof p.left === 'string' ? p.left.toUpperCase() : '',
+            right: typeof p.right === 'string' ? p.right.toUpperCase() : '',
+          });
+          return { id: s.id as string, ref: pair(s.ref as Record<string, unknown>), alt: pair(s.alt as Record<string, unknown>) };
+        })
+        .filter((s) => s.ref.left && s.ref.right && s.alt.left && s.alt.right);
+      if (submitted.length) check.submitted = submitted;
+    }
+    g.check = check;
+  }
+
+  if (isObj(raw.view) && typeof raw.view.tab === 'string' && GENOTYPING_TABS.includes(raw.view.tab as GenotypingTab)) {
+    g.view = { tab: raw.view.tab as GenotypingTab };
+  }
+  return Object.keys(g).length ? g : undefined;
 }
 
 /** The state to emit to the host (`persistSequence: false` drops `sequence`); always JSON-serializable. */

@@ -1,7 +1,10 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'vitest';
 import { PrimerDesigner } from '../../src/components/PrimerDesigner';
+import type { GenotypingDesignResponse } from '../../src/types';
+import { pkgPath } from '../paths';
 import { doneCheckJob, gene200, gene46200, gene87700, geneDesign, genomesResponse, transcriptCheckJob } from '../fixtures/samples';
 import { expectNoAxeViolations } from './axe';
 import { apiError, FakePrimersClient } from './fakeClient';
@@ -85,6 +88,34 @@ describe('axe-core on the main states', () => {
     );
     await screen.findByText('Results expired — Re-run check');
     await expectNoAxeViolations(second.container, 'expired');
+  });
+
+  it('genotyping mode: the variant picker, assay options and the designed sets', async () => {
+    const kasp = (JSON.parse(readFileSync(pkgPath('test', 'fixtures', 'genotyping', 'capture-genotyping-design-rs871475760-kasp.json'), 'utf8')) as {
+      response: GenotypingDesignResponse;
+    }).response;
+    const fake = new FakePrimersClient();
+    fake.genomes = genomesResponse();
+    fake.onDesignGenotyping = () => kasp;
+    const user = userEvent.setup();
+    const { container } = render(
+      <PrimerDesigner
+        apiBase={API}
+        client={fake}
+        gene={gene200}
+        modes={['gene', 'genotyping']}
+        defaultMode="genotyping"
+        state={{ v: 1, mode: 'genotyping', systemName: 'sorghum_bicolor', genotyping: { variantKey: '1:11109:C:A' } }}
+      />,
+    );
+    await expectNoAxeViolations(container, 'genotyping inputs');
+    await user.click(screen.getByRole('button', { name: 'Design assay' }));
+    await screen.findByRole('table', { name: /primer set/ });
+    await expectNoAxeViolations(container, 'genotyping designed');
+    await user.click(within(screen.getByRole('table', { name: /primer set/ })).getAllByRole('button', { name: /^Details/ })[0]!);
+    await expectNoAxeViolations(container, 'genotyping set detail');
+    await user.click(screen.getByRole('tab', { name: 'Order sheet' }));
+    await expectNoAxeViolations(container, 'genotyping order sheet');
   });
 
   it('transcript-mode check with transcriptome results', async () => {

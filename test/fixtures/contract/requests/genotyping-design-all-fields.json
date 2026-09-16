@@ -1,0 +1,38 @@
+{
+  "system_name": "sorghum_bicolor",
+  "variant": {
+    "region": "1",
+    "position": 11109,
+    "ref": "C",
+    "alt": "A"
+  },
+  "assay": {
+    "tails": "ref_hex_alt_fam",
+    "deliberate_mismatch": "auto",
+    "mismatch_position": 3,
+    "num_sets": 4,
+    "max_relaxation": 1,
+    "neighbour_policy": "ignore"
+  },
+  "params": {
+    "opt_size": 22,
+    "min_size": 18,
+    "max_size": 30,
+    "opt_tm": 60,
+    "min_tm": 57,
+    "max_tm": 63,
+    "min_gc": 30,
+    "max_gc": 70,
+    "max_tm_diff": 3,
+    "max_poly_x": 5,
+    "product_size_ranges": [
+      [
+        61,
+        120
+      ]
+    ]
+  },
+  "avoid_repeats": true,
+  "repeat_mask_mode": "three_prime",
+  "label": "contract"
+}

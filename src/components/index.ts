@@ -1,6 +1,16 @@
 // Public React components (spec §C.2).
 export { PrimerDesigner, designRequestFor } from './PrimerDesigner';
 export { PairsTable, type PairsTableProps } from './PairsTable';
+export { SetsTable, type SetsTableProps } from './SetsTable';
+export { AssayOptions, type AssayOptionsProps } from './AssayOptions';
+export { AlleleMatrix, type AlleleMatrixProps } from './AlleleMatrix';
+export { ManualVariantInputs, type ManualVariantInputsProps, type ManualVariant } from './ManualVariantInputs';
+export { VariantPicker, type VariantPickerProps } from './VariantPicker';
+export { OrientationExplain, type OrientationExplainProps } from './OrientationExplain';
+export { OrderSheet, type OrderSheetProps } from './OrderSheet';
+export { GenotypingPanel, type GenotypingPanelProps } from './GenotypingPanel';
+export { SetDetail, type SetDetailProps } from './SetDetail';
+export { AgreementMark, AlleleChip, AlleleLegend, GenotypeChip, PredictionChip, PrimerStatusChip, type GenotypeChipProps } from './GenotypeChip';
 export { TemplateMap, packPairLanes, niceTicks, type TemplateMapProps } from './TemplateMap';
 export { SpecificityResults, type SpecificityResultsProps } from './SpecificityResults';
 export { PangenomeMatrix, PangenomeLegend, buildMatrixRows, type PangenomeMatrixProps, type MatrixRow, type MatrixCell } from './PangenomeMatrix';
