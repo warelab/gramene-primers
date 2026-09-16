@@ -5,6 +5,15 @@ All notable changes to this project are documented here. The format follows
 [semantic versioning](https://semver.org/). `0.x` releases are published with
 `--tag next`; `1.0.0` follows once `/primers` is live on data.sorghumbase.org.
 
+## [0.3.2] — 2026-09-16
+
+### Added
+- **Filter variants by consequence and by reporting source.** Both menus are built from the listing itself: they offer only values that are actually present, show how many rows carry each, and disable themselves when there is nothing to choose between. The source filter isolates a single EMS line in a window that spans several.
+- **Property filters** for multi-allelic variants — which mismatch both allele-specific primers — and for indels that can slide, alongside the existing designable-only toggle. A **Clear filters** control appears whenever any filter is active, next to a count of the rows shown.
+
+### Fixed
+- Filtering the listing down to nothing no longer hides the filter toolbar along with the table, which had left no way to undo the filter. The empty message now distinguishes a listing filtered to nothing from a window with no variants in it.
+
 ## [0.3.1] — 2026-09-16
 
 ### Changed
