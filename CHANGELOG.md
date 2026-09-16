@@ -5,6 +5,21 @@ All notable changes to this project are documented here. The format follows
 [semantic versioning](https://semver.org/). `0.x` releases are published with
 `--tag next`; `1.0.0` follows once `/primers` is live on data.sorghumbase.org.
 
+## [0.6.0] — 2026-09-16
+
+### Added
+- **A restriction digest for every predicted product**, under the amplicon in the pair detail. It lists the enzymes that cut the product — fewest cuts first, since a single cutter is the one you can read — with their sites and fragment sizes, and names the enzymes that do not cut it at all, which is the check before adding a site to a primer end for cloning. Selecting an enzyme marks its cuts in the amplicon sequence above.
+- **CAPS assays from ordinary primer pairs.** Where the genome has variation data, any variant inside a predicted product is listed with the enzymes that tell its alleles apart, and — unlike the annotation on a bare listing — with the actual fragment sizes for both alleles, because here the amplicon is known. A verdict of "not on a gel" always says why.
+- **Variants on the template map**, coloured by consequence with a legend, ringed where a designed product genotypes them by digestion. The track appears only when there is something to draw and the map grows to fit it.
+- Headless exports: `digestAmplicon`, `singleCutters`, `nonCutters`, `capsForAmplicon`, `digestsDistinguishable`, `ampliconSeq`, `variantOnTemplate`, `genomicToTemplatePosition`, and the `DigestPanel` component.
+
+### Notes
+- **This needs no host callback.** `template.seq` comes back with every design response, so the digest works in every mode including a pasted sequence — unlike the variant-listing annotation, which has no sequence of its own.
+- **Whether two digests differ is the test, not whether a site is present in one allele.** That is what a gel actually reads, and it is right about the cases presence/absence gets wrong: an enzyme with a constitutive site across the variant can still gain or lose a second, and a site that merely moves changes the fragment sizes without changing the site count.
+- **Coordinates are handled explicitly rather than assumed.** A minus-strand template holds the reverse complement, so alleles are complemented when placed on it and an indel is anchored at the image of its last genomic base. A spliced template omits introns, so a variant straddling a junction has no contiguous image and is refused. A pasted sequence has no genomic coordinates, and says so instead of showing an empty table.
+- One variant listing is fetched per design, spanning the whole template, rather than one per pair.
+- Readability defaults, all overridable: fragments below 50 bp do not run on a gel, bands within 40 bp co-migrate, and more than four cuts is not a readable ladder.
+
 ## [0.5.0] — 2026-09-16
 
 ### Added
