@@ -5,6 +5,14 @@ All notable changes to this project are documented here. The format follows
 [semantic versioning](https://semver.org/). `0.x` releases are published with
 `--tag next`; `1.0.0` follows once `/primers` is live on data.sorghumbase.org.
 
+## [0.4.0] — 2026-09-16
+
+### Added
+- **A region browser above the variant table.** It draws gene models and the variants the table is showing, coloured by consequence with a legend, and pans and zooms independently of the listing. It is fed the table's filtered rows, so the browser and the table can never show different sets, and a variant the table will not let you select is not selectable in the browser either.
+- **List this region** re-lists the table over the browsed window, and refuses a span wider than the server will accept rather than failing at the request.
+- **`genesInRegion`**, a new optional prop. `/primers` has no genes-in-region endpoint — it can only fetch a gene by id — so gene models come from the host. The callback returns `RegionGene`s in genomic coordinates, which is what a region view draws and what gene sources such as Ensembl REST already return. Without the callback the browser says gene models are unavailable rather than appearing broken.
+- `consequenceColor` and `consequenceLabel` are exported: a consequence keeps the same colour wherever it appears, and across sessions.
+
 ## [0.3.2] — 2026-09-16
 
 ### Added
