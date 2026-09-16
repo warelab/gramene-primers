@@ -12,12 +12,17 @@ export interface AmpliconSequenceProps {
   /** FASTA record prefix. */
   label?: string;
   /**
-   * Template positions where a chosen enzyme severs the top strand; the break
-   * is drawn before each base. One enzyme at a time — every site in the panel
-   * at once would bar the sequence into confetti.
+   * Recognition sites of a chosen enzyme, in template coordinates, highlighted
+   * in the sequence. One enzyme at a time: every site in the panel at once
+   * would leave the sequence unreadable.
+   */
+  sites?: ReadonlyArray<{ start: number; end: number }>;
+  /**
+   * Template positions where that enzyme severs the top strand; the break is
+   * drawn before each base.
    */
   cuts?: ReadonlyArray<number>;
-  /** Named in the legend beside the cut marks. */
+  /** Named in the legend beside the marks. */
   cutLabel?: string;
 }
 
@@ -29,7 +34,7 @@ interface Segment {
 }
 
 /** The amplicon in 60-nt lines with primer footprints, masked bases and junction bars (spec §C.3 PairDetail). */
-export function AmpliconSequence({ pair, template, label, cuts, cutLabel }: AmpliconSequenceProps): JSX.Element {
+export function AmpliconSequence({ pair, template, label, sites, cuts, cutLabel }: AmpliconSequenceProps): JSX.Element {
   const seq = template?.seq ?? '';
   const start = pair.left.start;
   const end = pair.right.end;
@@ -37,12 +42,17 @@ export function AmpliconSequence({ pair, template, label, cuts, cutLabel }: Ampl
   const junctionList = template?.features?.junctions;
   const maskList = template?.mask;
   const cutKey = (cuts ?? []).join(',');
+  const siteKey = (sites ?? []).map((x) => `${x.start}:${x.end}`).join(',');
 
-  const { lines, hasMask, hasJunction, hasCut } = useMemo(() => {
-    if (!valid) return { lines: [], hasMask: false, hasJunction: false, hasCut: false };
+  const { lines, hasMask, hasJunction, hasSite } = useMemo(() => {
+    if (!valid) return { lines: [], hasMask: false, hasJunction: false, hasSite: false };
     const junctions = new Set((junctionList ?? []).filter((j) => j >= start && j < end));
     // A cut before base p is a break after p-1, which is where the bar goes.
     const cutAfterSet = new Set((cuts ?? []).map((c) => c - 1).filter((t) => t >= start && t < end));
+    const inSite = new Uint8Array(end - start + 1);
+    for (const s of sites ?? []) {
+      for (let t = Math.max(s.start, start); t <= Math.min(s.end, end); t++) inSite[t - start] = 1;
+    }
     const masked = new Uint8Array(end - start + 1);
     for (const [s, l] of maskList ?? []) {
       for (let t = Math.max(s, start); t <= Math.min(end, s + l - 1); t++) masked[t - start] = 1;
@@ -61,6 +71,7 @@ export function AmpliconSequence({ pair, template, label, cuts, cutLabel }: Ampl
             t >= pair.left.start && t <= pair.left.end && 'gpr-fp-left',
             t >= pair.right.start && t <= pair.right.end && 'gpr-fp-right',
             isMasked && 'gpr-seq-masked',
+            inSite[t - start] === 1 && 'gpr-seq-site',
           ) || 'gpr-seq-plain';
         if (!cur || cur.cls !== cls) {
           cur = { text: '', cls, barAfter: false, cutAfter: false };
@@ -75,8 +86,13 @@ export function AmpliconSequence({ pair, template, label, cuts, cutLabel }: Ampl
       }
       out.push({ pos: lineStart, segs });
     }
-    return { lines: out, hasMask: anyMask, hasJunction: junctions.size > 0, hasCut: cutAfterSet.size > 0 };
-  }, [valid, seq, start, end, pair.left.start, pair.left.end, pair.right.start, pair.right.end, junctionList, maskList, cutKey]);
+    return {
+      lines: out,
+      hasMask: anyMask,
+      hasJunction: junctions.size > 0,
+      hasSite: (sites ?? []).some((s) => s.end >= start && s.start <= end),
+    };
+  }, [valid, seq, start, end, pair.left.start, pair.left.end, pair.right.start, pair.right.end, junctionList, maskList, cutKey, siteKey]);
 
   if (!valid) return <p className="gpr-hint">The amplicon sequence is not available.</p>;
   const n = pair.rank + 1;
@@ -115,10 +131,11 @@ export function AmpliconSequence({ pair, template, label, cuts, cutLabel }: Ampl
             <span className="gpr-junction-sample" aria-hidden="true" /> exon–exon junction
           </>
         ) : null}
-        {hasCut ? (
+        {hasSite ? (
           <>
             {' '}
-            <span className="gpr-cut-sample" aria-hidden="true" /> {cutLabel ? `${cutLabel} cut` : 'cut site'}
+            <span className="gpr-seq-site">{cutLabel ?? 'enzyme'} site</span>
+            <span className="gpr-cut-sample" aria-hidden="true" /> cut
           </>
         ) : null}
         {hasMask ? (

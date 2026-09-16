@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { digestAmplicon } from '../amplicon';
 import { findEnzyme, type RestrictionEnzyme } from '../enzymes';
 import { AmpliconSequence } from './AmpliconSequence';
-import { DigestPanel, type DigestVariant } from './DigestPanel';
+import { DigestPanel } from './DigestPanel';
 import { fmtInt, fmtNum } from './util';
 
 export interface PairDetailProps {
@@ -15,12 +15,11 @@ export interface PairDetailProps {
   /** `results.primers` of a matching check. */
   primers?: Readonly<Record<string, CheckPrimerInfo>> | null;
   id?: string;
-  /** Variants inside the template, already placed in its coordinates. */
-  variants?: ReadonlyArray<DigestVariant>;
   /** Restriction enzymes to consider. Defaults to the bundled panel. */
   enzymes?: ReadonlyArray<RestrictionEnzyme>;
-  /** Said in place of the CAPS table when no variant source is available. */
-  variantsUnavailable?: string | null;
+  /** The enzyme whose sites are marked, shared across the design results. */
+  selectedEnzyme?: string | null;
+  onSelectEnzyme?: (enzyme: string | null) => void;
 }
 
 const ROWS: ReadonlyArray<[string, (o: PrimerOligo) => ReactNode]> = [
@@ -39,15 +38,20 @@ const ROWS: ReadonlyArray<[string, (o: PrimerOligo) => ReactNode]> = [
 ];
 
 /** Expanded pair: primer statistics, product, genomic blocks and the amplicon sequence. */
-export function PairDetail({ pair, template, label, primers, id, variants, enzymes, variantsUnavailable }: PairDetailProps): JSX.Element {
+export function PairDetail({ pair, template, label, primers, id, enzymes, selectedEnzyme, onSelectEnzyme }: PairDetailProps): JSX.Element {
   const n = pair.rank + 1;
-  const [selected, setSelected] = useState<string | null>(null);
+  const [ownSelection, setOwnSelection] = useState<string | null>(null);
+  // The host may hold the selection so the template map can follow it; standing
+  // alone the detail keeps its own.
+  const selected = onSelectEnzyme ? selectedEnzyme ?? null : ownSelection;
+  const setSelected = onSelectEnzyme ?? setOwnSelection;
   const span = { start: pair.left.start, end: pair.right.end };
-  // Only the chosen enzyme's cuts are drawn, so this is a one-enzyme digest.
-  const cuts = useMemo(() => {
+  // Only the chosen enzyme is drawn, so this is a one-enzyme digest.
+  const marks = useMemo(() => {
     const e = selected ? findEnzyme(selected, enzymes) : null;
-    if (!e || !template?.seq) return [];
-    return digestAmplicon(template.seq, span, { enzymes: [e] })[0]?.cuts ?? [];
+    if (!e || !template?.seq) return { sites: [], cuts: [] };
+    const d = digestAmplicon(template.seq, span, { enzymes: [e] })[0];
+    return { sites: d?.sites ?? [], cuts: d?.cuts ?? [] };
   }, [selected, enzymes, template?.seq, span.start, span.end]);
   const info = (o: PrimerOligo) => primers?.[o.seq.toUpperCase()] ?? null;
   const hasCheckInfo = !!(info(pair.left) || info(pair.right));
@@ -114,16 +118,15 @@ export function PairDetail({ pair, template, label, primers, id, variants, enzym
           </div>
         ) : null}
       </dl>
-      <AmpliconSequence pair={pair} template={template} label={label} cuts={cuts} cutLabel={selected ?? undefined} />
-      <DigestPanel
+      <AmpliconSequence
+        pair={pair}
         template={template}
-        span={span}
-        variants={variants}
-        enzymes={enzymes}
-        selected={selected}
-        onSelect={setSelected}
-        variantsUnavailable={variantsUnavailable}
+        label={label}
+        sites={marks.sites}
+        cuts={marks.cuts}
+        cutLabel={selected ?? undefined}
       />
+      <DigestPanel template={template} span={span} enzymes={enzymes} selected={selected} onSelect={setSelected} />
     </div>
   );
 }

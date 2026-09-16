@@ -252,8 +252,8 @@ unknown genome sizes (reference or pan-genome) count as FALLBACK_GENOME_GB = 1 G
 | `summarizePangenome`, `truncatedGenomeCount`, `pangenomeRows`, `PANGENOME_STATUS_META` | Pan-genome matrix data (`amplifies = single_perfect + single_mismatch + multiple`; `truncated` is a flag, not a status) |
 | `revcomp`, `transcriptLayout`, `cdnaToGenomicBlocks`, `mismatchIndexes`, `formatGenomic` | IUPAC-aware, case-preserving coordinates (1-based, inclusive) |
 | `annotateVariants`, `capsCall`, `differentialSites`, `dcapsOpportunities`, `enzymeCounts` | CAPS / dCAPS annotation for a variant listing — see [CAPS](#caps) |
-| `digestAmplicon`, `singleCutters`, `nonCutters`, `capsForAmplicon`, `digestsDistinguishable` | Restriction analysis of a predicted product — see [Digesting a product](#digesting-a-product) |
-| `variantOnTemplate`, `genomicToTemplatePosition` | Places a genomic variant in template coordinates, complementing the alleles on a minus-strand template |
+| `digestAmplicon`, `singleCutters`, `nonCutters`, `ampliconSeq` | Restriction sites in a predicted product — see [Restriction sites on a product](#restriction-sites-on-a-product) |
+| `genomicToTemplatePosition`, `variantOnTemplate` | Genomic coordinates onto a template — the inverse of `templateGenomicPosition`, skipping introns and complementing alleles on a minus strand |
 | `findSites`, `iupacMatcher`, `digestFragments`, `isResolvable`, `variantContext`, `verifyWindow` | The restriction-site engine underneath it |
 | `COMMON_ENZYMES`, `findEnzyme`, `enzymeSpecificity`, `isSixCutter` | The bundled enzyme panel |
 
@@ -314,62 +314,38 @@ Worth knowing before you trust a verdict:
 Recognition sequences and cut positions follow
 [REBASE](https://rebase.neb.com) (Roberts *et al.*, *Nucleic Acids Res* 43:D298, 2015).
 
-### Digesting a product
+### Restriction sites on a product
 
-Every designed pair carries a restriction analysis of its predicted product,
-under the amplicon in the pair detail. Unlike the variant annotation this needs
-no callback at all — `template.seq` comes back with every design — so it works
-in every mode, pasted sequence included.
+Every designed pair carries a restriction map of its predicted product, under
+the amplicon in the pair detail. This needs no callback at all — `template.seq`
+comes back with every design — so it works in every mode, pasted sequence
+included.
 
-It answers two questions. **Which enzyme confirms this band?** The digest table
-lists the enzymes that cut the product, fewest cuts first, with the fragment
-sizes; selecting one marks its cuts in the amplicon sequence above. And **which
-enzymes leave it alone?**, which is the check before adding a site to a primer
-end for cloning.
+The table lists each enzyme with its recognition sequence, how many sites it has
+in the product, **where those sites are** in template coordinates, and the
+fragment sizes a digest would give; enzymes that cut fewest times come first,
+because a single cutter splitting the product into two identifiable bands is the
+useful one. Selecting an enzyme **highlights its recognition sites in the
+amplicon sequence** and marks where it cuts. Beneath, the enzymes with no site
+at all are named — the check before adding a site to a primer end for cloning.
 
-Where the genome has variation data, the designer also lists any variant inside
-the product and whether an enzyme can genotype it — a **CAPS assay from a pair
-you already designed**, with real fragment sizes for both alleles, because here
-the amplicon is known. Variants are drawn on the template map too, coloured by
-consequence and ringed where a digest reads them.
+The same choice drives the template map, which has its own picker listing every
+enzyme with a site in the template and how many, so sites can be seen across the
+whole template rather than one amplicon at a time.
 
 ```ts
-import { digestAmplicon, capsForAmplicon, variantOnTemplate } from 'gramene-primers';
+import { digestAmplicon, singleCutters, nonCutters } from 'gramene-primers';
 
 const span = { start: pair.left.start, end: pair.right.end };
 digestAmplicon(template.seq, span); // [{ enzyme, sites, cuts, fragments }, …]
-
-const placed = variants.map((v) => ({ key: v.key, label: v.label, variant: variantOnTemplate(template, v.vcf)! }));
-capsForAmplicon(template.seq, span, placed); // [{ enzyme, refFragments, altFragments, resolvable, reason }, …]
+singleCutters(digestAmplicon(template.seq, span)); // the readable diagnostics
+nonCutters(template.seq, span); // safe to add to a primer end
 ```
 
-Worth knowing:
-
-- **The test is whether the two digests differ, not whether a site is present in
-  one allele.** That is what a gel reads, and it handles the awkward cases for
-  free: an enzyme with a constitutive site across the variant can still gain or
-  lose another, and a site that merely moves changes the sizes without changing
-  the count.
-- **A verdict of "not on a gel" says why** — too many cuts, bands that
-  co-migrate, or an indel whose undigested products already differ, which needs
-  no enzyme at all.
-- **A minus-strand template holds the reverse complement**, so alleles are
-  complemented when placed on it and an indel is anchored at its last genomic
-  base. A spliced template omits introns, so a variant straddling a junction is
-  refused rather than spliced into nonsense, and a pasted sequence has no
-  genomic coordinates so no variants at all.
-- Defaults for readability: fragments below 50 bp do not run, bands within 40 bp
-  co-migrate, more than four cuts is not a ladder. All are options.
-
-### Types
-
-The API types (`DesignRequest`, `DesignResponse`, `CheckRequest`, `CheckParams`, `CheckJob`, `CheckResults`, `PangenomeSummary`, …) are exported by name.
-
-The genome block of `CheckResults` (`CheckResults['specificity']`) is exported as **`GenomeSpecificityResults`**, because `SpecificityResults` is the component:
-
-```ts
-import { SpecificityResults, type GenomeSpecificityResults } from 'gramene-primers';
-```
+`sites` are `{start, end, strand}` in template coordinates and `cuts` are the
+template positions where the top strand is severed, so both can be drawn
+directly. Sizes are from sequence alone: methylation, star activity and partial
+digests are not modelled.
 
 ## Development
 

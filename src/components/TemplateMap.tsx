@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import type { Interval, PrimerOligo, PrimerPair, PrimerTemplate, TemplateExon } from '../types';
-import { consequenceColor, consequenceLabel } from '../variants';
 import { useIsoLayoutEffect } from './hooks/useIsoLayoutEffect';
 import { GprRoot, type StyleProps } from './Root';
 import { clamp, fmtInt, pairLabel, strandSign, templateGenomicPosition, useIdPrefix } from './util';
@@ -14,21 +13,20 @@ export interface TemplateMapProps extends StyleProps {
   target?: Interval | null;
   included?: Interval | null;
   excluded?: ReadonlyArray<Interval> | null;
-  /** Variants inside the template, in template coordinates. */
-  variants?: ReadonlyArray<MapVariant>;
+  /** Recognition sites of the chosen enzyme, in template coordinates. */
+  sites?: ReadonlyArray<MapSite>;
+  /** Enzymes with a site in this template, and how many, for the picker. */
+  enzymeOptions?: ReadonlyArray<readonly [string, number]>;
+  selectedEnzyme?: string | null;
+  onSelectEnzyme?: (enzyme: string | null) => void;
   title?: string;
 }
 
-/** A variant to draw on the map, already placed in template coordinates. */
-export interface MapVariant {
-  key: string;
-  label: string;
-  position: number;
-  consequence?: string | null;
-  /** An enzyme tells the alleles apart in at least one predicted product. */
-  caps?: boolean;
-  /** The enzyme's name, for the tooltip. */
-  capsEnzyme?: string | null;
+/** A recognition site to draw, in template coordinates. */
+export interface MapSite {
+  start: number;
+  end: number;
+  strand?: 1 | -1;
 }
 
 const MARGIN = 30;
@@ -40,9 +38,9 @@ const MASK_H = 8;
 const INTERVAL_Y = 74;
 const INTERVAL_H = 10;
 const LANES_Y = 94;
-const VARIANT_Y = 88;
-const VARIANT_STEM = 7;
-const VARIANT_TRACK_H = 20;
+const SITE_Y = 88;
+const SITE_H = 9;
+const SITE_TRACK_H = 16;
 const LANE_H = 20;
 const PRIMER_H = 12;
 const MAX_LANES = 30;
@@ -103,7 +101,7 @@ function arrowPath(x0: number, x1: number, y: number, h: number, dir: 1 | -1): s
 
 /** SVG template map: ruler, exons/CDS/junctions, repeat mask, intervals and pair lanes (spec §C.3). */
 export function TemplateMap(props: TemplateMapProps): JSX.Element {
-  const { template, pairs = [], selectedRank, onSelect, target, included, excluded, variants = [] } = props;
+  const { template, pairs = [], selectedRank, onSelect, target, included, excluded, sites = [], enzymeOptions = [] } = props;
   const L = Math.max(1, template.length || template.seq?.length || 1);
   const idp = useIdPrefix('gpr-map');
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -136,9 +134,9 @@ export function TemplateMap(props: TemplateMapProps): JSX.Element {
 
   const lanes = useMemo(() => packPairLanes(pairs, Math.ceil((28 * L) / Math.max(1, inner))), [pairs, L, inner]);
   const laneCount = Math.min(MAX_LANES, pairs.length ? Math.max(...[...lanes.values()]) + 1 : 0);
-  // The variant track sits between the intervals and the pair lanes, and only
+  // The site track sits between the intervals and the pair lanes, and only
   // takes room when there is something to draw in it.
-  const lanesY = LANES_Y + (variants.length ? VARIANT_TRACK_H : 0);
+  const lanesY = LANES_Y + (sites.length ? SITE_TRACK_H : 0);
   const height = lanesY + Math.max(1, laneCount) * LANE_H + 6;
   const ticks = niceTicks(v0, v1, Math.max(3, Math.floor(inner / 90)));
 
@@ -291,6 +289,26 @@ export function TemplateMap(props: TemplateMapProps): JSX.Element {
               Zoom to pair
             </button>
           </span>
+          {enzymeOptions.length ? (
+            <span className="gpr-map-enzyme">
+              <label className="gpr-label" htmlFor={`${idp}-enzyme`}>
+                Restriction sites
+              </label>
+              <select
+                id={`${idp}-enzyme`}
+                className="gpr-select gpr-select-small"
+                value={props.selectedEnzyme ?? ''}
+                onChange={(e) => props.onSelectEnzyme?.(e.target.value || null)}
+              >
+                <option value="">None</option>
+                {enzymeOptions.map(([name, n]) => (
+                  <option key={name} value={name}>
+                    {name} ({n})
+                  </option>
+                ))}
+              </select>
+            </span>
+          ) : null}
           <span className="gpr-map-view">
             {fmtInt(v0)}–{fmtInt(v1)} of {fmtInt(L)} bp
             <span className="gpr-map-hover" aria-hidden="true">
@@ -361,22 +379,22 @@ export function TemplateMap(props: TemplateMapProps): JSX.Element {
                 </rect>
               ) : null}
             </g>
-            {variants.length ? (
-              <g className="gpr-map-variants">
-                {variants.map((v) => {
-                  const px = x(v.position) + wOf(v.position, v.position) / 2;
-                  const color = consequenceColor(v.consequence ?? null);
-                  return (
-                    <g key={v.key} className="gpr-map-variant">
-                      <title>{`${v.label} · ${consequenceLabel(v.consequence ?? null)}${v.caps && v.capsEnzyme ? ` · ${v.capsEnzyme} cuts one allele` : ''}`}</title>
-                      <line x1={px} x2={px} y1={VARIANT_Y} y2={VARIANT_Y + VARIANT_STEM} stroke={color} />
-                      {/* Consequence owns the colour here as it does in the browser, so a
-                          variant an enzyme can type is ringed instead of recoloured. */}
-                      {v.caps ? <circle className="gpr-map-variant-caps" cx={px} cy={VARIANT_Y + VARIANT_STEM} r={5.5} fill="none" /> : null}
-                      <circle cx={px} cy={VARIANT_Y + VARIANT_STEM} r={3} fill={color} />
-                    </g>
-                  );
-                })}
+            {sites.length ? (
+              <g className="gpr-map-sites">
+                {sites.map((site) => (
+                  <rect
+                    key={`${site.start}-${site.strand ?? 1}`}
+                    className="gpr-map-site"
+                    x={x(site.start)}
+                    y={SITE_Y}
+                    /* A six-base site is sub-pixel on a 17 kb template, so it is
+                       widened to stay visible rather than vanishing. */
+                    width={Math.max(2, wOf(site.start, site.end))}
+                    height={SITE_H}
+                  >
+                    <title>{`${props.selectedEnzyme ?? 'site'} ${fmtInt(site.start)}–${fmtInt(site.end)}`}</title>
+                  </rect>
+                ))}
               </g>
             ) : null}
             <g className="gpr-map-pairs">
@@ -425,27 +443,6 @@ export function TemplateMap(props: TemplateMapProps): JSX.Element {
           </g>
           {hover !== null ? <line className="gpr-map-guide" x1={x(hover) + wOf(hover, hover) / 2} x2={x(hover) + wOf(hover, hover) / 2} y1={RULER_Y} y2={height} /> : null}
         </svg>
-        {variants.length ? (
-          <ul className="gpr-map-legend" aria-label="Variant legend">
-            {[...new Set(variants.map((v) => v.consequence ?? null))].slice(0, 8).map((c) => (
-              <li key={c ?? 'none'} className="gpr-map-legend-item">
-                <svg className="gpr-map-swatch" width={14} height={10} aria-hidden="true" focusable="false">
-                  <circle cx={7} cy={5} r={3} fill={consequenceColor(c)} />
-                </svg>
-                {consequenceLabel(c)}
-              </li>
-            ))}
-            {variants.some((v) => v.caps) ? (
-              <li className="gpr-map-legend-item">
-                <svg className="gpr-map-swatch" width={14} height={12} aria-hidden="true" focusable="false">
-                  <circle className="gpr-map-variant-caps" cx={7} cy={6} r={5} fill="none" />
-                  <circle cx={7} cy={6} r={2.5} />
-                </svg>
-                cut differently by an enzyme
-              </li>
-            ) : null}
-          </ul>
-        ) : null}
         {legend.length ? (
           <ul className="gpr-map-legend" aria-label="Map legend">
             {legend.map(([cls, text]) => (

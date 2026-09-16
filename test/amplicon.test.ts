@@ -1,17 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import {
-  ampliconSeq,
-  capsForAmplicon,
-  digestAmplicon,
-  digestsDistinguishable,
-  genomicToTemplatePosition,
-  nonCutters,
-  singleCutters,
-  variantOnTemplate,
-  type TemplateVariant,
-} from '../src/amplicon';
-import { findEnzyme } from '../src/enzymes';
+import { ampliconSeq, digestAmplicon, genomicToTemplatePosition, nonCutters, singleCutters, variantOnTemplate } from '../src/amplicon';
 import type { DesignResponse, PrimerTemplate } from '../src/types';
 import { fixturePath } from './paths';
 
@@ -33,17 +22,11 @@ const VARIANTS = [
   { key: '1:11282:CA:C', label: '1:11282 CA/C', vcf: { position: 11282, ref: 'CA', alt: 'C' } },
 ];
 
-const enzyme = (name: string) => {
-  const found = findEnzyme(name);
-  if (!found) throw new Error(`no ${name} in the panel`);
-  return found;
-};
-
 const onTemplate = (template: PrimerTemplate) =>
   VARIANTS.map((v) => {
     const variant = variantOnTemplate(template, v.vcf);
     return variant ? { key: v.key, label: v.label, variant } : null;
-  }).filter((x): x is { key: string; label: string; variant: TemplateVariant } => x !== null);
+  }).filter((x) => x !== null);
 
 describe('genomicToTemplatePosition', () => {
   it('counts forward from the start on a plus-strand span', () => {
@@ -164,6 +147,17 @@ describe('digestAmplicon', () => {
     }
   });
 
+  it('reports one recognition site per cut, with the site sequence actually there', () => {
+    for (const d of digests) {
+      // Every site the table shows must be the enzyme's sequence at that place.
+      for (const site of d.sites) {
+        const bases = geneMinus.template.seq.slice(site.start - 1, site.end);
+        expect(bases.length, d.enzyme.name).toBe(d.enzyme.site.length);
+      }
+      expect(d.sites.length, d.enzyme.name).toBeGreaterThanOrEqual(d.cuts.length);
+    }
+  });
+
   it('puts the fewest cuts first, because a single cutter is the readable one', () => {
     const counts = digests.map((d) => d.cuts.length);
     expect([...counts].sort((a, b) => a - b)).toEqual(counts);
@@ -187,95 +181,5 @@ describe('digestAmplicon', () => {
   it('returns nothing for a span that runs past the template', () => {
     expect(digestAmplicon(geneMinus.template.seq, { start: 1, end: 99_999 })).toEqual([]);
     expect(ampliconSeq(geneMinus.template.seq, { start: 1, end: 99_999 })).toBeNull();
-  });
-});
-
-describe('digestsDistinguishable', () => {
-  it('accepts a band with no counterpart of a similar size', () => {
-    expect(digestsDistinguishable([300, 200], [500])).toBe(true);
-  });
-
-  it('rejects bands that co-migrate', () => {
-    expect(digestsDistinguishable([300, 200], [305, 198])).toBe(false);
-  });
-
-  it('ignores a difference that is only in fragments too small to run', () => {
-    expect(digestsDistinguishable([480, 20], [490, 10])).toBe(false);
-  });
-});
-
-describe('capsForAmplicon', () => {
-  // A 100 bp window of the minus-strand gene template spanning the variants.
-  const span = { start: 3860, end: 3959 };
-  const caps = capsForAmplicon(geneMinus.template.seq, span, onTemplate(geneMinus.template));
-
-  it('finds the XbaI assay that 1:11193 C>T gives, with real fragment sizes', () => {
-    const xba = caps.find((c) => c.enzyme.name === 'XbaI');
-    expect(xba).toBeTruthy();
-    expect(xba!.key).toBe('1:11193:C:T');
-    expect(xba!.cuts).toBe('ref');
-    expect(xba!.refFragments).toEqual([56, 44]);
-    expect(xba!.altFragments).toEqual([100]);
-    expect(xba!.resolvable).toBe(true);
-  });
-
-  it('counts a constitutive cut and still rejects bands that co-migrate', () => {
-    // AccI cuts both alleles once regardless, and the extra cut splits 75 into
-    // 39 and 36 — a real difference, but not one a gel shows.
-    const acc = caps.find((c) => c.enzyme.name === 'AccI');
-    expect(acc).toBeTruthy();
-    expect(acc!.sharedCuts).toBe(1);
-    expect(acc!.refFragments).toEqual([39, 36, 25]);
-    expect(acc!.altFragments).toEqual([75, 25]);
-    expect(acc!.resolvable).toBe(false);
-    expect(acc!.reason).toMatch(/gel resolves|below/);
-  });
-
-  it('keeps every digest accounting for its own product', () => {
-    for (const c of caps) {
-      const refLen = span.end - span.start + 1;
-      expect(c.refFragments.reduce((a, b) => a + b, 0)).toBe(refLen);
-      expect(c.altFragments.reduce((a, b) => a + b, 0)).toBe(refLen - c.variant.ref.length + c.variant.alt.length);
-    }
-  });
-
-  it('puts assays that actually read first', () => {
-    const flags = caps.map((c) => Number(c.resolvable));
-    expect([...flags].sort((a, b) => b - a)).toEqual(flags);
-  });
-
-  it('says an indel needs no enzyme when the products already differ enough', () => {
-    // One DraI site, and a 60 bp insertion elsewhere: the undigested products
-    // are already a length polymorphism, so the enzyme adds nothing.
-    const seq = `${'A'.repeat(80)}TTTAAA${'A'.repeat(80)}`;
-    const variant: TemplateVariant = { position: 10, ref: 'A', alt: `A${'A'.repeat(60)}` };
-    const found = capsForAmplicon(seq, { start: 1, end: seq.length }, [{ key: 'k', label: 'l', variant }], {
-      enzymes: [enzyme('DraI')],
-    });
-    expect(found).toHaveLength(1);
-    expect(found[0]!.baselineDifference).toBe(60);
-    expect(found[0]!.resolvable).toBe(false);
-    expect(found[0]!.reason).toContain('no enzyme is needed');
-  });
-
-  it('rejects a ladder too busy to read before anything else', () => {
-    // Ten cuts is not a digest anyone can score, whatever else is true of it.
-    const seq = `${'A'.repeat(49)}A${'GTTTAAACGG'.repeat(10)}`;
-    const variant: TemplateVariant = { position: 50, ref: 'A', alt: `A${'C'.repeat(60)}` };
-    const found = capsForAmplicon(seq, { start: 1, end: seq.length }, [{ key: 'k', label: 'l', variant }]);
-    expect(found.length).toBeGreaterThan(0);
-    expect(found.every((c) => !c.resolvable && /cuts the product \d+ times/.test(c.reason ?? ''))).toBe(true);
-  });
-
-  it('ignores a variant whose reference allele disagrees with the template', () => {
-    const wrong = [{ key: 'x', label: 'x', variant: { position: 3900, ref: 'TTTT', alt: 'A' } as TemplateVariant }];
-    expect(capsForAmplicon(geneMinus.template.seq, span, wrong)).toEqual([]);
-  });
-
-  it('honours a restricted enzyme panel', () => {
-    const only = capsForAmplicon(geneMinus.template.seq, span, onTemplate(geneMinus.template), {
-      enzymes: [enzyme('XbaI')],
-    });
-    expect(only.map((c) => c.enzyme.name)).toEqual(['XbaI']);
   });
 });

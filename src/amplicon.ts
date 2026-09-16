@@ -1,17 +1,12 @@
 /**
- * Restriction analysis of a predicted PCR product.
+ * Restriction analysis of a predicted PCR product: which enzymes recognise a
+ * site inside it, where those sites are, and what fragments a digest gives.
  *
- * Two questions, both answered from `template.seq`, which every design response
- * already carries — so unlike the variant listing this needs no host callback
- * and works in every mode:
- *
- * 1. Which enzymes cut this amplicon, where, and into what fragments? That is
- *    the diagnostic digest that confirms a band is the product you meant, and
- *    the check that a cloning enzyme does not cut inside it.
- * 2. Is there a variant inside the amplicon that an enzyme can tell apart? That
- *    turns an ordinary primer pair into a CAPS genotyping assay, and here —
- *    unlike on a bare listing — the fragment sizes are real, because the
- *    amplicon is known.
+ * It answers the two everyday questions about an amplicon — which enzyme
+ * confirms a band is the product you meant, and which enzymes leave it alone so
+ * a site can be added to a primer end. All of it comes from `template.seq`,
+ * which every design response already carries, so there is no host callback and
+ * it works in every mode including a pasted sequence.
  */
 
 import { digestFragments, findSites, type CapsSite } from './caps';
@@ -38,12 +33,6 @@ export interface AmpliconDigest {
 
 export interface DigestOptions {
   enzymes?: ReadonlyArray<RestrictionEnzyme>;
-  /** Bands below this run off the end of a standard gel. Default 50. */
-  minFragment?: number;
-  /** Bands closer together than this co-migrate. Default 40. */
-  minDifference?: number;
-  /** Beyond this many cuts the ladder is unreadable. Default 4. */
-  maxCuts?: number;
 }
 
 /** The amplicon's bases, or null when the span does not lie in the template. */
@@ -113,22 +102,6 @@ export function nonCutters(
   return enzymes.filter((e) => findSites(amplicon, e).length === 0);
 }
 
-/**
- * Whether two digests can be told apart on a gel: some band in one must have no
- * counterpart of a similar size in the other, and be big enough to run.
- */
-export function digestsDistinguishable(
-  ref: ReadonlyArray<number>,
-  alt: ReadonlyArray<number>,
-  options: DigestOptions = {},
-): boolean {
-  const minFragment = options.minFragment ?? 50;
-  const minDifference = options.minDifference ?? 40;
-  const orphan = (a: ReadonlyArray<number>, b: ReadonlyArray<number>) =>
-    a.some((x) => x >= minFragment && !b.some((y) => Math.abs(x - y) < minDifference));
-  return orphan(ref, alt) || orphan(alt, ref);
-}
-
 /** A variant, in the template's own coordinates and orientation. */
 export interface TemplateVariant {
   /** 1-based template position of the variant's first base. */
@@ -185,109 +158,4 @@ export function genomicToTemplatePosition(
   if (typeof start !== 'number' || typeof end !== 'number') return null;
   if (pos < start || pos > end) return null;
   return strand === 1 ? pos - start + 1 : end - pos + 1;
-}
-
-export interface ProductCaps {
-  /** Identity of the variant this came from, for keying back to the listing. */
-  key: string;
-  label: string;
-  variant: TemplateVariant;
-  enzyme: RestrictionEnzyme;
-  /** The allele the enzyme cuts more often. */
-  cuts: 'ref' | 'alt';
-  refFragments: number[];
-  altFragments: number[];
-  /** Cuts the enzyme makes in both alleles alike; they shrink the bands. */
-  sharedCuts: number;
-  /** How far apart the undigested products already are; an indel needs no enzyme at all. */
-  baselineDifference: number;
-  resolvable: boolean;
-  /** Why not, when `resolvable` is false. */
-  reason: string | null;
-  specificity: number;
-}
-
-/**
- * CAPS assays available from one predicted product.
- *
- * The test is whether the two digests differ, not whether a site is present in
- * one allele only. That is what a gel actually reads, and it gets the awkward
- * cases right for free: an enzyme with a constitutive site across the variant
- * can still gain or lose a second one, and a site that merely moves changes the
- * fragment sizes without changing the site count.
- */
-export function capsForAmplicon(
-  seq: string | null | undefined,
-  span: TemplateSpan,
-  variants: ReadonlyArray<{ key: string; label: string; variant: TemplateVariant }>,
-  options: DigestOptions = {},
-): ProductCaps[] {
-  const refAmplicon = ampliconSeq(seq, span);
-  if (!refAmplicon) return [];
-  const enzymes = options.enzymes ?? COMMON_ENZYMES;
-  const minFragment = options.minFragment ?? 50;
-  const maxCuts = options.maxCuts ?? 4;
-  const out: ProductCaps[] = [];
-  // The reference digest depends only on the enzyme, so it is computed once
-  // rather than once per variant in the product.
-  const refDigests = new Map<string, number[]>();
-  for (const enzyme of enzymes) {
-    if (enzyme.cut !== null) refDigests.set(enzyme.name, digestFragments(refAmplicon, enzyme));
-  }
-
-  for (const entry of variants) {
-    const { variant } = entry;
-    const offset = variant.position - span.start;
-    if (offset < 0 || offset + variant.ref.length > refAmplicon.length) continue;
-    // A variant the template disagrees with means the wrong assembly or a bad
-    // coordinate, and every call made from it would be wrong.
-    if (refAmplicon.slice(offset, offset + variant.ref.length) !== variant.ref) continue;
-    const altAmplicon =
-      refAmplicon.slice(0, offset) + variant.alt + refAmplicon.slice(offset + variant.ref.length);
-    const baselineDifference = Math.abs(altAmplicon.length - refAmplicon.length);
-
-    for (const enzyme of enzymes) {
-      if (enzyme.cut === null) continue;
-      const refFragments = refDigests.get(enzyme.name) as number[];
-      const altFragments = digestFragments(altAmplicon, enzyme);
-      if (refFragments.length === 1 && altFragments.length === 1) continue;
-      if (same(refFragments, altFragments)) continue;
-
-      const shared = Math.min(refFragments.length, altFragments.length) - 1;
-      let reason: string | null = null;
-      if (Math.max(refFragments.length, altFragments.length) - 1 > maxCuts) {
-        reason = `cuts the product ${Math.max(refFragments.length, altFragments.length) - 1} times`;
-      } else if (baselineDifference >= (options.minDifference ?? 40)) {
-        reason = 'the undigested products already differ in size; no enzyme is needed';
-      } else if (!digestsDistinguishable(refFragments, altFragments, options)) {
-        reason = `the bands differ by less than a gel resolves, or fall below ${minFragment} bp`;
-      }
-      out.push({
-        key: entry.key,
-        label: entry.label,
-        variant,
-        enzyme,
-        cuts: refFragments.length >= altFragments.length ? 'ref' : 'alt',
-        refFragments,
-        altFragments,
-        sharedCuts: Math.max(0, shared),
-        baselineDifference,
-        resolvable: reason === null,
-        reason,
-        specificity: enzymeSpecificity(enzyme.site),
-      });
-    }
-  }
-  // Assays that actually read come first, then the most specific enzyme.
-  return out.sort(
-    (a, b) =>
-      Number(b.resolvable) - Number(a.resolvable) ||
-      b.specificity - a.specificity ||
-      a.variant.position - b.variant.position ||
-      a.enzyme.name.localeCompare(b.enzyme.name),
-  );
-}
-
-function same(a: ReadonlyArray<number>, b: ReadonlyArray<number>): boolean {
-  return a.length === b.length && a.every((x, i) => x === b[i]);
 }
