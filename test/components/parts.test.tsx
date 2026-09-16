@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -13,7 +13,9 @@ import { AssayOptions } from '../../src/components/AssayOptions';
 import { ManualVariantInputs } from '../../src/components/ManualVariantInputs';
 import { OrderSheet } from '../../src/components/OrderSheet';
 import { OrientationExplain } from '../../src/components/OrientationExplain';
+import { VariantBrowser } from '../../src/components/VariantBrowser';
 import { VariantPicker } from '../../src/components/VariantPicker';
+import { consequenceColor } from '../../src/variants';
 import { GenotypingPanel } from '../../src/components/GenotypingPanel';
 import { PrimerDesigner } from '../../src/components/PrimerDesigner';
 import { GprRoot } from '../../src/components/Root';
@@ -37,6 +39,7 @@ import type {
   PangenomeResults,
   PrimerDesignerState,
   PrimerTemplate,
+  VariantEntry,
   VariantListResponse,
 } from '../../src/types';
 import { doneCheckJob, gene200, genomeEntry, genomesResponse, transcriptCheckJob } from '../fixtures/samples';
@@ -535,6 +538,81 @@ describe('OrientationExplain', () => {
   it('renders nothing for a template-only design, which has no orientations', () => {
     const { container } = render(<OrientationExplain orientations={null} />);
     expect(container.firstChild).toBeNull();
+  });
+});
+
+describe('VariantBrowser', () => {
+  const listing = (JSON.parse(readFileSync(pkgPath('test', 'fixtures', 'genotyping', 'capture-variants-list-1_11180-11290.json'), 'utf8')) as {
+    response: VariantListResponse;
+  }).response;
+  const win = { start: 11180, end: 11290 };
+  const base = () => ({ region: '1', window: win, systemName: 'sorghum_bicolor', variants: listing.variants, maxWindow: 50_000 });
+
+  it('draws exactly the variants it is handed, so it cannot disagree with the table', () => {
+    const { container } = render(<VariantBrowser {...base()} />);
+    expect(container.querySelectorAll('.gpr-browser-variant')).toHaveLength(listing.variants.length);
+
+    // The picker passes its filtered rows, so a narrower set draws fewer markers.
+    const one = render(<VariantBrowser {...base()} variants={listing.variants.slice(0, 1)} />);
+    expect(one.container.querySelectorAll('.gpr-browser-variant')).toHaveLength(1);
+  });
+
+  it('gives each consequence its own colour and names it in the legend', () => {
+    const variants = JSON.parse(JSON.stringify(listing.variants)) as VariantEntry[];
+    variants[0]!.consequence = 'missense_variant';
+    const { container } = render(<VariantBrowser {...base()} variants={variants} />);
+    expect(container.querySelectorAll('.gpr-browser-key')).toHaveLength(2);
+    expect(screen.getByText('missense variant')).toBeTruthy();
+    // Stable and distinct, so a term keeps its colour as you pan.
+    expect(consequenceColor('missense_variant')).not.toBe(consequenceColor('3_prime_UTR_variant'));
+    expect(consequenceColor('missense_variant')).toBe(consequenceColor('missense_variant'));
+  });
+
+  it('asks the host for gene models over the region actually being browsed', async () => {
+    // Typed so the recorded call can be inspected.
+    const genesInRegion = vi.fn(async (query: { system_name: string; region: string; start: number; end: number }) => {
+      void query;
+      // Genomic coordinates, as Ensembl REST returns them.
+      return [{ id: 'SORBI_3001G000200', label: 'SORBI_3001G000200', start: 11180, end: 14899, strand: -1 as const, exons: [{ start: 11892, end: 12152 }] }];
+    });
+    render(<VariantBrowser {...base()} genesInRegion={genesInRegion} />);
+    await waitFor(() => expect(genesInRegion).toHaveBeenCalled());
+    expect(genesInRegion.mock.calls[0]![0]).toMatchObject({ system_name: 'sorghum_bicolor', region: '1', start: win.start, end: win.end });
+  });
+
+  it('says so when the host offers no gene search, rather than looking broken', () => {
+    render(<VariantBrowser {...base()} />);
+    expect(screen.getByText('Gene models are not available here.')).toBeTruthy();
+  });
+
+  it('hands the browsed region back to the listing', async () => {
+    const onUseRegion = vi.fn();
+    const user = userEvent.setup();
+    render(<VariantBrowser {...base()} onUseRegion={onUseRegion} />);
+    await user.click(screen.getByRole('button', { name: 'Zoom out' }));
+    await user.click(screen.getByRole('button', { name: 'List this region' }));
+    const call = onUseRegion.mock.calls[0]!;
+    expect(call[1] - call[0] + 1).toBeGreaterThan(win.end - win.start + 1);
+  });
+
+  it('will not list a region wider than the server accepts', async () => {
+    const user = userEvent.setup();
+    render(<VariantBrowser {...base()} maxWindow={200} onUseRegion={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: 'Zoom out' }));
+    await user.click(screen.getByRole('button', { name: 'Zoom out' }));
+    expect(screen.getByRole('button', { name: 'List this region' })).toBeDisabled();
+    expect(screen.getByText(/at most 200 bp can be listed/)).toBeTruthy();
+  });
+
+  it('does not offer a way round the table disabling a row', async () => {
+    const onSelect = vi.fn();
+    const variants = JSON.parse(JSON.stringify(listing.variants)) as VariantEntry[];
+    variants[0]!.designable = false;
+    const user = userEvent.setup();
+    const { container } = render(<VariantBrowser {...base()} variants={variants} onSelect={onSelect} />);
+    const markers = container.querySelectorAll('.gpr-browser-variant');
+    await user.click(markers[0] as Element);
+    expect(onSelect).not.toHaveBeenCalled();
   });
 });
 

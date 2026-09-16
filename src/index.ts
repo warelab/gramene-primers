@@ -10,6 +10,7 @@ export {
   GenotypingPanel,
   OrderSheet,
   OrientationExplain,
+  VariantBrowser,
   VariantPicker,
   AssayOptions,
   GenotypeChip,
@@ -44,6 +45,7 @@ export type {
   GenotypingPanelProps,
   OrderSheetProps,
   OrientationExplainProps,
+  VariantBrowserProps,
   VariantPickerProps,
   AssayOptionsProps,
   GenotypeChipProps,
@@ -187,6 +189,7 @@ export { copyText, downloadText } from './clipboard';
 export { estimateCheckCpu, CPU_S_PER_PRIMER_GB, CDNA_GB_ESTIMATE, MAX_JOB_CPU_S, REFERENCE_WORD_SIZE, PANGENOME_WORD_SIZE, REALIGN_CPU_S_PER_PRIMER_TASK, PANGENOME_CPU_FACTOR, FALLBACK_GENOME_GB } from './cost';
 export type { CheckCpuEstimate, CheckCpuInput, WordSize } from './cost';
 export { GENOTYPE_CPU_S_PER_GENOME } from './cost';
+export { CONSEQUENCE_PALETTE, consequenceColor, consequenceLabel } from './variants';
 export { DESIGN_MODES, designModeOf, isDesignMode } from './modes';
 export {
   ALL_MODES,
@@ -250,6 +253,7 @@ export type {
   GenomeEntry,
   GenomesResponse,
   GenomicBlock,
+  GenesInRegion,
   GenotypeAllele,
   GenotypeCopy,
   GenotypeGenomeRow,
@@ -321,6 +325,7 @@ export type {
   PrimerWarning,
   ProductGenomic,
   ProductSizeRange,
+  RegionGene,
   RegionSpec,
   RepeatMaskMode,
   RepeatMasking,

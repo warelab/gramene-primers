@@ -6,6 +6,7 @@ export { AssayOptions, type AssayOptionsProps } from './AssayOptions';
 export { AlleleMatrix, type AlleleMatrixProps } from './AlleleMatrix';
 export { ManualVariantInputs, type ManualVariantInputsProps, type ManualVariant } from './ManualVariantInputs';
 export { VariantPicker, type VariantPickerProps } from './VariantPicker';
+export { VariantBrowser, type VariantBrowserProps } from './VariantBrowser';
 export { OrientationExplain, type OrientationExplainProps } from './OrientationExplain';
 export { OrderSheet, type OrderSheetProps } from './OrderSheet';
 export { GenotypingPanel, type GenotypingPanelProps } from './GenotypingPanel';

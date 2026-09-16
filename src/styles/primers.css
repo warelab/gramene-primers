@@ -2361,6 +2361,81 @@
   min-width: 170px;
 }
 
+/* ---- genotyping: variant browser ------------------------------------------- */
+.gpr-root .gpr-browser {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--gpr-border);
+  border-radius: var(--gpr-radius);
+  padding: 8px;
+}
+
+.gpr-root .gpr-browser-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.gpr-root .gpr-browser-loc {
+  font-weight: 600;
+}
+
+.gpr-root .gpr-browser-svg {
+  display: block;
+  touch-action: pan-y;
+  cursor: grab;
+  user-select: none;
+}
+
+.gpr-root .gpr-browser-svg:active {
+  cursor: grabbing;
+}
+
+.gpr-root .gpr-browser-gene-label {
+  font-size: 10px;
+  fill: var(--gpr-muted);
+}
+
+.gpr-root .gpr-browser-variant {
+  cursor: pointer;
+}
+
+.gpr-root .gpr-browser-variant[data-designable="false"] {
+  opacity: 0.45;
+}
+
+.gpr-root .gpr-browser-variant[data-state="selected"] circle {
+  stroke: var(--gpr-fg);
+  stroke-width: 2;
+}
+
+.gpr-root .gpr-browser-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: 0.85em;
+  color: var(--gpr-muted);
+}
+
+.gpr-root .gpr-browser-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gpr-root .gpr-browser-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.gpr-root .gpr-browser-variant[data-designable="false"] {
+  cursor: default;
+}
+
 /* `hidden` must win over the display rules above (Bootstrap uses !important; this relies on source order). */
 .gpr-root [hidden] {
   display: none;

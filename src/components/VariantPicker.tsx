@@ -1,11 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
 import { isAbortError, isPrimersApiError } from '../errors';
-import type { GenotypingState, PrimerWarning, PrimersClient, VariantEntry, VariantKind, VariantListQuery, VariantSource } from '../types';
+import type { GenesInRegion, GenotypingState, PrimerWarning, PrimersClient, VariantEntry, VariantKind, VariantListQuery, VariantSource } from '../types';
 import { GENOTYPING_LIMITS, validateVariantInput } from '../validate';
 import { CheckboxField, NumberField, TextField } from './fields';
 import { useCountdown } from './hooks/useCountdown';
 import { useVariantList } from './hooks/useVariants';
 import { ManualVariantInputs, type ManualVariant } from './ManualVariantInputs';
+import { VariantBrowser } from './VariantBrowser';
 import { Warnings } from './Warnings';
 import { fmtInt, useIdPrefix } from './util';
 
@@ -97,6 +98,8 @@ export interface VariantPickerProps {
   /** `genomes[].has_variation` for this genome, and `variation.available` for the server. */
   variationAvailable?: boolean;
   source?: VariantSource | null;
+  /** Host-supplied gene search for the region browser; without it the gene track is hidden. */
+  genesInRegion?: GenesInRegion;
   state: GenotypingState;
   /** Used when the state carries no window yet (the gene span ± 2 kb, clamped by the caller). */
   defaultWindow?: GenotypingState['window'];
@@ -321,6 +324,21 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
           </div>
 
           <Warnings warnings={lookup ? lookup.warnings : list.data?.warnings} title={lookup ? 'About this id' : 'About this list'} />
+
+          {windowValid && window && !lookup ? (
+            <VariantBrowser
+              region={window.region}
+              window={{ start: window.start, end: window.end }}
+              systemName={p.systemName}
+              genesInRegion={p.genesInRegion}
+              variants={rows}
+              selectedKey={p.state.variantKey ?? null}
+              disabled={p.disabled}
+              maxWindow={GENOTYPING_LIMITS.maxWindow}
+              onSelect={(v) => p.onSelect({ variantKey: v.key, variantId: v.ids[0], alt: v.vcf.alt })}
+              onUseRegion={(start, end) => p.onWindow({ region: window.region, start, end })}
+            />
+          ) : null}
 
           {list.loading ? <p className="gpr-hint">Looking for variants…</p> : null}
 

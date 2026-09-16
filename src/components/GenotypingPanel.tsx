@@ -3,7 +3,7 @@ import { estimateCheckCpu } from '../cost';
 import { designModeOf } from '../modes';
 import { buildGenotypingCheckRequest, buildGenotypingRequest, CheckRequestError, defaultPangenomeGenomes, GENOTYPING_CHECK_LIMITS } from '../request';
 import { submittedGenotypingSets } from '../results';
-import type { CheckName, GenomesResponse, GenotypingSet, GenotypingState, GenotypingTab, PrimerDesignerState, PrimersClient } from '../types';
+import type { CheckName, GenesInRegion, GenomesResponse, GenotypingSet, GenotypingState, GenotypingTab, PrimerDesignerState, PrimersClient } from '../types';
 import { AlleleMatrix } from './AlleleMatrix';
 import { AssayOptions } from './AssayOptions';
 import { ErrorBanner } from './ErrorBanner';
@@ -30,6 +30,8 @@ export interface GenotypingPanelProps {
   /** The default listing window (the gene span ± 2 kb, clamped by the caller). */
   defaultWindow?: GenotypingState['window'];
   geneId?: string | null;
+  /** Host-supplied gene search for the variant browser. */
+  genesInRegion?: GenesInRegion;
   pangenomeFeature?: boolean;
   exportFeature?: boolean;
   disabled?: boolean;
@@ -159,6 +161,7 @@ export function GenotypingPanel(p: GenotypingPanelProps): JSX.Element {
         variationAvailable={!!p.genomes?.variation?.available && p.genomes.genomes.find((g) => g.system_name === p.systemName)?.has_variation !== false}
         source={p.genomes?.variation ? { name: p.genomes.variation.source ?? 'Ensembl', release: p.genomes.variation.release } : null}
         state={gt}
+        genesInRegion={p.genesInRegion}
         defaultWindow={p.defaultWindow}
         disabled={p.disabled}
         onWindow={(window) => p.dispatch({ type: 'setGenotypingWindow', window })}

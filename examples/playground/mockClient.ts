@@ -39,6 +39,7 @@ import {
   type PrimerOligo,
   type PrimerPair,
   type PrimersClient,
+  type RegionGene,
   type RequestOptions,
   type VariantListQuery,
   type VariantListResponse,
@@ -776,6 +777,32 @@ export class MockPrimersClient implements PrimersClient {
       nearest: null,
     };
   }
+}
+
+/**
+ * A stand-in for the host's gene search: `/primers` has no genes-in-region
+ * endpoint, so the designer takes this from its host. Filters the fixture genes
+ * by overlap with the browsed window.
+ */
+export async function mockGenesInRegion(
+  query: { system_name: string; region: string; start: number; end: number },
+  options?: RequestOptions,
+): Promise<RegionGene[]> {
+  await wait(120, options?.signal);
+  return Object.values(GENES)
+    .filter((g) => g.location && g.location.region === query.region && g.location.end >= query.start && g.location.start <= query.end)
+    .map((g) => {
+      const layout = transcriptLayout(g);
+      return {
+        id: g._id,
+        label: g.name || g._id,
+        start: g.location.start,
+        end: g.location.end,
+        strand: g.location.strand,
+        exons: layout?.segments.map((seg) => ({ start: seg.gStart, end: seg.gEnd })),
+        cds: layout?.cds ? { start: layout.cds.start, end: layout.cds.end } : null,
+      };
+    });
 }
 
 export function createMockClient(options: MockClientOptions = {}): MockPrimersClient {

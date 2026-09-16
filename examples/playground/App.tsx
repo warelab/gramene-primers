@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { createPrimersClient, PrimerDesigner, VERSION, type PrimerDesignerState, type PrimersClient } from 'gramene-primers';
-import { createMockClient, GENES } from './mockClient';
+import { createMockClient, GENES, mockGenesInRegion } from './mockClient';
 import { findPage, PAGES } from './pages';
 
 /** `?api=live` base: the dev server's `PRIMERS_API` (called directly; the API sends CORS `*`), else `/sorghum_v11` through the dev proxy. */
@@ -119,6 +119,7 @@ export function App({ search = '', mockDelayScale }: AppProps): JSX.Element {
             region={page.region}
             sequence={page.sequence === 'mock' ? undefined : page.sequence}
             modes={page.modes ?? ['gene', 'transcript', 'region', 'sequence', 'genotyping']}
+            genesInRegion={mockGenesInRegion}
             defaultMode={page.defaultMode}
             state={controlled ? state ?? page.initialState : undefined}
             onStateChange={(s) => setStates((prev) => ({ ...prev, [page.id]: s }))}

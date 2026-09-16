@@ -1365,6 +1365,36 @@ export interface PrimerDesignerFeatures {
   genotyping?: boolean;
 }
 
+/**
+ * A gene as the region browser draws it. Everything is in genomic coordinates,
+ * because that is what a region view needs and what gene sources (Ensembl REST
+ * among them) already return — asking a host to convert to gene-relative or
+ * cDNA coordinates would be work with no purpose here.
+ */
+export interface RegionGene {
+  id: string;
+  /** Shown on the model; the id when there is no name. */
+  label?: string | null;
+  start: number;
+  end: number;
+  strand: Strand;
+  /** Genomic exon blocks. Without them the gene draws as a single block. */
+  exons?: Array<{ start: number; end: number }>;
+  /** Genomic coding extent, so coding exons can be told from UTR. */
+  cds?: { start: number; end: number } | null;
+  biotype?: string | null;
+}
+
+/**
+ * Genes overlapping a browsed region. `/primers` has no such endpoint — it can
+ * only fetch a gene by id — so the host supplies this when it has a gene source
+ * of its own. Without it the variant browser simply draws no gene track.
+ */
+export type GenesInRegion = (
+  query: { system_name: string; region: string; start: number; end: number },
+  options?: RequestOptions,
+) => Promise<RegionGene[]>;
+
 export interface PrimerDesignerProps {
   apiBase: string;
   client?: PrimersClient;
@@ -1374,6 +1404,8 @@ export interface PrimerDesignerProps {
   region?: RegionSpec;
   sequence?: string;
   modes?: DesignerMode[];
+  /** Supplies gene models for the genotyping variant browser; omitted, the gene track is hidden. */
+  genesInRegion?: GenesInRegion;
   defaultMode?: DesignerMode;
   defaultParams?: Partial<DesignParams>;
   state?: PrimerDesignerState;
