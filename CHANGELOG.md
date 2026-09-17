@@ -5,6 +5,18 @@ All notable changes to this project are documented here. The format follows
 [semantic versioning](https://semver.org/). `0.x` releases are published with
 `--tag next`; `1.0.0` follows once `/primers` is live on data.sorghumbase.org.
 
+## [0.8.0] — 2026-09-17
+
+### Added
+- **Several restriction enzymes can be shown at once.** The digest table gained a checkbox per enzyme with **Select all** and **Select none**, and the template map carries the same as a collapsible checklist of every enzyme with a site in the template. Ticking in either place marks it in both.
+- **Each enzyme has its own colour**, from the same Okabe-Ito palette the variant views use and derived from the name, so an enzyme keeps its colour as others are ticked on and off. Recognition sites are underlined in that colour in the amplicon sequence, cut marks take it too, and the map draws its sites in it. Colour is never the only channel: the table, the sequence legend and the map checklist all name the enzyme, and a base covered by more than one site names them all in its tooltip.
+- `enzymeColor(name)` is exported for hosts drawing their own views.
+
+### Changed
+- `selectedEnzyme`/`onSelectEnzyme` on `PairsTable`, `PairDetail` and `TemplateMap` become `selectedEnzymes`/`onSelectEnzymes`, taking and returning a list. `DigestPanel`'s `selected` is a list and `onSelect` receives one. `AmpliconSequence`'s `sites` and `cuts` now name their enzyme (`{start, end, enzyme}` and `{position, enzyme}`), and `cutLabel` is gone since the legend names every enzyme shown. `MapSite` gained `enzyme`.
+- **Select all** and **Select none** act on what is listed rather than the whole panel: in a pair's digest that means the enzymes cutting that product, on the map every enzyme with a site in the template. Ticking a hidden enzyme that shreds the amplicon would mark sites nobody asked to see.
+- The digest table no longer highlights ticked rows. The checkbox and the colour swatch already say which are shown, and under **Select all** a highlight on every row says nothing.
+
 ## [0.7.0] — 2026-09-16
 
 Narrows 0.6.0 to what it should have been. The restriction analysis of a
