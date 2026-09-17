@@ -441,7 +441,11 @@ export function TemplateMap(props: TemplateMapProps): JSX.Element {
           ref={svgRef}
           className="gpr-map-svg"
           role="group"
-          aria-labelledby={`${idp}-title`}
+          /* Named by aria-label, not a root <title>: browsers show the nearest
+             <title> above the pointer as a native tooltip, and every element
+             without one of its own — the restriction-site marks among them —
+             would pop up "Template map" over their own tooltip. */
+          aria-label={props.title ?? 'Template map'}
           aria-describedby={`${idp}-desc`}
           width={width}
           height={height}
@@ -449,7 +453,6 @@ export function TemplateMap(props: TemplateMapProps): JSX.Element {
           onMouseMove={onMove}
           onMouseLeave={() => setHover(null)}
         >
-          <title id={`${idp}-title`}>{props.title ?? 'Template map'}</title>
           <desc id={`${idp}-desc`}>{description}</desc>
           <defs>
             <clipPath id={`${idp}-clip`}>

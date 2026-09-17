@@ -1568,6 +1568,26 @@ describe('TemplateMap restriction sites', () => {
     }
   });
 
+  it('puts no native tooltip above a site mark to cover its own', () => {
+    // A browser shows the nearest <title> above the pointer. The marks have
+    // none, so a <title> on any ancestor — the map's own name, once — popped up
+    // over the enzyme name in the custom tooltip.
+    const { container } = render(
+      <TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} enzymeSites={enzymeSites} selectedEnzymes={['RsaI', 'TaqI']} onSelectEnzymes={vi.fn()} />,
+    );
+    const targets = [...container.querySelectorAll('.gpr-map-site, .gpr-map-site-hit')];
+    expect(targets.length).toBeGreaterThan(0);
+    for (const target of targets) {
+      for (let el: Element | null = target; el && el !== container; el = el.parentElement) {
+        const own = [...el.children].some((c) => c.tagName.toLowerCase() === 'title');
+        expect(own, `<${el.tagName.toLowerCase()} class="${el.getAttribute('class')}"> has a <title>`).toBe(false);
+      }
+    }
+    // The map keeps its accessible name and description all the same.
+    const map = screen.getByRole('group', { name: 'Template map' });
+    expect(map).toHaveAccessibleDescription(/4,020 bp gene template/);
+  });
+
   it('describes a site on hover: enzyme, location, recognition and bases', async () => {
     const user = userEvent.setup();
     const { container } = render(
