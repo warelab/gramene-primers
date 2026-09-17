@@ -148,7 +148,7 @@ describe('axe-core on the restriction digest', () => {
         <DigestPanel
           template={template}
           span={{ start: pairs[0]!.left.start, end: pairs[0]!.right.end }}
-          selected="RsaI"
+          selected={['RsaI', 'TaqI']}
         />
       </GprRoot>,
     );

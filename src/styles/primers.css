@@ -2489,15 +2489,30 @@
   font-variant-numeric: tabular-nums;
 }
 
-.gpr-root .gpr-digest-table tr[data-state="selected"] > th,
-.gpr-root .gpr-digest-table tr[data-state="selected"] > td {
-  background-color: var(--gpr-selected);
-}
-
-/* The recognition sequence itself, boxed in the amplicon. */
+/*
+ * The recognition sequence itself, underlined in the amplicon. The colour is
+ * set inline per enzyme so several can be shown at once and told apart; the
+ * neutral background is what marks a base as belonging to any site at all.
+ */
 .gpr-root .gpr-seq-site {
   background-color: var(--gpr-accent-soft);
   box-shadow: inset 0 -2px 0 var(--gpr-accent);
+}
+
+.gpr-root .gpr-digest-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.gpr-root .gpr-digest-swatch,
+.gpr-root .gpr-map-enzyme-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex: none;
 }
 
 /*
@@ -2518,13 +2533,42 @@
   fill: var(--gpr-accent);
 }
 
-.gpr-root .gpr-map-enzyme {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+/* Collapsed by default: a panel of enzymes should not outsize the map. */
+.gpr-root .gpr-map-enzymes {
+  margin-top: 6px;
+  font-size: 0.9em;
 }
 
-.gpr-root .gpr-map-enzyme .gpr-label {
+.gpr-root .gpr-map-enzymes > summary {
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.gpr-root .gpr-map-enzyme-actions {
+  display: flex;
+  gap: 6px;
+  padding: 6px 0 4px;
+}
+
+.gpr-root .gpr-map-enzyme-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 2px 12px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.gpr-root .gpr-map-enzyme-list .gpr-check-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.gpr-root .gpr-map-enzyme-list .gpr-label {
   margin: 0;
   white-space: nowrap;
 }

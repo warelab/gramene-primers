@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import type { Interval, PrimerOligo, PrimerPair, PrimerTemplate, TemplateExon } from '../types';
 import { useIsoLayoutEffect } from './hooks/useIsoLayoutEffect';
+import { enzymeColor } from '../enzymes';
 import { GprRoot, type StyleProps } from './Root';
 import { clamp, fmtInt, pairLabel, strandSign, templateGenomicPosition, useIdPrefix } from './util';
 
@@ -13,12 +14,12 @@ export interface TemplateMapProps extends StyleProps {
   target?: Interval | null;
   included?: Interval | null;
   excluded?: ReadonlyArray<Interval> | null;
-  /** Recognition sites of the chosen enzyme, in template coordinates. */
+  /** Recognition sites to draw, in template coordinates, each naming its enzyme. */
   sites?: ReadonlyArray<MapSite>;
   /** Enzymes with a site in this template, and how many, for the picker. */
   enzymeOptions?: ReadonlyArray<readonly [string, number]>;
-  selectedEnzyme?: string | null;
-  onSelectEnzyme?: (enzyme: string | null) => void;
+  selectedEnzymes?: ReadonlyArray<string>;
+  onSelectEnzymes?: (enzymes: string[]) => void;
   title?: string;
 }
 
@@ -26,6 +27,7 @@ export interface TemplateMapProps extends StyleProps {
 export interface MapSite {
   start: number;
   end: number;
+  enzyme: string;
   strand?: 1 | -1;
 }
 
@@ -102,6 +104,7 @@ function arrowPath(x0: number, x1: number, y: number, h: number, dir: 1 | -1): s
 /** SVG template map: ruler, exons/CDS/junctions, repeat mask, intervals and pair lanes (spec §C.3). */
 export function TemplateMap(props: TemplateMapProps): JSX.Element {
   const { template, pairs = [], selectedRank, onSelect, target, included, excluded, sites = [], enzymeOptions = [] } = props;
+  const chosenEnzymes = useMemo(() => new Set(props.selectedEnzymes ?? []), [props.selectedEnzymes]);
   const L = Math.max(1, template.length || template.seq?.length || 1);
   const idp = useIdPrefix('gpr-map');
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -289,26 +292,7 @@ export function TemplateMap(props: TemplateMapProps): JSX.Element {
               Zoom to pair
             </button>
           </span>
-          {enzymeOptions.length ? (
-            <span className="gpr-map-enzyme">
-              <label className="gpr-label" htmlFor={`${idp}-enzyme`}>
-                Restriction sites
-              </label>
-              <select
-                id={`${idp}-enzyme`}
-                className="gpr-select gpr-select-small"
-                value={props.selectedEnzyme ?? ''}
-                onChange={(e) => props.onSelectEnzyme?.(e.target.value || null)}
-              >
-                <option value="">None</option>
-                {enzymeOptions.map(([name, n]) => (
-                  <option key={name} value={name}>
-                    {name} ({n})
-                  </option>
-                ))}
-              </select>
-            </span>
-          ) : null}
+
           <span className="gpr-map-view">
             {fmtInt(v0)}–{fmtInt(v1)} of {fmtInt(L)} bp
             <span className="gpr-map-hover" aria-hidden="true">
@@ -383,7 +367,7 @@ export function TemplateMap(props: TemplateMapProps): JSX.Element {
               <g className="gpr-map-sites">
                 {sites.map((site) => (
                   <rect
-                    key={`${site.start}-${site.strand ?? 1}`}
+                    key={`${site.enzyme}-${site.start}-${site.strand ?? 1}`}
                     className="gpr-map-site"
                     x={x(site.start)}
                     y={SITE_Y}
@@ -391,8 +375,9 @@ export function TemplateMap(props: TemplateMapProps): JSX.Element {
                        widened to stay visible rather than vanishing. */
                     width={Math.max(2, wOf(site.start, site.end))}
                     height={SITE_H}
+                    fill={enzymeColor(site.enzyme)}
                   >
-                    <title>{`${props.selectedEnzyme ?? 'site'} ${fmtInt(site.start)}–${fmtInt(site.end)}`}</title>
+                    <title>{`${site.enzyme} ${fmtInt(site.start)}–${fmtInt(site.end)}`}</title>
                   </rect>
                 ))}
               </g>
@@ -443,6 +428,61 @@ export function TemplateMap(props: TemplateMapProps): JSX.Element {
           </g>
           {hover !== null ? <line className="gpr-map-guide" x1={x(hover) + wOf(hover, hover) / 2} x2={x(hover) + wOf(hover, hover) / 2} y1={RULER_Y} y2={height} /> : null}
         </svg>
+        {enzymeOptions.length ? (
+          <details className="gpr-map-enzymes">
+            <summary>
+              Restriction sites
+              <span className="gpr-sub">
+                {' '}
+                {chosenEnzymes.size ? `${fmtInt(chosenEnzymes.size)} shown` : 'none shown'}
+              </span>
+            </summary>
+            <div className="gpr-map-enzyme-actions">
+              <button
+                type="button"
+                className="gpr-btn gpr-btn-small gpr-btn-quiet"
+                disabled={chosenEnzymes.size === enzymeOptions.length}
+                onClick={() => props.onSelectEnzymes?.(enzymeOptions.map(([name]) => name))}
+              >
+                Select all
+              </button>
+              <button
+                type="button"
+                className="gpr-btn gpr-btn-small gpr-btn-quiet"
+                disabled={chosenEnzymes.size === 0}
+                onClick={() => props.onSelectEnzymes?.([])}
+              >
+                Select none
+              </button>
+            </div>
+            <ul className="gpr-map-enzyme-list">
+              {enzymeOptions.map(([name, n]) => {
+                const on = chosenEnzymes.has(name);
+                return (
+                  <li key={name}>
+                    <label className="gpr-check-row">
+                      <input
+                        type="checkbox"
+                        className="gpr-checkbox"
+                        checked={on}
+                        onChange={(e) => {
+                          const next = new Set(chosenEnzymes);
+                          if (e.target.checked) next.add(name);
+                          else next.delete(name);
+                          props.onSelectEnzymes?.([...next]);
+                        }}
+                      />
+                      <span className="gpr-map-enzyme-swatch" aria-hidden="true" style={{ backgroundColor: enzymeColor(name) }} />
+                      <span className="gpr-label">
+                        {name} <span className="gpr-sub">({fmtInt(n)})</span>
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </details>
+        ) : null}
         {legend.length ? (
           <ul className="gpr-map-legend" aria-label="Map legend">
             {legend.map(([cls, text]) => (

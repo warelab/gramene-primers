@@ -325,13 +325,16 @@ The table lists each enzyme with its recognition sequence, how many sites it has
 in the product, **where those sites are** in template coordinates, and the
 fragment sizes a digest would give; enzymes that cut fewest times come first,
 because a single cutter splitting the product into two identifiable bands is the
-useful one. Selecting an enzyme **highlights its recognition sites in the
-amplicon sequence** and marks where it cuts. Beneath, the enzymes with no site
-at all are named — the check before adding a site to a primer end for cloning.
+useful one. **Tick any number of enzymes** — each gets its own colour, and their
+recognition sites are underlined in that colour in the amplicon sequence with
+the cut points marked. **Select all** and **Select none** act on whatever the
+table is listing. Beneath, the enzymes with no site at all are named — the check
+before adding a site to a primer end for cloning.
 
-The same choice drives the template map, which has its own picker listing every
-enzyme with a site in the template and how many, so sites can be seen across the
-whole template rather than one amplicon at a time.
+The same selection drives the template map, which carries its own checklist of
+every enzyme with a site in the template and how many, so sites can be seen
+across the whole template rather than one amplicon at a time. Ticking an enzyme
+in either place marks it in both.
 
 ```ts
 import { digestAmplicon, singleCutters, nonCutters } from 'gramene-primers';

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { digestAmplicon, nonCutters, type TemplateSpan } from '../amplicon';
-import type { RestrictionEnzyme } from '../enzymes';
+import { enzymeColor, type RestrictionEnzyme } from '../enzymes';
 import type { PrimerTemplate } from '../types';
 import { fmtInt, useIdPrefix } from './util';
 
@@ -8,9 +8,9 @@ export interface DigestPanelProps {
   template: Pick<PrimerTemplate, 'seq'> | null | undefined;
   span: TemplateSpan;
   enzymes?: ReadonlyArray<RestrictionEnzyme>;
-  /** Highlights the chosen enzyme's sites and cuts in the sequence above. */
-  selected?: string | null;
-  onSelect?: (enzyme: string | null) => void;
+  /** Enzymes whose sites and cuts are marked in the sequence above. */
+  selected?: ReadonlyArray<string>;
+  onSelect?: (enzymes: string[]) => void;
   /** Shows every enzyme rather than only those cutting few enough times to read. */
   maxCuts?: number;
 }
@@ -38,6 +38,7 @@ export function DigestPanel(p: DigestPanelProps): JSX.Element | null {
 
   const digests = useMemo(() => digestAmplicon(seq, p.span, { enzymes: p.enzymes }), [seq, spanKey, p.enzymes]);
   const safe = useMemo(() => nonCutters(seq, p.span, p.enzymes), [seq, spanKey, p.enzymes]);
+  const chosen = useMemo(() => new Set(p.selected ?? []), [p.selected]);
 
   if (!seq) return null;
   // Beyond a handful of cuts the ladder is not one anybody scores, so the rest
@@ -45,6 +46,16 @@ export function DigestPanel(p: DigestPanelProps): JSX.Element | null {
   const readable = digests.filter((d) => d.cuts.length <= maxCuts);
   const shown = showAll ? digests : readable;
   const size = p.span.end - p.span.start + 1;
+  // "All" means everything currently listed, not every enzyme in the panel:
+  // ticking a hidden shredder would mark sites nobody asked to see.
+  const shownNames = shown.map((d) => d.enzyme.name);
+  const allShown = shownNames.length > 0 && shownNames.every((n) => chosen.has(n));
+  const toggle = (name: string, on: boolean) => {
+    const next = new Set(chosen);
+    if (on) next.add(name);
+    else next.delete(name);
+    p.onSelect?.([...next]);
+  };
 
   return (
     <div className="gpr-digest">
@@ -58,6 +69,9 @@ export function DigestPanel(p: DigestPanelProps): JSX.Element | null {
           </caption>
           <thead>
             <tr>
+              <th scope="col" className="gpr-col-check">
+                <span className="gpr-visually-hidden">Show sites</span>
+              </th>
               <th scope="col">Enzyme</th>
               <th scope="col">Site</th>
               <th scope="col" className="gpr-num">
@@ -69,18 +83,27 @@ export function DigestPanel(p: DigestPanelProps): JSX.Element | null {
           </thead>
           <tbody>
             {shown.map((d) => {
-              const on = p.selected === d.enzyme.name;
+              const on = chosen.has(d.enzyme.name);
+              // No row highlight: the checkbox and swatch already say which are
+              // shown, and under "select all" a highlight on every row would
+              // say nothing at all.
               return (
-                <tr key={d.enzyme.name} data-state={on ? 'selected' : undefined}>
+                <tr key={d.enzyme.name}>
+                  <td className="gpr-col-check">
+                    <input
+                      type="checkbox"
+                      className="gpr-checkbox"
+                      id={`${idp}-e-${d.enzyme.name}`}
+                      checked={on}
+                      aria-label={`Show ${d.enzyme.name} sites`}
+                      onChange={(e) => toggle(d.enzyme.name, e.target.checked)}
+                    />
+                  </td>
                   <th scope="row">
-                    <button
-                      type="button"
-                      className="gpr-btn gpr-btn-small gpr-btn-quiet"
-                      aria-pressed={on}
-                      onClick={() => p.onSelect?.(on ? null : d.enzyme.name)}
-                    >
+                    <label htmlFor={`${idp}-e-${d.enzyme.name}`} className="gpr-digest-name">
+                      <span className="gpr-digest-swatch" aria-hidden="true" style={{ backgroundColor: enzymeColor(d.enzyme.name) }} />
                       {d.enzyme.name}
-                    </button>
+                    </label>
                   </th>
                   <td>
                     <code className="gpr-seq">{siteWithCut(d.enzyme)}</code>
@@ -95,7 +118,7 @@ export function DigestPanel(p: DigestPanelProps): JSX.Element | null {
             })}
             {shown.length === 0 ? (
               <tr>
-                <td colSpan={5} className="gpr-sub">
+                <td colSpan={6} className="gpr-sub">
                   {digests.length
                     ? 'No enzyme cuts this product few enough times to read.'
                     : 'No enzyme in the panel has a site inside this product.'}
@@ -106,7 +129,23 @@ export function DigestPanel(p: DigestPanelProps): JSX.Element | null {
         </table>
       </div>
       <p className="gpr-hint" id={`${idp}-hint`}>
-        Select an enzyme to mark its sites and cuts in the sequence above. Sizes are from sequence alone: methylation,
+        <button
+          type="button"
+          className="gpr-btn gpr-btn-small gpr-btn-quiet"
+          disabled={allShown || !shownNames.length}
+          onClick={() => p.onSelect?.([...new Set([...chosen, ...shownNames])])}
+        >
+          Select all
+        </button>{' '}
+        <button
+          type="button"
+          className="gpr-btn gpr-btn-small gpr-btn-quiet"
+          disabled={!shownNames.some((n) => chosen.has(n))}
+          onClick={() => p.onSelect?.([...chosen].filter((n) => !shownNames.includes(n)))}
+        >
+          Select none
+        </button>{' '}
+        Ticking an enzyme marks its sites and cuts in the sequence above. Sizes are from sequence alone: methylation,
         star activity and partial digests are not modelled.
         {digests.length > readable.length ? (
           <>

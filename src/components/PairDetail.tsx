@@ -17,9 +17,9 @@ export interface PairDetailProps {
   id?: string;
   /** Restriction enzymes to consider. Defaults to the bundled panel. */
   enzymes?: ReadonlyArray<RestrictionEnzyme>;
-  /** The enzyme whose sites are marked, shared across the design results. */
-  selectedEnzyme?: string | null;
-  onSelectEnzyme?: (enzyme: string | null) => void;
+  /** Enzymes whose sites are marked, shared across the design results. */
+  selectedEnzymes?: ReadonlyArray<string>;
+  onSelectEnzymes?: (enzymes: string[]) => void;
 }
 
 const ROWS: ReadonlyArray<[string, (o: PrimerOligo) => ReactNode]> = [
@@ -38,21 +38,28 @@ const ROWS: ReadonlyArray<[string, (o: PrimerOligo) => ReactNode]> = [
 ];
 
 /** Expanded pair: primer statistics, product, genomic blocks and the amplicon sequence. */
-export function PairDetail({ pair, template, label, primers, id, enzymes, selectedEnzyme, onSelectEnzyme }: PairDetailProps): JSX.Element {
+export function PairDetail({ pair, template, label, primers, id, enzymes, selectedEnzymes, onSelectEnzymes }: PairDetailProps): JSX.Element {
   const n = pair.rank + 1;
-  const [ownSelection, setOwnSelection] = useState<string | null>(null);
+  const [ownSelection, setOwnSelection] = useState<string[]>([]);
   // The host may hold the selection so the template map can follow it; standing
   // alone the detail keeps its own.
-  const selected = onSelectEnzyme ? selectedEnzyme ?? null : ownSelection;
-  const setSelected = onSelectEnzyme ?? setOwnSelection;
+  const selected = onSelectEnzymes ? selectedEnzymes ?? [] : ownSelection;
+  const setSelected = onSelectEnzymes ?? setOwnSelection;
   const span = { start: pair.left.start, end: pair.right.end };
-  // Only the chosen enzyme is drawn, so this is a one-enzyme digest.
+  const selectedKey = [...selected].sort().join(',');
+  // Each marked site and cut names its enzyme, so several can be drawn at once
+  // in their own colours.
   const marks = useMemo(() => {
-    const e = selected ? findEnzyme(selected, enzymes) : null;
-    if (!e || !template?.seq) return { sites: [], cuts: [] };
-    const d = digestAmplicon(template.seq, span, { enzymes: [e] })[0];
-    return { sites: d?.sites ?? [], cuts: d?.cuts ?? [] };
-  }, [selected, enzymes, template?.seq, span.start, span.end]);
+    const chosen = selected.map((name) => findEnzyme(name, enzymes)).filter((e) => e !== null);
+    if (!chosen.length || !template?.seq) return { sites: [], cuts: [] };
+    const sites: Array<{ start: number; end: number; enzyme: string }> = [];
+    const cuts: Array<{ position: number; enzyme: string }> = [];
+    for (const d of digestAmplicon(template.seq, span, { enzymes: chosen })) {
+      for (const site of d.sites) sites.push({ start: site.start, end: site.end, enzyme: d.enzyme.name });
+      for (const at of d.cuts) cuts.push({ position: at, enzyme: d.enzyme.name });
+    }
+    return { sites, cuts };
+  }, [selectedKey, enzymes, template?.seq, span.start, span.end]);
   const info = (o: PrimerOligo) => primers?.[o.seq.toUpperCase()] ?? null;
   const hasCheckInfo = !!(info(pair.left) || info(pair.right));
   return (
@@ -124,7 +131,6 @@ export function PairDetail({ pair, template, label, primers, id, enzymes, select
         label={label}
         sites={marks.sites}
         cuts={marks.cuts}
-        cutLabel={selected ?? undefined}
       />
       <DigestPanel template={template} span={span} enzymes={enzymes} selected={selected} onSelect={setSelected} />
     </div>

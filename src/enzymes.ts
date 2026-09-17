@@ -1,3 +1,5 @@
+import { hashString } from './state';
+
 /**
  * Restriction enzymes for the CAPS annotation.
  *
@@ -116,3 +118,25 @@ export function findEnzyme(name: string, panel: ReadonlyArray<RestrictionEnzyme>
   const wanted = name.trim().toLowerCase();
   return panel.find((e) => e.name.toLowerCase() === wanted) ?? null;
 }
+
+/**
+ * A stable colour for an enzyme, from the same Okabe-Ito palette the variant
+ * views use. Derived from the name, so an enzyme keeps its colour as others are
+ * ticked on and off. Colour is never the only channel: every view that uses it
+ * also names the enzyme.
+ */
+export function enzymeColor(name: string): string {
+  const n = parseInt(hashString(name).slice(0, 8), 16);
+  return ENZYME_PALETTE[n % ENZYME_PALETTE.length] as string;
+}
+
+const ENZYME_PALETTE: ReadonlyArray<string> = Object.freeze([
+  '#0072B2',
+  '#E69F00',
+  '#009E73',
+  '#CC79A7',
+  '#56B4E9',
+  '#D55E00',
+  '#8C6D1F',
+  '#555555',
+]);

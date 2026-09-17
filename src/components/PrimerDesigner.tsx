@@ -260,7 +260,7 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
    * would be unreadable — and the choice is shared, so picking one in a pair's
    * details marks it on the map above as well.
    */
-  const [selectedEnzyme, setSelectedEnzyme] = useState<string | null>(null);
+  const [selectedEnzymes, setSelectedEnzymes] = useState<string[]>([]);
   const templateDigest = useMemo(
     () => (template?.seq ? digestAmplicon(template.seq, { start: 1, end: template.seq.length }, { enzymes: props.enzymes }) : []),
     [template?.seq, props.enzymes],
@@ -269,9 +269,13 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
     () => templateDigest.map((d) => [d.enzyme.name, d.sites.length] as const),
     [templateDigest],
   );
+  const selectedEnzymeKey = [...selectedEnzymes].sort().join(',');
   const enzymeSites = useMemo(
-    () => templateDigest.find((d) => d.enzyme.name === selectedEnzyme)?.sites ?? [],
-    [templateDigest, selectedEnzyme],
+    () =>
+      templateDigest
+        .filter((d) => selectedEnzymes.includes(d.enzyme.name))
+        .flatMap((d) => d.sites.map((site) => ({ ...site, enzyme: d.enzyme.name }))),
+    [templateDigest, selectedEnzymeKey],
   );
   const templateOnlyResponse = !!design.state.responseMeta?.templateOnly;
   const noPairs = !!response && !templateOnlyResponse && (pairs.length === 0 || (response.warnings ?? []).some((w) => w.code === 'NO_PAIRS'));
@@ -391,8 +395,8 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
         submitted={submitted}
         label={exportLabel}
         enzymes={props.enzymes}
-        selectedEnzyme={selectedEnzyme}
-        onSelectEnzyme={setSelectedEnzyme}
+        selectedEnzymes={selectedEnzymes}
+        onSelectEnzymes={setSelectedEnzymes}
       />
     );
   } else if (activeTab === 'specificity' || activeTab === 'transcriptome') {
@@ -615,8 +619,8 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
                         excluded={mapIntervals.excluded}
                         sites={enzymeSites}
                         enzymeOptions={enzymeOptions}
-                        selectedEnzyme={selectedEnzyme}
-                        onSelectEnzyme={setSelectedEnzyme}
+                        selectedEnzymes={selectedEnzymes}
+                        onSelectEnzymes={setSelectedEnzymes}
                       />
                     ) : null}
                     {templateOnlyResponse ? (

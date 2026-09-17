@@ -1,6 +1,7 @@
 import { Fragment, useMemo } from 'react';
 import { ampliconsToFasta } from '../exporters';
 import type { PrimerPair, PrimerTemplate } from '../types';
+import { enzymeColor } from '../enzymes';
 import { CopyButton } from './CopyButton';
 import { cx, fmtInt } from './util';
 
@@ -12,46 +13,56 @@ export interface AmpliconSequenceProps {
   /** FASTA record prefix. */
   label?: string;
   /**
-   * Recognition sites of a chosen enzyme, in template coordinates, highlighted
-   * in the sequence. One enzyme at a time: every site in the panel at once
-   * would leave the sequence unreadable.
+   * Recognition sites to highlight, in template coordinates, each naming the
+   * enzyme it belongs to so several can be shown at once in their own colours.
    */
-  sites?: ReadonlyArray<{ start: number; end: number }>;
-  /**
-   * Template positions where that enzyme severs the top strand; the break is
-   * drawn before each base.
-   */
-  cuts?: ReadonlyArray<number>;
-  /** Named in the legend beside the marks. */
-  cutLabel?: string;
+  sites?: ReadonlyArray<{ start: number; end: number; enzyme: string }>;
+  /** Template positions where the strand is severed; the break is drawn before each base. */
+  cuts?: ReadonlyArray<{ position: number; enzyme: string }>;
 }
 
 interface Segment {
   text: string;
   cls: string;
   barAfter: boolean;
-  cutAfter: boolean;
+  /** Enzymes severing the strand after this segment. */
+  cutAfter: string[];
+  /** Enzymes whose site covers these bases; the first one colours them. */
+  siteOf: string[];
 }
 
 /** The amplicon in 60-nt lines with primer footprints, masked bases and junction bars (spec §C.3 PairDetail). */
-export function AmpliconSequence({ pair, template, label, sites, cuts, cutLabel }: AmpliconSequenceProps): JSX.Element {
+export function AmpliconSequence({ pair, template, label, sites, cuts }: AmpliconSequenceProps): JSX.Element {
   const seq = template?.seq ?? '';
   const start = pair.left.start;
   const end = pair.right.end;
   const valid = !!seq && start >= 1 && end <= seq.length && end >= start;
   const junctionList = template?.features?.junctions;
   const maskList = template?.mask;
-  const cutKey = (cuts ?? []).join(',');
-  const siteKey = (sites ?? []).map((x) => `${x.start}:${x.end}`).join(',');
+  const cutKey = (cuts ?? []).map((c) => `${c.position}:${c.enzyme}`).join(',');
+  const siteKey = (sites ?? []).map((x) => `${x.start}:${x.end}:${x.enzyme}`).join(',');
 
-  const { lines, hasMask, hasJunction, hasSite } = useMemo(() => {
-    if (!valid) return { lines: [], hasMask: false, hasJunction: false, hasSite: false };
+  const { lines, hasMask, hasJunction, shown } = useMemo(() => {
+    if (!valid) return { lines: [], hasMask: false, hasJunction: false, shown: [] as string[] };
     const junctions = new Set((junctionList ?? []).filter((j) => j >= start && j < end));
-    // A cut before base p is a break after p-1, which is where the bar goes.
-    const cutAfterSet = new Set((cuts ?? []).map((c) => c - 1).filter((t) => t >= start && t < end));
-    const inSite = new Uint8Array(end - start + 1);
+    // Several enzymes can cover a base or cut in the same place, so each
+    // position carries a list rather than a flag. A cut before base p is a
+    // break after p-1, which is where the bar goes.
+    const cutsAt = new Map<number, string[]>();
+    for (const c of cuts ?? []) {
+      const t = c.position - 1;
+      if (t < start || t >= end) continue;
+      const list = cutsAt.get(t) ?? [];
+      if (!list.includes(c.enzyme)) list.push(c.enzyme);
+      cutsAt.set(t, list);
+    }
+    const siteAt = new Map<number, string[]>();
     for (const s of sites ?? []) {
-      for (let t = Math.max(s.start, start); t <= Math.min(s.end, end); t++) inSite[t - start] = 1;
+      for (let t = Math.max(s.start, start); t <= Math.min(s.end, end); t++) {
+        const list = siteAt.get(t) ?? [];
+        if (!list.includes(s.enzyme)) list.push(s.enzyme);
+        siteAt.set(t, list);
+      }
     }
     const masked = new Uint8Array(end - start + 1);
     for (const [s, l] of maskList ?? []) {
@@ -66,21 +77,25 @@ export function AmpliconSequence({ pair, template, label, sites, cuts, cutLabel 
       for (let t = lineStart; t <= lineEnd; t++) {
         const isMasked = masked[t - start] === 1;
         anyMask = anyMask || isMasked;
+        const siteOf = siteAt.get(t) ?? [];
         const cls =
           cx(
             t >= pair.left.start && t <= pair.left.end && 'gpr-fp-left',
             t >= pair.right.start && t <= pair.right.end && 'gpr-fp-right',
             isMasked && 'gpr-seq-masked',
-            inSite[t - start] === 1 && 'gpr-seq-site',
+            siteOf.length > 0 && 'gpr-seq-site',
           ) || 'gpr-seq-plain';
-        if (!cur || cur.cls !== cls) {
-          cur = { text: '', cls, barAfter: false, cutAfter: false };
+        // Bases belonging to different enzymes must not merge into one span, or
+        // they would all take the first enzyme's colour.
+        if (!cur || cur.cls !== cls || cur.siteOf.join('+') !== siteOf.join('+')) {
+          cur = { text: '', cls, barAfter: false, cutAfter: [], siteOf };
           segs.push(cur);
         }
         cur.text += seq[t - 1] ?? '';
-        if (junctions.has(t) || cutAfterSet.has(t)) {
+        const cutHere = cutsAt.get(t);
+        if (junctions.has(t) || cutHere) {
           cur.barAfter = junctions.has(t);
-          cur.cutAfter = cutAfterSet.has(t);
+          cur.cutAfter = cutHere ?? [];
           cur = null;
         }
       }
@@ -90,7 +105,8 @@ export function AmpliconSequence({ pair, template, label, sites, cuts, cutLabel 
       lines: out,
       hasMask: anyMask,
       hasJunction: junctions.size > 0,
-      hasSite: (sites ?? []).some((s) => s.end >= start && s.start <= end),
+      // Only enzymes actually visible in this amplicon belong in its legend.
+      shown: [...new Set((sites ?? []).filter((s) => s.end >= start && s.start <= end).map((s) => s.enzyme))],
     };
   }, [valid, seq, start, end, pair.left.start, pair.left.end, pair.right.start, pair.right.end, junctionList, maskList, cutKey, siteKey]);
 
@@ -115,9 +131,17 @@ export function AmpliconSequence({ pair, template, label, sites, cuts, cutLabel 
             </span>
             {line.segs.map((s, i) => (
               <Fragment key={i}>
-                <span className={s.cls}>{s.text}</span>
+                <span
+                  className={s.cls}
+                  style={s.siteOf.length ? { boxShadow: `inset 0 -2px 0 ${enzymeColor(s.siteOf[0] as string)}` } : undefined}
+                  title={s.siteOf.length ? `${s.siteOf.join(', ')} site` : undefined}
+                >
+                  {s.text}
+                </span>
                 {s.barAfter ? <span className="gpr-junction-bar" aria-hidden="true" /> : null}
-                {s.cutAfter ? <span className="gpr-cut-bar" aria-hidden="true" /> : null}
+                {s.cutAfter.map((name) => (
+                  <span key={name} className="gpr-cut-bar" style={{ borderLeftColor: enzymeColor(name) }} aria-hidden="true" />
+                ))}
               </Fragment>
             ))}
           </div>
@@ -131,10 +155,17 @@ export function AmpliconSequence({ pair, template, label, sites, cuts, cutLabel 
             <span className="gpr-junction-sample" aria-hidden="true" /> exon–exon junction
           </>
         ) : null}
-        {hasSite ? (
+        {shown.map((name) => (
+          <Fragment key={name}>
+            {' '}
+            <span className="gpr-seq-site" style={{ boxShadow: `inset 0 -2px 0 ${enzymeColor(name)}` }}>
+              {name}
+            </span>
+          </Fragment>
+        ))}
+        {shown.length ? (
           <>
             {' '}
-            <span className="gpr-seq-site">{cutLabel ?? 'enzyme'} site</span>
             <span className="gpr-cut-sample" aria-hidden="true" /> cut
           </>
         ) : null}

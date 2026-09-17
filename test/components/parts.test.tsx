@@ -1345,7 +1345,8 @@ describe('DigestPanel', () => {
     render(<DigestPanel template={geneMinus.template} span={span} />);
     const table = screen.getByRole('table', { name: /Restriction sites/ });
     const row = within(table).getByRole('row', { name: /RsaI/ });
-    const cells = within(row).getAllByRole('cell');
+    // Cells after the checkbox column: site, count, positions, fragments.
+    const cells = within(row).getAllByRole('cell').slice(1);
     expect(cells[0]).toHaveTextContent('GT^AC');
     expect(cells[1]).toHaveTextContent('1');
     // Positions are template coordinates, inside the product.
@@ -1359,7 +1360,7 @@ describe('DigestPanel', () => {
   it('orders enzymes by how few times they cut', () => {
     render(<DigestPanel template={geneMinus.template} span={span} />);
     const rows = within(screen.getByRole('table', { name: /Restriction sites/ })).getAllByRole('row').slice(1);
-    const counts = rows.map((r) => Number(within(r).getAllByRole('cell')[1]!.textContent));
+    const counts = rows.map((r) => Number(within(r).getAllByRole('cell')[2]!.textContent));
     expect([...counts].sort((a, b) => a - b)).toEqual(counts);
   });
 
@@ -1386,69 +1387,112 @@ describe('DigestPanel', () => {
 describe('PairDetail restriction marks', () => {
   const geneMinus = designFixture('gene-SORBI_3001G000200-flanks').response;
 
-  it('marks the chosen enzyme’s recognition site and cut in the amplicon', async () => {
+  it('marks a ticked enzyme’s recognition site and cut in the amplicon', async () => {
     const user = userEvent.setup();
     const { container } = render(<PairDetail pair={geneMinus.pairs[0]!} template={geneMinus.template} />);
     // Scoped to the sequence: the legend reuses the class as its swatch, the
     // way the masked-bases legend already does.
     const marked = () => [...container.querySelectorAll('.gpr-amplicon-seq .gpr-seq-site')];
     expect(marked()).toHaveLength(0);
-    await user.click(screen.getByRole('button', { name: 'RsaI' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Show RsaI sites' }));
     // The four bases of GTAC are highlighted, and the single cut is barred.
     expect(marked().map((n) => n.textContent).join('')).toBe('GTAC');
     expect(container.querySelectorAll('.gpr-cut-bar')).toHaveLength(1);
-    expect(screen.getByText(/RsaI site/)).toBeTruthy();
-    await user.click(screen.getByRole('button', { name: 'RsaI' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Show RsaI sites' }));
     expect(marked()).toHaveLength(0);
   });
 
+  it('marks several enzymes at once, each in its own colour', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<PairDetail pair={geneMinus.pairs[0]!} template={geneMinus.template} />);
+    await user.click(screen.getByRole('checkbox', { name: 'Show RsaI sites' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Show TaqI sites' }));
+    const marked = [...container.querySelectorAll('.gpr-amplicon-seq .gpr-seq-site')];
+    expect(marked.map((n) => n.textContent).join('')).toContain('GTAC');
+    expect(marked.map((n) => n.textContent).join('')).toContain('TCGA');
+    // One cut each, and the two are drawn in different colours.
+    expect(container.querySelectorAll('.gpr-cut-bar')).toHaveLength(2);
+    const colours = new Set([...container.querySelectorAll('.gpr-cut-bar')].map((n) => (n as HTMLElement).style.borderLeftColor));
+    expect(colours.size).toBe(2);
+    // Both are named in the legend.
+    expect(within(container.querySelector('.gpr-amplicon-legend') as HTMLElement).getByText('RsaI')).toBeTruthy();
+    expect(within(container.querySelector('.gpr-amplicon-legend') as HTMLElement).getByText('TaqI')).toBeTruthy();
+  });
+
+  it('selects all the listed enzymes and clears them again', async () => {
+    const user = userEvent.setup();
+    render(<PairDetail pair={geneMinus.pairs[0]!} template={geneMinus.template} />);
+    const boxes = () => screen.getAllByRole('checkbox', { name: /^Show .* sites$/ });
+    await user.click(screen.getByRole('button', { name: 'Select all' }));
+    expect(boxes().every((b) => (b as HTMLInputElement).checked)).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Select none' }));
+    expect(boxes().some((b) => (b as HTMLInputElement).checked)).toBe(false);
+  });
+
   it('lets the host own the selection so the map can follow it', async () => {
-    const onSelectEnzyme = vi.fn();
+    const onSelectEnzymes = vi.fn();
     const user = userEvent.setup();
     render(
-      <PairDetail pair={geneMinus.pairs[0]!} template={geneMinus.template} selectedEnzyme={null} onSelectEnzyme={onSelectEnzyme} />,
+      <PairDetail pair={geneMinus.pairs[0]!} template={geneMinus.template} selectedEnzymes={[]} onSelectEnzymes={onSelectEnzymes} />,
     );
-    await user.click(screen.getByRole('button', { name: 'TaqI' }));
-    expect(onSelectEnzyme).toHaveBeenCalledWith('TaqI');
+    await user.click(screen.getByRole('checkbox', { name: 'Show TaqI sites' }));
+    expect(onSelectEnzymes).toHaveBeenCalledWith(['TaqI']);
   });
 });
 
 describe('TemplateMap restriction sites', () => {
   const geneMinus = designFixture('gene-SORBI_3001G000200-flanks').response;
   const sites = [
-    { start: 400, end: 405 },
-    { start: 1200, end: 1205 },
+    { start: 400, end: 405, enzyme: 'RsaI' },
+    { start: 1200, end: 1205, enzyme: 'TaqI' },
   ];
+  const options = [['RsaI', 12] as const, ['TaqI', 5] as const];
 
-  it('draws a mark per site and grows to fit the track', () => {
+  it('draws a mark per site, coloured by enzyme, and grows to fit the track', () => {
     const bare = render(<TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} />).container.querySelector('svg')!;
-    const { container } = render(<TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} sites={sites} selectedEnzyme="RsaI" />);
-    expect(container.querySelectorAll('.gpr-map-site')).toHaveLength(2);
+    const { container } = render(<TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} sites={sites} />);
+    const marks = [...container.querySelectorAll('.gpr-map-site')];
+    expect(marks).toHaveLength(2);
+    expect(new Set(marks.map((m) => m.getAttribute('fill'))).size).toBe(2);
     expect(container.querySelector('.gpr-map-site title')?.textContent).toContain('RsaI');
     expect(Number(container.querySelector('svg')!.getAttribute('height'))).toBeGreaterThan(Number(bare.getAttribute('height')));
   });
 
-  it('offers only enzymes that have a site in the template', async () => {
-    const onSelectEnzyme = vi.fn();
+  it('offers a checkbox per enzyme that has a site in the template', async () => {
+    const onSelectEnzymes = vi.fn();
     const user = userEvent.setup();
     render(
       <TemplateMap
         template={geneMinus.template}
         pairs={geneMinus.pairs}
-        enzymeOptions={[['RsaI', 12] as const, ['TaqI', 5] as const]}
-        selectedEnzyme={null}
-        onSelectEnzyme={onSelectEnzyme}
+        enzymeOptions={options}
+        selectedEnzymes={[]}
+        onSelectEnzymes={onSelectEnzymes}
       />,
     );
-    const select = screen.getByRole('combobox', { name: 'Restriction sites' });
-    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['None', 'RsaI (12)', 'TaqI (5)']);
-    await user.selectOptions(select, 'TaqI');
-    expect(onSelectEnzyme).toHaveBeenCalledWith('TaqI');
+    expect(screen.getAllByRole('checkbox').map((b) => b.closest('label')?.textContent?.trim())).toEqual(['RsaI (12)', 'TaqI (5)']);
+    await user.click(screen.getAllByRole('checkbox')[1]!);
+    expect(onSelectEnzymes).toHaveBeenCalledWith(['TaqI']);
+  });
+
+  it('selects every listed enzyme, and clears them', async () => {
+    const onSelectEnzymes = vi.fn();
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} enzymeOptions={options} selectedEnzymes={[]} onSelectEnzymes={onSelectEnzymes} />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Select all' }));
+    expect(onSelectEnzymes).toHaveBeenCalledWith(['RsaI', 'TaqI']);
+    rerender(
+      <TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} enzymeOptions={options} selectedEnzymes={['RsaI', 'TaqI']} onSelectEnzymes={onSelectEnzymes} />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Select none' }));
+    expect(onSelectEnzymes).toHaveBeenLastCalledWith([]);
   });
 
   it('hides the picker and the track when no enzyme cuts the template', () => {
     const { container } = render(<TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} />);
     expect(container.querySelectorAll('.gpr-map-site')).toHaveLength(0);
-    expect(screen.queryByRole('combobox', { name: 'Restriction sites' })).toBeNull();
+    expect(screen.queryByRole('checkbox')).toBeNull();
   });
 });

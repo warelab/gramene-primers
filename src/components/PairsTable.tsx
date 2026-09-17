@@ -41,9 +41,9 @@ export interface PairsTableProps extends StyleProps {
   caption?: string;
   /** Restriction enzymes to consider. Defaults to the bundled panel. */
   enzymes?: ReadonlyArray<RestrictionEnzyme>;
-  /** The enzyme whose sites are marked, shared with the template map. */
-  selectedEnzyme?: string | null;
-  onSelectEnzyme?: (enzyme: string | null) => void;
+  /** Enzymes whose sites are marked, shared with the template map. */
+  selectedEnzymes?: ReadonlyArray<string>;
+  onSelectEnzymes?: (enzymes: string[]) => void;
 }
 
 function PrimerCell({ oligo, side, n, info }: { oligo: PrimerOligo; side: 'left' | 'right'; n: number; info: CheckPrimerInfo | null }): JSX.Element {
@@ -285,8 +285,8 @@ export function PairsTable(props: PairsTableProps): JSX.Element {
                           label={label}
                           primers={primers}
                           enzymes={props.enzymes}
-                          selectedEnzyme={props.selectedEnzyme}
-                          onSelectEnzyme={props.onSelectEnzyme}
+                          selectedEnzymes={props.selectedEnzymes}
+                          onSelectEnzymes={props.onSelectEnzymes}
                         />
                       </td>
                     </tr>
