@@ -30,6 +30,7 @@ import { useLiveRegions } from './hooks/announcer';
 import { useCheckJob } from './hooks/useCheckJob';
 import { useDesign, type DesignMeta } from './hooks/useDesign';
 import { useDesignerState } from './hooks/useDesignerState';
+import { useEnzymeColours } from './hooks/useEnzymeColours';
 import { useGeneDoc, useGenomes } from './hooks/useResources';
 import { GeneInputs } from './inputs/GeneInputs';
 import { RegionInputs } from './inputs/RegionInputs';
@@ -261,21 +262,18 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
    * details marks it on the map above as well.
    */
   const [selectedEnzymes, setSelectedEnzymes] = useState<string[]>([]);
+  // One allocation for the map and every pair detail, so a mark and its key
+  // entry are the same colour wherever they appear.
+  const enzymeColours = useEnzymeColours(selectedEnzymes);
   const templateDigest = useMemo(
     () => (template?.seq ? digestAmplicon(template.seq, { start: 1, end: template.seq.length }, { enzymes: props.enzymes }) : []),
     [template?.seq, props.enzymes],
   );
-  const enzymeOptions = useMemo(
-    () => templateDigest.map((d) => [d.enzyme.name, d.sites.length] as const),
-    [templateDigest],
-  );
-  const selectedEnzymeKey = [...selectedEnzymes].sort().join(',');
+  // Every enzyme with a site, not only the ticked ones: the map lists them all
+  // and counts each within whatever it is currently showing.
   const enzymeSites = useMemo(
-    () =>
-      templateDigest
-        .filter((d) => selectedEnzymes.includes(d.enzyme.name))
-        .flatMap((d) => d.sites.map((site) => ({ ...site, enzyme: d.enzyme.name }))),
-    [templateDigest, selectedEnzymeKey],
+    () => templateDigest.map((d) => ({ enzyme: d.enzyme, sites: d.sites })),
+    [templateDigest],
   );
   const templateOnlyResponse = !!design.state.responseMeta?.templateOnly;
   const noPairs = !!response && !templateOnlyResponse && (pairs.length === 0 || (response.warnings ?? []).some((w) => w.code === 'NO_PAIRS'));
@@ -397,6 +395,7 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
         enzymes={props.enzymes}
         selectedEnzymes={selectedEnzymes}
         onSelectEnzymes={setSelectedEnzymes}
+        enzymeColours={enzymeColours}
       />
     );
   } else if (activeTab === 'specificity' || activeTab === 'transcriptome') {
@@ -617,10 +616,10 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
                         target={mapIntervals.target}
                         included={mapIntervals.included}
                         excluded={mapIntervals.excluded}
-                        sites={enzymeSites}
-                        enzymeOptions={enzymeOptions}
+                        enzymeSites={enzymeSites}
                         selectedEnzymes={selectedEnzymes}
                         onSelectEnzymes={setSelectedEnzymes}
+                        enzymeColours={enzymeColours}
                       />
                     ) : null}
                     {templateOnlyResponse ? (

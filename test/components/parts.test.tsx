@@ -21,7 +21,8 @@ import { PrimerDesigner } from '../../src/components/PrimerDesigner';
 import { GprRoot } from '../../src/components/Root';
 import { SetsTable } from '../../src/components/SetsTable';
 import { SpecificityResults } from '../../src/components/SpecificityResults';
-import { niceTicks, packPairLanes, TemplateMap } from '../../src/components/TemplateMap';
+import { niceTicks, packPairLanes, packSiteLanes, sitesInView, TemplateMap } from '../../src/components/TemplateMap';
+import { allocateEnzymeColours, ENZYME_PALETTE, enzymeColor, findEnzyme } from '../../src/enzymes';
 import { DigestPanel } from '../../src/components/DigestPanel';
 import { PairDetail } from '../../src/components/PairDetail';
 import { toApiError } from '../../src/client';
@@ -1442,57 +1443,241 @@ describe('PairDetail restriction marks', () => {
 
 describe('TemplateMap restriction sites', () => {
   const geneMinus = designFixture('gene-SORBI_3001G000200-flanks').response;
-  const sites = [
-    { start: 400, end: 405, enzyme: 'RsaI' },
-    { start: 1200, end: 1205, enzyme: 'TaqI' },
+  const enz = (name: string) => findEnzyme(name)!;
+  // RsaI has a site in each half of the template, TaqI only near the start, so
+  // zooming into the middle changes both counts and empties TaqI. The TaqI site
+  // overlaps the first RsaI site, so the two marks genuinely collide.
+  const enzymeSites = [
+    { enzyme: enz('RsaI'), sites: [{ start: 363, end: 366 }, { start: 2000, end: 2003 }] },
+    { enzyme: enz('TaqI'), sites: [{ start: 361, end: 364 }] },
   ];
-  const options = [['RsaI', 12] as const, ['TaqI', 5] as const];
+  const countOf = (name: string) =>
+    screen.getAllByRole('checkbox').map((b) => b.closest('li')!).find((li) => li.textContent?.startsWith(name))!;
 
-  it('draws a mark per site, coloured by enzyme, and grows to fit the track', () => {
-    const bare = render(<TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} />).container.querySelector('svg')!;
-    const { container } = render(<TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} sites={sites} />);
-    const marks = [...container.querySelectorAll('.gpr-map-site')];
-    expect(marks).toHaveLength(2);
-    expect(new Set(marks.map((m) => m.getAttribute('fill'))).size).toBe(2);
-    expect(container.querySelector('.gpr-map-site title')?.textContent).toContain('RsaI');
-    expect(Number(container.querySelector('svg')!.getAttribute('height'))).toBeGreaterThan(Number(bare.getAttribute('height')));
+  it('counts each enzyme within the view, and greys those with nothing there', async () => {
+    const user = userEvent.setup();
+    render(<TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} enzymeSites={enzymeSites} selectedEnzymes={[]} onSelectEnzymes={vi.fn()} />);
+    expect(countOf('RsaI')).toHaveTextContent('RsaI (2)');
+    expect(countOf('TaqI')).toHaveTextContent('TaqI (1)');
+    expect(countOf('TaqI')).not.toHaveAttribute('data-empty');
+
+    // Zoom in about the middle: [~1006, ~3015] holds one RsaI site and no TaqI.
+    await user.click(screen.getByRole('button', { name: 'Zoom in' }));
+    expect(countOf('RsaI')).toHaveTextContent('RsaI (1)');
+    expect(countOf('TaqI')).toHaveTextContent('TaqI (0)');
+    expect(countOf('TaqI')).toHaveAttribute('data-empty', 'true');
+    // Still listed and still tickable: it has sites a pan away.
+    expect(within(countOf('TaqI')).getByRole('checkbox')).not.toBeDisabled();
+    expect(screen.getByText(/Sites in view/)).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: 'Fit' }));
+    expect(countOf('TaqI')).toHaveTextContent('TaqI (1)');
+    expect(screen.getByText('Sites in the whole template')).toBeTruthy();
   });
 
-  it('offers a checkbox per enzyme that has a site in the template', async () => {
-    const onSelectEnzymes = vi.fn();
+  it('draws only sites in view, and bumps colliding marks into separate lanes', async () => {
     const user = userEvent.setup();
-    render(
-      <TemplateMap
-        template={geneMinus.template}
-        pairs={geneMinus.pairs}
-        enzymeOptions={options}
-        selectedEnzymes={[]}
-        onSelectEnzymes={onSelectEnzymes}
-      />,
+    const { container } = render(
+      <TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} enzymeSites={enzymeSites} selectedEnzymes={['RsaI', 'TaqI']} onSelectEnzymes={vi.fn()} />,
     );
-    expect(screen.getAllByRole('checkbox').map((b) => b.closest('label')?.textContent?.trim())).toEqual(['RsaI (12)', 'TaqI (5)']);
-    await user.click(screen.getAllByRole('checkbox')[1]!);
-    expect(onSelectEnzymes).toHaveBeenCalledWith(['TaqI']);
+    const marks = () => [...container.querySelectorAll('.gpr-map-site')];
+    const leftmost = (name: string) =>
+      marks()
+        .filter((m) => m.getAttribute('data-enzyme') === name)
+        .sort((a, b) => Number(a.getAttribute('x')) - Number(b.getAttribute('x')))[0]!;
+    expect(marks()).toHaveLength(3);
+    // TaqI 361–364 overlaps RsaI 363–366, so they cannot share a lane.
+    expect(leftmost('TaqI').getAttribute('data-lane')).not.toBe(leftmost('RsaI').getAttribute('data-lane'));
+    // The second RsaI site is far away and fits back in the first lane.
+    expect(new Set(marks().map((m) => m.getAttribute('data-lane')))).toEqual(new Set(['0', '1']));
+    // And the lanes are drawn at different heights.
+    expect(leftmost('TaqI').getAttribute('y')).not.toBe(leftmost('RsaI').getAttribute('y'));
+
+    await user.click(screen.getByRole('button', { name: 'Zoom in' }));
+    // The middle of the template holds only the second RsaI site.
+    expect(marks()).toHaveLength(1);
+    expect(marks()[0]).toHaveAttribute('data-enzyme', 'RsaI');
+    expect(marks()[0]).toHaveAttribute('data-lane', '0');
+  });
+
+  it('draws each mark in the same colour as its swatch in the key', () => {
+    const { container } = render(
+      <TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} enzymeSites={enzymeSites} selectedEnzymes={['RsaI', 'TaqI']} onSelectEnzymes={vi.fn()} />,
+    );
+    // jsdom spells the same colour differently by property (fill keeps the hex,
+    // background-color becomes rgb()), so both are normalised through one probe.
+    const probe = document.createElement('span');
+    const norm = (c: string) => {
+      probe.style.color = c;
+      return probe.style.color;
+    };
+    const drawn = new Map<string, string>();
+    for (const name of ['RsaI', 'TaqI']) {
+      const mark = container.querySelector(`.gpr-map-site[data-enzyme="${name}"]`) as SVGElement;
+      const swatch = countOf(name).querySelector('.gpr-map-enzyme-swatch') as HTMLElement;
+      expect(norm(mark.style.fill), name).toBe(norm(swatch.style.backgroundColor));
+      expect(norm(mark.style.fill), name).not.toBe('');
+      drawn.set(name, norm(mark.style.fill));
+    }
+    expect(drawn.get('RsaI')).not.toBe(drawn.get('TaqI'));
+  });
+
+  it('leaves an unticked enzyme’s swatch uncoloured, since it is drawn nowhere', () => {
+    render(<TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} enzymeSites={enzymeSites} selectedEnzymes={['RsaI']} onSelectEnzymes={vi.fn()} />);
+    const off = countOf('TaqI').querySelector('.gpr-map-enzyme-swatch') as HTMLElement;
+    expect(off).toHaveAttribute('data-off', 'true');
+    expect(off.style.backgroundColor).toBe('');
+    expect(countOf('RsaI').querySelector('.gpr-map-enzyme-swatch')).not.toHaveAttribute('data-off');
+  });
+
+  it('gives enzymes that a name hash would collide distinct colours', () => {
+    // EcoRI and PstI hash to the same palette entry; ticked together they must
+    // still be told apart on the track.
+    expect(enzymeColor('EcoRI')).toBe(enzymeColor('PstI'));
+    const sites = [
+      { enzyme: enz('EcoRI'), sites: [{ start: 100, end: 105 }] },
+      { enzyme: enz('PstI'), sites: [{ start: 3000, end: 3005 }] },
+    ];
+    const { container } = render(
+      <TemplateMap template={geneMinus.template} pairs={[]} enzymeSites={sites} selectedEnzymes={['EcoRI', 'PstI']} onSelectEnzymes={vi.fn()} />,
+    );
+    const fill = (name: string) => (container.querySelector(`.gpr-map-site[data-enzyme="${name}"]`) as SVGElement).style.fill;
+    expect(fill('EcoRI')).not.toBe(fill('PstI'));
+  });
+
+  it('keeps an enzyme’s colour while others are ticked and unticked', () => {
+    const props = { template: geneMinus.template, pairs: [], enzymeSites, onSelectEnzymes: vi.fn() };
+    const { container, rerender } = render(<TemplateMap {...props} selectedEnzymes={['TaqI']} />);
+    const fill = () => (container.querySelector('.gpr-map-site[data-enzyme="RsaI"]') as SVGElement | null)?.style.fill;
+    rerender(<TemplateMap {...props} selectedEnzymes={['TaqI', 'RsaI']} />);
+    const rsa = fill();
+    expect(rsa).toBeTruthy();
+    rerender(<TemplateMap {...props} selectedEnzymes={['RsaI']} />);
+    expect(fill()).toBe(rsa);
+  });
+
+  it('never lets the stylesheet override a mark’s colour', () => {
+    // The bug this guards against: a `fill` in the rule for .gpr-map-site beat
+    // the SVG attribute, so every mark drew in the accent colour.
+    const css = readFileSync(pkgPath('src', 'styles', 'primers.css'), 'utf8');
+    // Whole class name only: .gpr-map-site-hit is invisible and needs its fill.
+    const rules = css.match(/[^{}]*\.gpr-map-site(?![\w-])[^{}]*\{[^}]*\}/g) ?? [];
+    expect(rules.length).toBeGreaterThan(0);
+    for (const block of rules) {
+      expect(block).not.toMatch(/(^|[;{\s])fill\s*:/);
+    }
+  });
+
+  it('describes a site on hover: enzyme, location, recognition and bases', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} enzymeSites={enzymeSites} selectedEnzymes={['RsaI']} onSelectEnzymes={vi.fn()} />,
+    );
+    const mark = container.querySelector('.gpr-map-site[data-enzyme="RsaI"]')!;
+    await user.hover(mark);
+    const tip = screen.getByRole('tooltip');
+    expect(within(tip).getByText('RsaI')).toBeTruthy();
+    expect(tip).toHaveTextContent('template 363–366');
+    // A minus-strand template with coordinates also gives the genomic span.
+    expect(tip).toHaveTextContent(/1:[\d,]+–[\d,]+/);
+    expect(tip).toHaveTextContent('GT^AC');
+    expect(tip).toHaveTextContent(geneMinus.template.seq.slice(362, 366));
+    expect(mark).toHaveAttribute('data-state', 'hover');
+
+    await user.unhover(mark);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
+  it('shows the matched bases apart from the pattern for a degenerate site', async () => {
+    const user = userEvent.setup();
+    // AccI is GTMKAC; place a site over real template bases that match it.
+    const seq = geneMinus.template.seq;
+    const acc = enz('AccI');
+    const at = seq.search(/GT[AC][GT]AC/) + 1;
+    expect(at).toBeGreaterThan(0);
+    const { container } = render(
+      <TemplateMap template={geneMinus.template} pairs={[]} enzymeSites={[{ enzyme: acc, sites: [{ start: at, end: at + 5 }] }]} selectedEnzymes={['AccI']} onSelectEnzymes={vi.fn()} />,
+    );
+    await user.hover(container.querySelector('.gpr-map-site')!);
+    const tip = screen.getByRole('tooltip');
+    expect(tip).toHaveTextContent('GT^MKAC');
+    expect(tip).toHaveTextContent(seq.slice(at - 1, at + 5));
   });
 
   it('selects every listed enzyme, and clears them', async () => {
     const onSelectEnzymes = vi.fn();
     const user = userEvent.setup();
     const { rerender } = render(
-      <TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} enzymeOptions={options} selectedEnzymes={[]} onSelectEnzymes={onSelectEnzymes} />,
+      <TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} enzymeSites={enzymeSites} selectedEnzymes={[]} onSelectEnzymes={onSelectEnzymes} />,
     );
     await user.click(screen.getByRole('button', { name: 'Select all' }));
     expect(onSelectEnzymes).toHaveBeenCalledWith(['RsaI', 'TaqI']);
     rerender(
-      <TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} enzymeOptions={options} selectedEnzymes={['RsaI', 'TaqI']} onSelectEnzymes={onSelectEnzymes} />,
+      <TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} enzymeSites={enzymeSites} selectedEnzymes={['RsaI', 'TaqI']} onSelectEnzymes={onSelectEnzymes} />,
     );
     await user.click(screen.getByRole('button', { name: 'Select none' }));
     expect(onSelectEnzymes).toHaveBeenLastCalledWith([]);
   });
 
-  it('hides the picker and the track when no enzyme cuts the template', () => {
+  it('hides the checklist and the track when no enzyme cuts the template', () => {
     const { container } = render(<TemplateMap template={geneMinus.template} pairs={geneMinus.pairs} />);
     expect(container.querySelectorAll('.gpr-map-site')).toHaveLength(0);
     expect(screen.queryByRole('checkbox')).toBeNull();
+  });
+
+});
+
+describe('sitesInView and packSiteLanes', () => {
+  it('keeps sites overlapping the view, including ones cut by its edges', () => {
+    const sites = [{ start: 1, end: 6 }, { start: 95, end: 100 }, { start: 98, end: 103 }, { start: 200, end: 205 }];
+    expect(sitesInView(sites, 100, 150)).toEqual([{ start: 95, end: 100 }, { start: 98, end: 103 }]);
+  });
+
+  it('puts clear marks in one lane and colliding ones in the next', () => {
+    expect(packSiteLanes([{ x0: 0, x1: 4 }, { x0: 10, x1: 14 }, { x0: 20, x1: 24 }], 2, 8)).toEqual([0, 0, 0]);
+    expect(packSiteLanes([{ x0: 0, x1: 10 }, { x0: 5, x1: 15 }, { x0: 8, x1: 12 }, { x0: 20, x1: 30 }], 2, 8)).toEqual([0, 1, 2, 0]);
+  });
+
+  it('needs the gap as well as no overlap to share a lane', () => {
+    expect(packSiteLanes([{ x0: 0, x1: 4 }, { x0: 5, x1: 9 }], 2, 8)).toEqual([0, 1]);
+    expect(packSiteLanes([{ x0: 0, x1: 4 }, { x0: 6, x1: 9 }], 2, 8)).toEqual([0, 0]);
+  });
+
+  it('stops growing at the lane limit and overdraws the last lane', () => {
+    const pile = Array.from({ length: 5 }, () => ({ x0: 0, x1: 4 }));
+    expect(packSiteLanes(pile, 2, 3)).toEqual([0, 1, 2, 2, 2]);
+  });
+});
+
+describe('allocateEnzymeColours', () => {
+  it('gives each selected enzyme a different colour, in palette order', () => {
+    const out = allocateEnzymeColours(['EcoRI', 'PstI', 'BamHI']);
+    expect([...out.values()]).toEqual(ENZYME_PALETTE.slice(0, 3));
+  });
+
+  it('keeps colours for enzymes that stay selected, and reuses one that was freed', () => {
+    const first = allocateEnzymeColours(['A', 'B', 'C']);
+    const dropB = allocateEnzymeColours(['A', 'C'], first);
+    expect(dropB.get('A')).toBe(first.get('A'));
+    expect(dropB.get('C')).toBe(first.get('C'));
+    // D takes the colour B gave up rather than a new one further along.
+    const addD = allocateEnzymeColours(['A', 'C', 'D'], dropB);
+    expect(addD.get('D')).toBe(first.get('B'));
+  });
+
+  it('is distinct for as many enzymes as the palette has colours', () => {
+    const names = ENZYME_PALETTE.map((_, i) => `E${i}`);
+    expect(new Set(allocateEnzymeColours(names).values()).size).toBe(ENZYME_PALETTE.length);
+  });
+
+  it('spreads repeats evenly once the palette runs out', () => {
+    const names = Array.from({ length: ENZYME_PALETTE.length * 2 }, (_, i) => `E${i}`);
+    const uses = new Map<string, number>();
+    for (const c of allocateEnzymeColours(names).values()) uses.set(c, (uses.get(c) ?? 0) + 1);
+    expect([...uses.values()].every((n) => n === 2)).toBe(true);
+  });
+
+  it('forgets enzymes that are no longer selected', () => {
+    expect([...allocateEnzymeColours([], allocateEnzymeColours(['A'])).keys()]).toEqual([]);
   });
 });

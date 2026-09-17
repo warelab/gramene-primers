@@ -44,6 +44,8 @@ export interface PairsTableProps extends StyleProps {
   /** Enzymes whose sites are marked, shared with the template map. */
   selectedEnzymes?: ReadonlyArray<string>;
   onSelectEnzymes?: (enzymes: string[]) => void;
+  /** Their colours, allocated by whoever owns the selection. */
+  enzymeColours?: ReadonlyMap<string, string>;
 }
 
 function PrimerCell({ oligo, side, n, info }: { oligo: PrimerOligo; side: 'left' | 'right'; n: number; info: CheckPrimerInfo | null }): JSX.Element {
@@ -287,6 +289,7 @@ export function PairsTable(props: PairsTableProps): JSX.Element {
                           enzymes={props.enzymes}
                           selectedEnzymes={props.selectedEnzymes}
                           onSelectEnzymes={props.onSelectEnzymes}
+                          enzymeColours={props.enzymeColours}
                         />
                       </td>
                     </tr>

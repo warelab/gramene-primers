@@ -19,6 +19,8 @@ export interface AmpliconSequenceProps {
   sites?: ReadonlyArray<{ start: number; end: number; enzyme: string }>;
   /** Template positions where the strand is severed; the break is drawn before each base. */
   cuts?: ReadonlyArray<{ position: number; enzyme: string }>;
+  /** The colour each enzyme is drawn in, shared with the table and map that allocated it. */
+  colours?: ReadonlyMap<string, string>;
 }
 
 interface Segment {
@@ -32,7 +34,8 @@ interface Segment {
 }
 
 /** The amplicon in 60-nt lines with primer footprints, masked bases and junction bars (spec §C.3 PairDetail). */
-export function AmpliconSequence({ pair, template, label, sites, cuts }: AmpliconSequenceProps): JSX.Element {
+export function AmpliconSequence({ pair, template, label, sites, cuts, colours }: AmpliconSequenceProps): JSX.Element {
+  const colourOf = (name: string) => colours?.get(name) ?? enzymeColor(name);
   const seq = template?.seq ?? '';
   const start = pair.left.start;
   const end = pair.right.end;
@@ -133,14 +136,14 @@ export function AmpliconSequence({ pair, template, label, sites, cuts }: Amplico
               <Fragment key={i}>
                 <span
                   className={s.cls}
-                  style={s.siteOf.length ? { boxShadow: `inset 0 -2px 0 ${enzymeColor(s.siteOf[0] as string)}` } : undefined}
+                  style={s.siteOf.length ? { boxShadow: `inset 0 -2px 0 ${colourOf(s.siteOf[0] as string)}` } : undefined}
                   title={s.siteOf.length ? `${s.siteOf.join(', ')} site` : undefined}
                 >
                   {s.text}
                 </span>
                 {s.barAfter ? <span className="gpr-junction-bar" aria-hidden="true" /> : null}
                 {s.cutAfter.map((name) => (
-                  <span key={name} className="gpr-cut-bar" style={{ borderLeftColor: enzymeColor(name) }} aria-hidden="true" />
+                  <span key={name} className="gpr-cut-bar" style={{ borderLeftColor: colourOf(name) }} aria-hidden="true" />
                 ))}
               </Fragment>
             ))}
@@ -158,7 +161,7 @@ export function AmpliconSequence({ pair, template, label, sites, cuts }: Amplico
         {shown.map((name) => (
           <Fragment key={name}>
             {' '}
-            <span className="gpr-seq-site" style={{ boxShadow: `inset 0 -2px 0 ${enzymeColor(name)}` }}>
+            <span className="gpr-seq-site" style={{ boxShadow: `inset 0 -2px 0 ${colourOf(name)}` }}>
               {name}
             </span>
           </Fragment>

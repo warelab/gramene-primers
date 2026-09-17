@@ -219,7 +219,7 @@ export type {
 } from './caps';
 export { ampliconSeq, digestAmplicon, genomicToTemplatePosition, nonCutters, singleCutters, variantOnTemplate } from './amplicon';
 export type { AmpliconDigest, DigestOptions, TemplateSpan, TemplateVariant } from './amplicon';
-export { COMMON_ENZYMES, enzymeSpecificity, findEnzyme, isSixCutter, SIX_CUTTER_SPECIFICITY } from './enzymes';
+export { allocateEnzymeColours, COMMON_ENZYMES, ENZYME_PALETTE, enzymeColor, enzymeSpecificity, findEnzyme, isSixCutter, SIX_CUTTER_SPECIFICITY, siteWithCut } from './enzymes';
 export type { RestrictionEnzyme } from './enzymes';
 export { DESIGN_MODES, designModeOf, isDesignMode } from './modes';
 export {

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import type { Interval, PrimerOligo, PrimerPair, PrimerTemplate, TemplateExon } from '../types';
 import { useIsoLayoutEffect } from './hooks/useIsoLayoutEffect';
-import { enzymeColor } from '../enzymes';
+import { enzymeColor, siteWithCut, type RestrictionEnzyme } from '../enzymes';
+import { useEnzymeColours } from './hooks/useEnzymeColours';
 import { GprRoot, type StyleProps } from './Root';
 import { clamp, fmtInt, pairLabel, strandSign, templateGenomicPosition, useIdPrefix } from './util';
 
@@ -14,21 +15,29 @@ export interface TemplateMapProps extends StyleProps {
   target?: Interval | null;
   included?: Interval | null;
   excluded?: ReadonlyArray<Interval> | null;
-  /** Recognition sites to draw, in template coordinates, each naming its enzyme. */
-  sites?: ReadonlyArray<MapSite>;
-  /** Enzymes with a site in this template, and how many, for the picker. */
-  enzymeOptions?: ReadonlyArray<readonly [string, number]>;
+  /**
+   * Every enzyme with a site in the template, with those sites. The map lists
+   * them all, counts each within the current view, and draws the selected ones.
+   */
+  enzymeSites?: ReadonlyArray<MapEnzymeSites>;
   selectedEnzymes?: ReadonlyArray<string>;
   onSelectEnzymes?: (enzymes: string[]) => void;
+  /** The colour each selected enzyme is drawn in; allocated here when not supplied. */
+  enzymeColours?: ReadonlyMap<string, string>;
   title?: string;
 }
 
-/** A recognition site to draw, in template coordinates. */
+/** A recognition site in template coordinates. */
 export interface MapSite {
   start: number;
   end: number;
-  enzyme: string;
   strand?: 1 | -1;
+}
+
+/** One enzyme and every site it has in the template. */
+export interface MapEnzymeSites {
+  enzyme: Pick<RestrictionEnzyme, 'name' | 'site' | 'cut'>;
+  sites: ReadonlyArray<MapSite>;
 }
 
 const MARGIN = 30;
@@ -41,8 +50,15 @@ const INTERVAL_Y = 74;
 const INTERVAL_H = 10;
 const LANES_Y = 94;
 const SITE_Y = 88;
-const SITE_H = 9;
-const SITE_TRACK_H = 16;
+const SITE_H = 8;
+/** Lane pitch in the site track: a mark and the gap below it. */
+const SITE_LANE_H = 11;
+/** Beyond this the track stops growing and further overlaps share the last lane. */
+const MAX_SITE_LANES = 8;
+/** Horizontal clearance, in pixels, two marks need to share a lane. */
+const SITE_GAP_PX = 2;
+/** The narrowest a mark's hover target gets, however thin the mark itself. */
+const SITE_HIT_PX = 8;
 const LANE_H = 20;
 const PRIMER_H = 12;
 const MAX_LANES = 30;
@@ -64,6 +80,38 @@ export function packPairLanes(pairs: ReadonlyArray<Pick<PrimerPair, 'rank' | 'le
     lanes.set(p.rank, lane);
   }
   return lanes;
+}
+
+/** Sites overlapping `[v0, v1]`, the part of the template currently in view. */
+export function sitesInView<T extends { start: number; end: number }>(sites: ReadonlyArray<T>, v0: number, v1: number): T[] {
+  return sites.filter((s) => s.end >= v0 && s.start <= v1);
+}
+
+/**
+ * Greedy lane packing for marks already laid out in pixels, sorted by left
+ * edge: each mark takes the first lane whose last mark ends clear of it.
+ *
+ * Packing in pixels rather than bases is what makes the track behave like a
+ * genome browser. Two sites 40 bp apart collide when zoomed out and separate
+ * when zoomed in, so the lanes are recomputed for the view rather than fixed
+ * for the template. Past `maxLanes` the last lane takes the overflow, drawn
+ * over itself, rather than growing without limit.
+ */
+export function packSiteLanes(marks: ReadonlyArray<{ x0: number; x1: number }>, gapPx: number, maxLanes: number): number[] {
+  const laneEnds: number[] = [];
+  return marks.map((m) => {
+    let lane = laneEnds.findIndex((end) => end + gapPx <= m.x0);
+    if (lane === -1) {
+      if (laneEnds.length < maxLanes) {
+        lane = laneEnds.length;
+        laneEnds.push(m.x1);
+        return lane;
+      }
+      lane = maxLanes - 1;
+    }
+    laneEnds[lane] = Math.max(laneEnds[lane] ?? m.x1, m.x1);
+    return lane;
+  });
 }
 
 /** Round tick positions (1-2-5 steps) within `[start, end]`. */
@@ -101,10 +149,59 @@ function arrowPath(x0: number, x1: number, y: number, h: number, dir: 1 | -1): s
   return `M${x1},${y}H${xs + head}L${xs},${y + h / 2}L${xs + head},${y + h}H${x1}Z`;
 }
 
+/**
+ * What a restriction site is, on hover: the enzyme, where the site sits in the
+ * template and — when the template has coordinates — in the genome, the
+ * recognition sequence with its cut, and the bases actually there. The last two
+ * differ for a degenerate site such as AccI (GTMKAC), which is exactly when it
+ * is worth seeing both.
+ */
+function SiteTip(p: {
+  template: PrimerTemplate;
+  colour: string;
+  mark: { enzyme: MapEnzymeSites['enzyme']; site: MapSite };
+  left: number;
+  top: number;
+}): JSX.Element {
+  const { enzyme, site } = p.mark;
+  const a = templateGenomicPosition(p.template, site.start);
+  const b = templateGenomicPosition(p.template, site.end);
+  const genomic =
+    a && b ? `${a.region}:${fmtInt(Math.min(a.pos, b.pos))}–${fmtInt(Math.max(a.pos, b.pos))}` : null;
+  const bases = p.template.seq?.slice(site.start - 1, site.end) ?? '';
+  return (
+    <div className="gpr-map-tip" role="tooltip" style={{ left: p.left, top: p.top }}>
+      <div className="gpr-map-tip-head">
+        <span className="gpr-map-enzyme-swatch" aria-hidden="true" style={{ backgroundColor: p.colour }} />
+        <strong>{enzyme.name}</strong>
+      </div>
+      <dl className="gpr-map-tip-rows">
+        <dt>Location</dt>
+        <dd>
+          template {fmtInt(site.start)}–{fmtInt(site.end)}
+          {genomic ? <span className="gpr-block">{genomic}</span> : null}
+          {site.strand === -1 ? <span className="gpr-block">reverse strand</span> : null}
+        </dd>
+        <dt>Recognition</dt>
+        <dd>
+          <code className="gpr-seq">{siteWithCut(enzyme)}</code>
+        </dd>
+        <dt>Sequence</dt>
+        <dd>
+          <code className="gpr-seq">{bases}</code>
+        </dd>
+      </dl>
+    </div>
+  );
+}
+
 /** SVG template map: ruler, exons/CDS/junctions, repeat mask, intervals and pair lanes (spec §C.3). */
 export function TemplateMap(props: TemplateMapProps): JSX.Element {
-  const { template, pairs = [], selectedRank, onSelect, target, included, excluded, sites = [], enzymeOptions = [] } = props;
+  const { template, pairs = [], selectedRank, onSelect, target, included, excluded, enzymeSites = [] } = props;
   const chosenEnzymes = useMemo(() => new Set(props.selectedEnzymes ?? []), [props.selectedEnzymes]);
+  const ownColours = useEnzymeColours(props.selectedEnzymes ?? []);
+  const colours = props.enzymeColours ?? ownColours;
+  const colourOf = (name: string) => colours.get(name) ?? enzymeColor(name);
   const L = Math.max(1, template.length || template.seq?.length || 1);
   const idp = useIdPrefix('gpr-map');
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -137,9 +234,49 @@ export function TemplateMap(props: TemplateMapProps): JSX.Element {
 
   const lanes = useMemo(() => packPairLanes(pairs, Math.ceil((28 * L) / Math.max(1, inner))), [pairs, L, inner]);
   const laneCount = Math.min(MAX_LANES, pairs.length ? Math.max(...[...lanes.values()]) + 1 : 0);
-  // The site track sits between the intervals and the pair lanes, and only
-  // takes room when there is something to draw in it.
-  const lanesY = LANES_Y + (sites.length ? SITE_TRACK_H : 0);
+  // ---- restriction sites -----------------------------------------------------
+  // Counts follow the view, so zooming into a region says how many of each
+  // enzyme's sites are actually there rather than repeating the template total.
+  const viewCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const { enzyme, sites } of enzymeSites) counts.set(enzyme.name, sitesInView(sites, v0, v1).length);
+    return counts;
+  }, [enzymeSites, v0, v1]);
+
+  const chosenKey = [...chosenEnzymes].sort().join(',');
+  const siteMarks = useMemo(() => {
+    const marks: Array<{ enzyme: MapEnzymeSites['enzyme']; site: MapSite; x0: number; x1: number; lane: number }> = [];
+    for (const { enzyme, sites } of enzymeSites) {
+      if (!chosenEnzymes.has(enzyme.name)) continue;
+      for (const site of sitesInView(sites, v0, v1)) {
+        const x0 = x(site.start);
+        // A six-base site is sub-pixel on a long template, so it is widened to
+        // stay visible rather than vanishing.
+        marks.push({ enzyme, site, x0, x1: x0 + Math.max(2, wOf(site.start, site.end)), lane: 0 });
+      }
+    }
+    marks.sort((a, b) => a.x0 - b.x0 || a.x1 - b.x1 || a.enzyme.name.localeCompare(b.enzyme.name));
+    const lanesOf = packSiteLanes(marks, SITE_GAP_PX, MAX_SITE_LANES);
+    marks.forEach((m, i) => (m.lane = lanesOf[i] ?? 0));
+    return marks;
+  }, [enzymeSites, chosenKey, v0, v1, inner]);
+  const siteLaneCount = siteMarks.length ? Math.max(...siteMarks.map((m) => m.lane)) + 1 : 0;
+
+  // The site track sits between the intervals and the pair lanes, grows a lane
+  // at a time as marks collide, and takes no room when there is nothing in it.
+  const lanesY = LANES_Y + (siteLaneCount ? (siteLaneCount - 1) * SITE_LANE_H + SITE_H + 6 : 0);
+
+  const [siteTip, setSiteTip] = useState<{ mark: (typeof siteMarks)[number]; left: number; top: number } | null>(null);
+  // A pan or zoom moves the marks out from under a still pointer.
+  useEffect(() => setSiteTip(null), [v0, v1, chosenKey]);
+  const showSiteTip = (mark: (typeof siteMarks)[number], e: MouseEvent<SVGElement>) => {
+    const box = wrapRef.current?.getBoundingClientRect();
+    if (!box) return;
+    const TIP_W = 250;
+    const px = e.clientX - box.left;
+    const left = px + 14 + TIP_W > box.width ? Math.max(0, px - 14 - TIP_W) : px + 14;
+    setSiteTip({ mark, left, top: e.clientY - box.top + 14 });
+  };
   const height = lanesY + Math.max(1, laneCount) * LANE_H + 6;
   const ticks = niceTicks(v0, v1, Math.max(3, Math.floor(inner / 90)));
 
@@ -363,23 +500,46 @@ export function TemplateMap(props: TemplateMapProps): JSX.Element {
                 </rect>
               ) : null}
             </g>
-            {sites.length ? (
-              <g className="gpr-map-sites">
-                {sites.map((site) => (
-                  <rect
-                    key={`${site.enzyme}-${site.start}-${site.strand ?? 1}`}
-                    className="gpr-map-site"
-                    x={x(site.start)}
-                    y={SITE_Y}
-                    /* A six-base site is sub-pixel on a 17 kb template, so it is
-                       widened to stay visible rather than vanishing. */
-                    width={Math.max(2, wOf(site.start, site.end))}
-                    height={SITE_H}
-                    fill={enzymeColor(site.enzyme)}
-                  >
-                    <title>{`${site.enzyme} ${fmtInt(site.start)}–${fmtInt(site.end)}`}</title>
-                  </rect>
-                ))}
+            {siteMarks.length ? (
+              <g className="gpr-map-sites" onMouseLeave={() => setSiteTip(null)}>
+                {siteMarks.map((m) => {
+                  const on = siteTip?.mark === m;
+                  const y = SITE_Y + m.lane * SITE_LANE_H;
+                  const w = m.x1 - m.x0;
+                  // A mark can be two pixels wide, which nobody can hover
+                  // reliably, so an invisible target at least SITE_HIT_PX wide
+                  // and a full lane tall takes the pointer instead.
+                  const hitW = Math.max(w, SITE_HIT_PX);
+                  return (
+                    <g
+                      key={`${m.enzyme.name}-${m.site.start}-${m.site.strand ?? 1}`}
+                      onMouseEnter={(e) => showSiteTip(m, e)}
+                      onMouseMove={(e) => showSiteTip(m, e)}
+                    >
+                      <rect
+                        className="gpr-map-site"
+                        data-enzyme={m.enzyme.name}
+                        data-lane={m.lane}
+                        data-state={on ? 'hover' : undefined}
+                        x={m.x0}
+                        y={y}
+                        width={w}
+                        height={SITE_H}
+                        /* An inline style, not the fill attribute: any stylesheet
+                           rule for fill beats a presentation attribute, and the
+                           mark must match its swatch in the key. */
+                        style={{ fill: colourOf(m.enzyme.name) }}
+                      />
+                      <rect
+                        className="gpr-map-site-hit"
+                        x={m.x0 + w / 2 - hitW / 2}
+                        y={y - (SITE_LANE_H - SITE_H) / 2}
+                        width={hitW}
+                        height={SITE_LANE_H}
+                      />
+                    </g>
+                  );
+                })}
               </g>
             ) : null}
             <g className="gpr-map-pairs">
@@ -428,7 +588,8 @@ export function TemplateMap(props: TemplateMapProps): JSX.Element {
           </g>
           {hover !== null ? <line className="gpr-map-guide" x1={x(hover) + wOf(hover, hover) / 2} x2={x(hover) + wOf(hover, hover) / 2} y1={RULER_Y} y2={height} /> : null}
         </svg>
-        {enzymeOptions.length ? (
+        {siteTip ? <SiteTip template={template} colour={colourOf(siteTip.mark.enzyme.name)} {...siteTip} /> : null}
+        {enzymeSites.length ? (
           <details className="gpr-map-enzymes">
             <summary>
               Restriction sites
@@ -441,8 +602,8 @@ export function TemplateMap(props: TemplateMapProps): JSX.Element {
               <button
                 type="button"
                 className="gpr-btn gpr-btn-small gpr-btn-quiet"
-                disabled={chosenEnzymes.size === enzymeOptions.length}
-                onClick={() => props.onSelectEnzymes?.(enzymeOptions.map(([name]) => name))}
+                disabled={chosenEnzymes.size === enzymeSites.length}
+                onClick={() => props.onSelectEnzymes?.(enzymeSites.map((e) => e.enzyme.name))}
               >
                 Select all
               </button>
@@ -454,12 +615,20 @@ export function TemplateMap(props: TemplateMapProps): JSX.Element {
               >
                 Select none
               </button>
+              <span className="gpr-sub">
+                {fitted ? 'Sites in the whole template' : `Sites in view, ${fmtInt(v0)}–${fmtInt(v1)}`}
+              </span>
             </div>
             <ul className="gpr-map-enzyme-list">
-              {enzymeOptions.map(([name, n]) => {
+              {enzymeSites.map(({ enzyme }) => {
+                const name = enzyme.name;
                 const on = chosenEnzymes.has(name);
+                const n = viewCounts.get(name) ?? 0;
                 return (
-                  <li key={name}>
+                  // Greyed rather than hidden or disabled: the list stays put as
+                  // the view moves, and an enzyme with nothing here may well
+                  // have sites a pan away.
+                  <li key={name} data-empty={n === 0 ? 'true' : undefined}>
                     <label className="gpr-check-row">
                       <input
                         type="checkbox"
@@ -472,9 +641,15 @@ export function TemplateMap(props: TemplateMapProps): JSX.Element {
                           props.onSelectEnzymes?.([...next]);
                         }}
                       />
-                      <span className="gpr-map-enzyme-swatch" aria-hidden="true" style={{ backgroundColor: enzymeColor(name) }} />
+                      {/* Coloured only once ticked: a swatch means "drawn in this colour". */}
+                      <span
+                        className="gpr-map-enzyme-swatch"
+                        aria-hidden="true"
+                        data-off={on ? undefined : 'true'}
+                        style={on ? { backgroundColor: colourOf(name) } : undefined}
+                      />
                       <span className="gpr-label">
-                        {name} <span className="gpr-sub">({fmtInt(n)})</span>
+                        {name} <span className="gpr-map-enzyme-count">({fmtInt(n)})</span>
                       </span>
                     </label>
                   </li>

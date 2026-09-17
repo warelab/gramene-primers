@@ -118,19 +118,18 @@ export function findEnzyme(name: string, panel: ReadonlyArray<RestrictionEnzyme>
   const wanted = name.trim().toLowerCase();
   return panel.find((e) => e.name.toLowerCase() === wanted) ?? null;
 }
-
-/**
- * A stable colour for an enzyme, from the same Okabe-Ito palette the variant
- * views use. Derived from the name, so an enzyme keeps its colour as others are
- * ticked on and off. Colour is never the only channel: every view that uses it
- * also names the enzyme.
- */
-export function enzymeColor(name: string): string {
-  const n = parseInt(hashString(name).slice(0, 8), 16);
-  return ENZYME_PALETTE[n % ENZYME_PALETTE.length] as string;
+/** `GT^AC` — the recognition sequence with the cut marked where the enzyme makes it. */
+export function siteWithCut(enzyme: Pick<RestrictionEnzyme, 'site' | 'cut'>): string {
+  return enzyme.cut === null ? enzyme.site : `${enzyme.site.slice(0, enzyme.cut)}^${enzyme.site.slice(enzyme.cut)}`;
 }
 
-const ENZYME_PALETTE: ReadonlyArray<string> = Object.freeze([
+/**
+ * Okabe-Ito, the palette the variant views use: distinguishable with the common
+ * forms of colour blindness. Eight colours is also the practical ceiling for
+ * telling marks apart at a glance, which is why allocation, not hashing, decides
+ * who gets which.
+ */
+export const ENZYME_PALETTE: ReadonlyArray<string> = Object.freeze([
   '#0072B2',
   '#E69F00',
   '#009E73',
@@ -140,3 +139,49 @@ const ENZYME_PALETTE: ReadonlyArray<string> = Object.freeze([
   '#8C6D1F',
   '#555555',
 ]);
+
+/**
+ * A colour derived from the name alone, for a view with no selection to
+ * allocate from. With eight colours across the panel it collides often —
+ * EcoRI and PstI share one — so anything showing several enzymes together uses
+ * `allocateEnzymeColours` instead.
+ */
+export function enzymeColor(name: string): string {
+  const n = parseInt(hashString(name).slice(0, 8), 16);
+  return ENZYME_PALETTE[n % ENZYME_PALETTE.length] as string;
+}
+
+/**
+ * Colours for the enzymes currently shown, distinct wherever the palette allows.
+ *
+ * An enzyme keeps the colour it already had for as long as it stays selected,
+ * so ticking and unticking others never recolours what is on screen. A newly
+ * selected enzyme takes the first palette colour nobody is using; once all
+ * eight are taken, the least-used one, so repeats spread out rather than piling
+ * onto the first colour. The names in the key are what disambiguate beyond
+ * eight.
+ */
+export function allocateEnzymeColours(
+  selected: ReadonlyArray<string>,
+  previous: ReadonlyMap<string, string> = new Map(),
+  palette: ReadonlyArray<string> = ENZYME_PALETTE,
+): Map<string, string> {
+  const out = new Map<string, string>();
+  const uses = new Map<string, number>(palette.map((c) => [c, 0]));
+  const wanted = new Set(selected);
+  for (const [name, colour] of previous) {
+    if (!wanted.has(name) || !uses.has(colour)) continue;
+    out.set(name, colour);
+    uses.set(colour, (uses.get(colour) ?? 0) + 1);
+  }
+  for (const name of selected) {
+    if (out.has(name)) continue;
+    let pick = palette[0] as string;
+    for (const colour of palette) {
+      if ((uses.get(colour) ?? 0) < (uses.get(pick) ?? 0)) pick = colour;
+    }
+    out.set(name, pick);
+    uses.set(pick, (uses.get(pick) ?? 0) + 1);
+  }
+  return out;
+}

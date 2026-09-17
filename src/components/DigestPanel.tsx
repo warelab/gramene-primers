@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { digestAmplicon, nonCutters, type TemplateSpan } from '../amplicon';
-import { enzymeColor, type RestrictionEnzyme } from '../enzymes';
+import { siteWithCut, type RestrictionEnzyme } from '../enzymes';
+import { useEnzymeColours } from './hooks/useEnzymeColours';
 import type { PrimerTemplate } from '../types';
 import { fmtInt, useIdPrefix } from './util';
 
@@ -11,13 +12,10 @@ export interface DigestPanelProps {
   /** Enzymes whose sites and cuts are marked in the sequence above. */
   selected?: ReadonlyArray<string>;
   onSelect?: (enzymes: string[]) => void;
+  /** The colour each selected enzyme is drawn in; allocated here when not supplied. */
+  colours?: ReadonlyMap<string, string>;
   /** Shows every enzyme rather than only those cutting few enough times to read. */
   maxCuts?: number;
-}
-
-/** `GT^AC` — the recognition sequence with the cut marked where the enzyme makes it. */
-export function siteWithCut(e: RestrictionEnzyme): string {
-  return e.cut === null ? e.site : `${e.site.slice(0, e.cut)}^${e.site.slice(e.cut)}`;
 }
 
 /**
@@ -39,6 +37,8 @@ export function DigestPanel(p: DigestPanelProps): JSX.Element | null {
   const digests = useMemo(() => digestAmplicon(seq, p.span, { enzymes: p.enzymes }), [seq, spanKey, p.enzymes]);
   const safe = useMemo(() => nonCutters(seq, p.span, p.enzymes), [seq, spanKey, p.enzymes]);
   const chosen = useMemo(() => new Set(p.selected ?? []), [p.selected]);
+  const ownColours = useEnzymeColours(p.selected ?? []);
+  const colours = p.colours ?? ownColours;
 
   if (!seq) return null;
   // Beyond a handful of cuts the ladder is not one anybody scores, so the rest
@@ -101,7 +101,13 @@ export function DigestPanel(p: DigestPanelProps): JSX.Element | null {
                   </td>
                   <th scope="row">
                     <label htmlFor={`${idp}-e-${d.enzyme.name}`} className="gpr-digest-name">
-                      <span className="gpr-digest-swatch" aria-hidden="true" style={{ backgroundColor: enzymeColor(d.enzyme.name) }} />
+                      {/* Coloured only once ticked: a swatch means "drawn in this colour". */}
+                      <span
+                        className="gpr-digest-swatch"
+                        aria-hidden="true"
+                        data-off={on ? undefined : 'true'}
+                        style={on ? { backgroundColor: colours.get(d.enzyme.name) } : undefined}
+                      />
                       {d.enzyme.name}
                     </label>
                   </th>

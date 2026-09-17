@@ -6,6 +6,7 @@ import { digestAmplicon } from '../amplicon';
 import { findEnzyme, type RestrictionEnzyme } from '../enzymes';
 import { AmpliconSequence } from './AmpliconSequence';
 import { DigestPanel } from './DigestPanel';
+import { useEnzymeColours } from './hooks/useEnzymeColours';
 import { fmtInt, fmtNum } from './util';
 
 export interface PairDetailProps {
@@ -20,6 +21,8 @@ export interface PairDetailProps {
   /** Enzymes whose sites are marked, shared across the design results. */
   selectedEnzymes?: ReadonlyArray<string>;
   onSelectEnzymes?: (enzymes: string[]) => void;
+  /** Their colours, from whoever owns the selection, so the map agrees. */
+  enzymeColours?: ReadonlyMap<string, string>;
 }
 
 const ROWS: ReadonlyArray<[string, (o: PrimerOligo) => ReactNode]> = [
@@ -38,13 +41,15 @@ const ROWS: ReadonlyArray<[string, (o: PrimerOligo) => ReactNode]> = [
 ];
 
 /** Expanded pair: primer statistics, product, genomic blocks and the amplicon sequence. */
-export function PairDetail({ pair, template, label, primers, id, enzymes, selectedEnzymes, onSelectEnzymes }: PairDetailProps): JSX.Element {
+export function PairDetail({ pair, template, label, primers, id, enzymes, selectedEnzymes, onSelectEnzymes, enzymeColours }: PairDetailProps): JSX.Element {
   const n = pair.rank + 1;
   const [ownSelection, setOwnSelection] = useState<string[]>([]);
   // The host may hold the selection so the template map can follow it; standing
   // alone the detail keeps its own.
   const selected = onSelectEnzymes ? selectedEnzymes ?? [] : ownSelection;
   const setSelected = onSelectEnzymes ?? setOwnSelection;
+  const ownColours = useEnzymeColours(selected);
+  const colours = enzymeColours ?? ownColours;
   const span = { start: pair.left.start, end: pair.right.end };
   const selectedKey = [...selected].sort().join(',');
   // Each marked site and cut names its enzyme, so several can be drawn at once
@@ -131,8 +136,9 @@ export function PairDetail({ pair, template, label, primers, id, enzymes, select
         label={label}
         sites={marks.sites}
         cuts={marks.cuts}
+        colours={colours}
       />
-      <DigestPanel template={template} span={span} enzymes={enzymes} selected={selected} onSelect={setSelected} />
+      <DigestPanel template={template} span={span} enzymes={enzymes} selected={selected} onSelect={setSelected} colours={colours} />
     </div>
   );
 }

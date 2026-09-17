@@ -1350,6 +1350,8 @@
 
 /* ---- template map -------------------------------------------------------- */
 .gpr-root .gpr-map {
+  /* The anchor for the restriction-site tooltip. */
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -2511,8 +2513,17 @@
   display: inline-block;
   width: 10px;
   height: 10px;
+  border: 1px solid transparent;
   border-radius: 2px;
   flex: none;
+  box-sizing: border-box;
+}
+
+/* An unticked enzyme is not drawn anywhere, so it has no colour to show. */
+.gpr-root .gpr-digest-swatch[data-off="true"],
+.gpr-root .gpr-map-enzyme-swatch[data-off="true"] {
+  border-color: var(--gpr-border);
+  background-color: transparent;
 }
 
 /*
@@ -2529,8 +2540,78 @@
   vertical-align: text-bottom;
 }
 
+/*
+ * No fill here. A stylesheet fill overrides the SVG fill attribute, which is
+ * how every mark once drew in the accent colour whatever its key said; the
+ * colour is set inline per enzyme instead.
+ */
 .gpr-root .gpr-map-site {
-  fill: var(--gpr-accent);
+  cursor: default;
+  stroke: transparent;
+  stroke-width: 1;
+}
+
+.gpr-root .gpr-map-site[data-state="hover"] {
+  stroke: var(--gpr-fg);
+}
+
+/* Invisible but hit-testable: transparent fill alone can be skipped by some engines. */
+.gpr-root .gpr-map-site-hit {
+  fill: transparent;
+  pointer-events: all;
+}
+
+.gpr-root .gpr-map-tip {
+  position: absolute;
+  z-index: 5;
+  width: 250px;
+  max-width: calc(100% - 8px);
+  padding: 6px 8px;
+  border: 1px solid var(--gpr-border);
+  border-radius: 6px;
+  background-color: var(--gpr-surface);
+  color: var(--gpr-fg);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
+  font-size: 0.85em;
+  /* Never under the pointer: a tooltip that catches the hover flickers. */
+  pointer-events: none;
+}
+
+.gpr-root .gpr-map-tip-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.gpr-root .gpr-map-tip-rows {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  margin: 0;
+}
+
+.gpr-root .gpr-map-tip-rows dt {
+  color: var(--gpr-muted);
+}
+
+.gpr-root .gpr-map-tip-rows dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* An enzyme with nothing in view stays listed, and says so by fading. */
+.gpr-root .gpr-map-enzyme-list li[data-empty="true"] .gpr-label {
+  color: var(--gpr-muted);
+}
+
+.gpr-root .gpr-map-enzyme-list li[data-empty="true"] .gpr-map-enzyme-swatch {
+  opacity: 0.35;
+}
+
+.gpr-root .gpr-map-enzyme-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--gpr-muted);
 }
 
 /* Collapsed by default: a panel of enzymes should not outsize the map. */
@@ -2546,6 +2627,8 @@
 
 .gpr-root .gpr-map-enzyme-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
   padding: 6px 0 4px;
 }

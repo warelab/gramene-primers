@@ -332,9 +332,25 @@ table is listing. Beneath, the enzymes with no site at all are named — the che
 before adding a site to a primer end for cloning.
 
 The same selection drives the template map, which carries its own checklist of
-every enzyme with a site in the template and how many, so sites can be seen
-across the whole template rather than one amplicon at a time. Ticking an enzyme
-in either place marks it in both.
+every enzyme with a site in the template, so sites can be seen across the whole
+template rather than one amplicon at a time. Ticking an enzyme in either place
+marks it in both. The map behaves like a genome browser track:
+
+- **Counts follow the view.** Zoom or pan and the count beside each enzyme is the
+  number of its sites in view; an enzyme with none there is greyed but stays
+  listed and tickable, since it may have sites a pan away.
+- **Colliding marks are bumped into lanes.** Packing is done in pixels, so two
+  sites that overlap when zoomed out separate when zoomed in, and the track
+  grows or shrinks to fit — up to eight lanes, past which the last lane takes
+  the overflow.
+- **Hover a mark** for the enzyme, its location in the template and the genome,
+  the recognition sequence with its cut, and the bases actually there — which
+  differ for a degenerate site such as AccI (`GT^MKAC`).
+- **Colours match the key and are distinct.** Each ticked enzyme is allocated a
+  colour from the Okabe-Ito palette that no other ticked enzyme is using, and
+  keeps it while it stays ticked. Up to eight are always told apart; beyond
+  that colours repeat and the names carry the difference. An unticked enzyme has
+  no colour, because it is drawn nowhere.
 
 ```ts
 import { digestAmplicon, singleCutters, nonCutters } from 'gramene-primers';
