@@ -5,6 +5,11 @@ All notable changes to this project are documented here. The format follows
 [semantic versioning](https://semver.org/). `0.x` releases are published with
 `--tag next`; `1.0.0` follows once `/primers` is live on data.sorghumbase.org.
 
+## [0.9.1] — 2026-09-17
+
+### Fixed
+- **A native "Template map" tooltip no longer covers the restriction-site tooltip.** The map was named by a `<title>` on the SVG itself, and browsers show the nearest `<title>` above the pointer as a native tooltip. The site marks have none of their own, so hovering one in Chrome popped "Template map" up over the enzyme name — the line that tells enzymes apart when colours repeat. The map is now named with `aria-label`, so its accessible name is unchanged, and a test fails if a `<title>` is ever placed above a site mark again. Exons, masked runs, intervals and the ruler keep their own tooltips.
+
 ## [0.9.0] — 2026-09-17
 
 ### Added
