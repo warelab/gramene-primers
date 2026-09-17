@@ -5,6 +5,24 @@ All notable changes to this project are documented here. The format follows
 [semantic versioning](https://semver.org/). `0.x` releases are published with
 `--tag next`; `1.0.0` follows once `/primers` is live on data.sorghumbase.org.
 
+## [0.9.0] — 2026-09-17
+
+### Added
+- **Restriction-site counts on the template map follow the view.** Zoom or pan and the count beside each enzyme becomes the number of its sites in view, with a line saying which span that is. An enzyme with nothing in view is greyed but stays listed and tickable.
+- **Colliding site marks are bumped into separate lanes**, packed in pixels so the lanes follow the zoom: sites that overlap zoomed out separate zoomed in, and the track grows and shrinks to fit, up to eight lanes.
+- **Hovering a site shows what it is**: the enzyme, its template span and — when the template has coordinates — its genomic span, the recognition sequence with the cut marked, and the bases at that location. For a degenerate site those last two differ. Each mark has an invisible hover target at least 8 px wide, since a site on a long template draws two pixels wide.
+- `allocateEnzymeColours`, `ENZYME_PALETTE`, `sitesInView`, `packSiteLanes` and `siteWithCut` are exported.
+
+### Fixed
+- **Site marks on the map now match their key.** A stylesheet `fill` on the marks overrode the colour set on each one, so every enzyme drew in the accent colour whatever its swatch showed. The colour is now set inline, and a test fails if the stylesheet ever sets a fill on the marks again. The 0.8.0 test compared the SVG attribute, which the test DOM does not cascade, so it passed while the page was wrong.
+- **Ticked enzymes no longer share a colour.** 0.8.0 hashed each name into eight colours, so EcoRI and PstI came out identical, as did BamHI and SpeI and HindIII and XhoI; with four enzymes ticked, two looked the same 56% of the time. Colours are now allocated among the ticked enzymes: a newly ticked enzyme takes the first colour nobody is using and keeps it while it stays ticked, so up to eight are always distinct and ticking others never recolours what is on screen. One allocation is shared by the map and every pair detail.
+- `enzymeColor` is now actually exported. The 0.8.0 notes said it was; it was not.
+
+### Changed
+- `TemplateMap` takes `enzymeSites` — every enzyme with a site in the template and its sites — in place of `sites` and `enzymeOptions`, and counts and filters for the view itself. `MapSite` no longer carries `enzyme`; `MapEnzymeSites` pairs an enzyme with its sites.
+- `TemplateMap`, `PairsTable`, `PairDetail`, `DigestPanel` and `AmpliconSequence` accept the allocated colours (`enzymeColours`, or `colours`), and allocate their own when used alone.
+- A swatch is coloured only while its enzyme is ticked. An unticked enzyme is drawn nowhere, so it has no colour to show.
+
 ## [0.8.0] — 2026-09-17
 
 ### Added
