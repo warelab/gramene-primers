@@ -1415,6 +1415,34 @@ export type SequenceForRegion = (
   options?: RequestOptions,
 ) => Promise<string | null>;
 
+/** One population's frequency for one allele of a variant. */
+export interface PopulationFrequency {
+  population: string;
+  allele: string;
+  frequency: number;
+  /** Chromosomes counted, where the source reports it. */
+  count: number | null;
+}
+
+/**
+ * Allele frequencies for variants, by id. `/primers` reports which alleles
+ * exist but not how common they are, so the host supplies this when it has a
+ * frequency source of its own; without it the picker shows no frequency column.
+ *
+ * Called with at most a few hundred ids at a time — the library decides how
+ * many and how often, the host only makes the request. Ids absent from the
+ * answer are taken to have no frequency reported, which is ordinary: about one
+ * variant in ten has none. Alleles must be written as the listing's `minimal`
+ * block writes them, so a deletion is `-`.
+ *
+ * It must read the same assembly and release the primers API reads variants
+ * from, for the same reason the sequence source must.
+ */
+export type AlleleFrequencies = (
+  query: { system_name: string; ids: string[] },
+  options?: RequestOptions,
+) => Promise<Record<string, PopulationFrequency[]>>;
+
 export interface PrimerDesignerProps {
   apiBase: string;
   client?: PrimersClient;
@@ -1428,6 +1456,8 @@ export interface PrimerDesignerProps {
   genesInRegion?: GenesInRegion;
   /** Supplies reference sequence for the CAPS annotation; omitted, the CAPS column reads "unknown". */
   sequenceForRegion?: SequenceForRegion;
+  /** Supplies allele frequencies for listed variants; omitted, there is no frequency column. */
+  alleleFrequencies?: AlleleFrequencies;
   /** Restriction enzymes to consider for CAPS. Defaults to the bundled panel. */
   enzymes?: ReadonlyArray<RestrictionEnzyme>;
   defaultMode?: DesignerMode;

@@ -2656,6 +2656,17 @@
   white-space: nowrap;
 }
 
+/* ---- allele frequency ---- */
+
+.gpr-root .gpr-freq {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.gpr-root .gpr-freq-value {
+  font-weight: 600;
+}
+
 .gpr-root [hidden] {
   display: none;
 }

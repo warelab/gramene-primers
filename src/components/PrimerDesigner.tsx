@@ -465,6 +465,7 @@ export function PrimerDesigner(props: PrimerDesignerProps): JSX.Element {
                   geneId={geneId}
                   genesInRegion={props.genesInRegion}
                   sequenceForRegion={props.sequenceForRegion}
+                  alleleFrequencies={props.alleleFrequencies}
                   enzymes={props.enzymes}
                   pangenomeFeature={features.pangenome}
                   exportFeature={features.export}

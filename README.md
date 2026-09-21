@@ -58,6 +58,7 @@ import { PrimerDesigner } from 'gramene-primers';
 | `sequence` | `string` | | Sequence-mode prefill |
 | `modes` | `DesignerMode[]` | the four design modes | Offered modes; a mode without its inputs is hidden. `genotyping` is opt-in: list it to offer KASP/AS-PCR design (it needs a genome) |
 | `genesInRegion` | `GenesInRegion` | | Gene models for the genotyping variant browser; without it the gene track is hidden |
+| `alleleFrequencies` | `AlleleFrequencies` | | Allele frequencies for listed variants; without it there is no frequency column. **Must be the same assembly and release the primers API reads variants from** |
 | `sequenceForRegion` | `SequenceForRegion` | | Reference sequence for the CAPS annotation; without it the CAPS column reads "unknown". **Must be the same assembly and release the primers API reads variants from** |
 | `enzymes` | `RestrictionEnzyme[]` | `COMMON_ENZYMES` | Restriction enzymes to consider — pass what the lab actually stocks |
 | `defaultMode`, `defaultParams` | | | Initial mode and Primer3 parameter overrides |
@@ -252,6 +253,7 @@ unknown genome sizes (reference or pan-genome) count as FALLBACK_GENOME_GB = 1 G
 | `summarizePangenome`, `truncatedGenomeCount`, `pangenomeRows`, `PANGENOME_STATUS_META` | Pan-genome matrix data (`amplifies = single_perfect + single_mismatch + multiple`; `truncated` is a flag, not a status) |
 | `revcomp`, `transcriptLayout`, `cdnaToGenomicBlocks`, `mismatchIndexes`, `formatGenomic` | IUPAC-aware, case-preserving coordinates (1-based, inclusive) |
 | `annotateVariants`, `capsCall`, `differentialSites`, `dcapsOpportunities`, `enzymeCounts` | CAPS / dCAPS annotation for a variant listing — see [CAPS](#caps) |
+| `alleleShare`, `minorAlleleFrequency`, `dedupePopulations`, `populationCounts`, `variantAllele` | Allele frequency — see [Allele frequency](#allele-frequency) |
 | `digestAmplicon`, `singleCutters`, `nonCutters`, `ampliconSeq` | Restriction sites in a predicted product — see [Restriction sites on a product](#restriction-sites-on-a-product) |
 | `genomicToTemplatePosition`, `variantOnTemplate` | Genomic coordinates onto a template — the inverse of `templateGenomicPosition`, skipping introns and complementing alleles on a minus strand |
 | `findSites`, `iupacMatcher`, `digestFragments`, `isResolvable`, `variantContext`, `verifyWindow` | The restriction-site engine underneath it |
@@ -313,6 +315,62 @@ Worth knowing before you trust a verdict:
 
 Recognition sequences and cut positions follow
 [REBASE](https://rebase.neb.com) (Roberts *et al.*, *Nucleic Acids Res* 43:D298, 2015).
+
+### Allele frequency
+
+How common an allele is decides whether a variant is worth typing: a marker
+near fixation in the panel you mean to screen tells you nothing, however well
+its primers score. Supply `alleleFrequencies` and the variant table gains a
+sortable **Frequency** column, a **Panel** menu, and a **Polymorphic only**
+toggle that hides variants whose minor allele is carried by under 5% of the
+panel. Without the callback there is no column.
+
+The library decides how much to ask for and how often; the host only makes the
+request. Frequencies are fetched in batches of 200 ids, two in flight, stopping
+after 600 variants with a note — a listing can run to thousands, and filling
+every row would mean minutes of requests for a table nobody reads to the end.
+Answers are kept by variant id, so filtering and sorting cost nothing.
+
+```tsx
+<PrimerDesigner
+  apiBase={apiBase}
+  gene={gene}
+  modes={['gene', 'genotyping']}
+  alleleFrequencies={async ({ system_name, ids }, options) => {
+    const r = await fetch(`${ensemblRest}/variation/${system_name}?pops=1`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+      signal: options?.signal,
+    });
+    const body = await r.json();
+    return Object.fromEntries(
+      ids.filter((id) => body[id]).map((id) => [id, body[id].populations.map((p) => ({
+        population: p.population, allele: p.allele, frequency: p.frequency, count: p.allele_count ?? null,
+      }))]),
+    );
+  }}
+/>
+```
+
+Worth knowing before trusting a figure:
+
+- **Alleles must be written as the listing's `minimal` block writes them.** A
+  deletion is `-` there and in Ensembl alike, while its VCF form carries an
+  anchor base (`CA>C`) that no frequency row will ever match. Matching on
+  `vcf.alt` silently misses every indel; `variantAllele` picks the right one.
+- **Work out the minor-allele frequency rather than reading it.** Ensembl
+  reports `MAF` and `minor_allele` as null for sorghum even where its own
+  population rows carry real frequencies, so `minorAlleleFrequency` computes it.
+- **Rows repeat.** The same population and allele arrive several times over;
+  `dedupePopulations` collapses them.
+- **Panels barely overlap.** EVA variants are called in the association panels,
+  EMS ones only in the mutant panels, so with no panel chosen each row falls
+  back to the widest panel that has anything to say about it and names which.
+- **A count matters as much as a frequency.** 0.56% of 180 lines is one line;
+  the column shows `n` beside every figure for that reason.
+- About one variant in ten has no frequency reported at all, and one entered by
+  hand has no id to look up.
 
 ### Restriction sites on a product
 

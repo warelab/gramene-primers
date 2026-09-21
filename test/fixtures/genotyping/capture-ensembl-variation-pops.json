@@ -1,0 +1,284 @@
+{
+  "source": "POST {ensemblRest}/variation/sorghum_bicolor?pops=1",
+  "captured_from": "https://data.gramene.org/pansite-ensembl-115",
+  "request": {
+    "ids": [
+      "rs871475760",
+      "rs873026643",
+      "tmp_1_11193_C_T",
+      "tmp_1_11203_C_T",
+      "rs5413864115"
+    ]
+  },
+  "response": {
+    "rs873026643": {
+      "name": "rs873026643",
+      "MAF": null,
+      "minor_allele": null,
+      "mappings": [
+        {
+          "allele_string": "A/G",
+          "location": "1:11182-11182"
+        }
+      ],
+      "populations": [
+        {
+          "allele": "A",
+          "frequency": 0.99,
+          "allele_count": 792,
+          "population": "SAP"
+        },
+        {
+          "frequency": 0.01,
+          "allele": "G",
+          "allele_count": 8,
+          "population": "SAP"
+        },
+        {
+          "allele_count": 792,
+          "allele": "A",
+          "frequency": 0.99,
+          "population": "SAP"
+        },
+        {
+          "population": "SAP",
+          "allele": "G",
+          "frequency": 0.01,
+          "allele_count": 8
+        },
+        {
+          "allele": "A",
+          "frequency": 0.99,
+          "allele_count": 792,
+          "population": "SAP"
+        },
+        {
+          "allele_count": 8,
+          "allele": "G",
+          "frequency": 0.01,
+          "population": "SAP"
+        },
+        {
+          "frequency": 0.99,
+          "allele": "A",
+          "allele_count": 792,
+          "population": "SAP"
+        },
+        {
+          "population": "SAP",
+          "allele": "G",
+          "frequency": 0.01,
+          "allele_count": 8
+        },
+        {
+          "population": "BAP",
+          "allele": "A",
+          "frequency": 0.991781,
+          "allele_count": 724
+        },
+        {
+          "allele": "G",
+          "frequency": 0.00821918,
+          "allele_count": 6,
+          "population": "BAP"
+        }
+      ]
+    },
+    "rs871475760": {
+      "name": "rs871475760",
+      "MAF": null,
+      "minor_allele": null,
+      "mappings": [
+        {
+          "allele_string": "C/A",
+          "location": "1:11109-11109"
+        }
+      ],
+      "populations": [
+        {
+          "allele": "C",
+          "frequency": 0.73668,
+          "allele_count": 719,
+          "population": "Lozano_study"
+        },
+        {
+          "allele_count": 257,
+          "allele": "A",
+          "frequency": 0.26332,
+          "population": "Lozano_study"
+        },
+        {
+          "population": "SAP",
+          "frequency": 0.64875,
+          "allele": "C",
+          "allele_count": 519
+        },
+        {
+          "population": "SAP",
+          "allele_count": 281,
+          "allele": "A",
+          "frequency": 0.35125
+        },
+        {
+          "population": "SAP",
+          "allele": "C",
+          "allele_count": 519,
+          "frequency": 0.64875
+        },
+        {
+          "allele": "A",
+          "allele_count": 281,
+          "frequency": 0.35125,
+          "population": "SAP"
+        },
+        {
+          "allele_count": 519,
+          "allele": "C",
+          "frequency": 0.64875,
+          "population": "SAP"
+        },
+        {
+          "allele_count": 281,
+          "allele": "A",
+          "frequency": 0.35125,
+          "population": "SAP"
+        },
+        {
+          "allele": "C",
+          "allele_count": 519,
+          "frequency": 0.64875,
+          "population": "SAP"
+        },
+        {
+          "allele_count": 281,
+          "allele": "A",
+          "frequency": 0.35125,
+          "population": "SAP"
+        },
+        {
+          "population": "BAP",
+          "allele": "C",
+          "frequency": 0.784931,
+          "allele_count": 573
+        },
+        {
+          "allele_count": 157,
+          "allele": "A",
+          "frequency": 0.215068,
+          "population": "BAP"
+        }
+      ]
+    },
+    "rs5413864115": {
+      "name": "rs5413864115",
+      "MAF": null,
+      "minor_allele": null,
+      "mappings": [
+        {
+          "allele_string": "A/-",
+          "location": "1:11283-11283"
+        }
+      ],
+      "populations": [
+        {
+          "allele": "A",
+          "frequency": 0.9425,
+          "allele_count": 754,
+          "population": "SAP"
+        },
+        {
+          "population": "SAP",
+          "allele_count": 46,
+          "allele": "-",
+          "frequency": 0.0575
+        },
+        {
+          "allele": "A",
+          "allele_count": 754,
+          "frequency": 0.9425,
+          "population": "SAP"
+        },
+        {
+          "population": "SAP",
+          "allele": "-",
+          "allele_count": 46,
+          "frequency": 0.0575
+        },
+        {
+          "population": "SAP",
+          "allele": "A",
+          "frequency": 0.9425,
+          "allele_count": 754
+        },
+        {
+          "population": "SAP",
+          "frequency": 0.0575,
+          "allele": "-",
+          "allele_count": 46
+        },
+        {
+          "allele": "A",
+          "allele_count": 672,
+          "frequency": 0.920548,
+          "population": "BAP"
+        },
+        {
+          "population": "BAP",
+          "allele": "-",
+          "allele_count": 58,
+          "frequency": 0.0794521
+        }
+      ]
+    },
+    "tmp_1_11193_C_T": {
+      "name": "tmp_1_11193_C_T",
+      "MAF": null,
+      "minor_allele": null,
+      "mappings": [
+        {
+          "allele_string": "C/T",
+          "location": "1:11193-11193"
+        }
+      ],
+      "populations": [
+        {
+          "population": "USDA-Lubbock-EMS3",
+          "allele": "C",
+          "allele_count": 179,
+          "frequency": 0.994444
+        },
+        {
+          "population": "USDA-Lubbock-EMS3",
+          "allele_count": 1,
+          "allele": "T",
+          "frequency": 0.00555556
+        }
+      ]
+    },
+    "tmp_1_11203_C_T": {
+      "name": "tmp_1_11203_C_T",
+      "MAF": null,
+      "minor_allele": null,
+      "mappings": [
+        {
+          "allele_string": "C/T",
+          "location": "1:11203-11203"
+        }
+      ],
+      "populations": [
+        {
+          "population": "purdueEMS",
+          "allele_count": 970,
+          "allele": "C",
+          "frequency": 0.997942
+        },
+        {
+          "allele": "T",
+          "frequency": 0.00205761,
+          "allele_count": 2,
+          "population": "purdueEMS"
+        }
+      ]
+    }
+  }
+}

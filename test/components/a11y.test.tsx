@@ -111,6 +111,15 @@ describe('axe-core on the main states', () => {
         // Exercises the CAPS column and its chips, which must read by glyph and
         // text rather than by colour alone.
         sequenceForRegion={async (q) => kasp.template.seq.slice(q.start - kasp.template.start, q.end - kasp.template.start + 1)}
+        // Exercises the frequency column, whose figures must read as text.
+        alleleFrequencies={async (q) =>
+          Object.fromEntries(
+            q.ids.map((id) => [id, [
+              { population: 'SAP', allele: 'A', frequency: 0.35, count: 281 },
+              { population: 'SAP', allele: 'C', frequency: 0.65, count: 519 },
+            ]]),
+          )
+        }
       />,
     );
     await expectNoAxeViolations(container, 'genotyping inputs');

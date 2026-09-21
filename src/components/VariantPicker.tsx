@@ -1,10 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
 import { annotateVariants, enzymeCounts, type CapsAnnotation } from '../caps';
+import { alleleShare, minorAlleleFrequency, populationCounts, variantAllele, type AlleleShare } from '../frequency';
 import { isAbortError, isPrimersApiError } from '../errors';
-import type { GenesInRegion, GenotypingState, PrimerWarning, PrimersClient, RestrictionEnzyme, SequenceForRegion, VariantEntry, VariantKind, VariantListQuery, VariantSource } from '../types';
+import type { AlleleFrequencies, GenesInRegion, GenotypingState, PrimerWarning, PrimersClient, RestrictionEnzyme, SequenceForRegion, VariantEntry, VariantKind, VariantListQuery, VariantSource } from '../types';
 import { GENOTYPING_LIMITS, validateVariantInput } from '../validate';
 import { CheckboxField, NumberField, TextField } from './fields';
 import { useCountdown } from './hooks/useCountdown';
+import { MAX_ANNOTATED, useAlleleFrequencies } from './hooks/useAlleleFrequencies';
 import { useRegionSequence } from './hooks/useRegionSequence';
 import { useVariantList } from './hooks/useVariants';
 import { ManualVariantInputs, type ManualVariant } from './ManualVariantInputs';
@@ -13,6 +15,13 @@ import { Warnings } from './Warnings';
 import { fmtInt, useIdPrefix } from './util';
 
 const KINDS: ReadonlyArray<VariantKind> = ['snv', 'mnv', 'insertion', 'deletion', 'complex'];
+
+/**
+ * Below this the minor allele is too rare to screen for: at 5% of a 200-line
+ * panel only ten lines carry it, and the rarest variants here sit at one line
+ * in a hundred and eighty.
+ */
+const POLYMORPHIC_MAF = 0.05;
 
 /**
  * What each kind means, on hover and to a screen reader. The server assigns
@@ -27,7 +36,7 @@ const KIND_HELP: Readonly<Record<VariantKind, string>> = Object.freeze({
   complex: 'A change that is not a plain substitution, insertion or deletion — usually bases altered and the length changed at once.',
 });
 
-type VariantSortKey = 'position' | 'label' | 'kind' | 'ids' | 'consequence' | 'caps' | 'designable';
+type VariantSortKey = 'position' | 'label' | 'kind' | 'ids' | 'consequence' | 'frequency' | 'caps' | 'designable';
 
 const VARIANT_COLUMNS: ReadonlyArray<{ key: VariantSortKey; label: string }> = [
   { key: 'position', label: 'Position' },
@@ -35,6 +44,7 @@ const VARIANT_COLUMNS: ReadonlyArray<{ key: VariantSortKey; label: string }> = [
   { key: 'kind', label: 'Kind' },
   { key: 'ids', label: 'Ids' },
   { key: 'consequence', label: 'Consequence' },
+  { key: 'frequency', label: 'Frequency' },
   { key: 'caps', label: 'CAPS' },
   { key: 'designable', label: 'Designable' },
 ];
@@ -48,7 +58,11 @@ function capsRank(a: CapsAnnotation | undefined): number {
 }
 
 /** Every comparator falls back to position, so equal keys stay in genome order. */
-function compareVariants(key: VariantSortKey, caps: ReadonlyMap<string, CapsAnnotation>): (a: VariantEntry, b: VariantEntry) => number {
+function compareVariants(
+  key: VariantSortKey,
+  caps: ReadonlyMap<string, CapsAnnotation>,
+  frequencyOf: (v: VariantEntry) => number | null,
+): (a: VariantEntry, b: VariantEntry) => number {
   const byPos = (a: VariantEntry, b: VariantEntry) => a.vcf.position - b.vcf.position || a.key.localeCompare(b.key);
   switch (key) {
     case 'label':
@@ -59,6 +73,8 @@ function compareVariants(key: VariantSortKey, caps: ReadonlyMap<string, CapsAnno
       return (a, b) => (a.ids[0] ?? '').localeCompare(b.ids[0] ?? '') || byPos(a, b);
     case 'consequence':
       return (a, b) => (a.consequence ?? '~').localeCompare(b.consequence ?? '~') || byPos(a, b);
+    case 'frequency':
+      return (a, b) => (frequencyOf(b) ?? -1) - (frequencyOf(a) ?? -1) || byPos(a, b);
     case 'caps':
       return (a, b) => capsRank(caps.get(b.key)) - capsRank(caps.get(a.key)) || byPos(a, b);
     case 'designable':
@@ -177,6 +193,41 @@ function CapsCell({ annotation }: { annotation: CapsAnnotation | undefined }): J
   );
 }
 
+/**
+ * The alternate allele's share of one panel. Shown with the count behind it,
+ * because a frequency from a handful of lines and one from two thousand read
+ * the same otherwise.
+ */
+function FrequencyCell(p: {
+  share: (AlleleShare & { population: string }) | null;
+  pending: boolean;
+  /** True when no single panel was chosen, so the row names the one it used. */
+  named: boolean;
+}): JSX.Element {
+  if (!p.share) {
+    return p.pending ? (
+      <span className="gpr-sub" title="Still being looked up.">
+        …
+      </span>
+    ) : (
+      <span className="gpr-sub" title="This panel reports no frequency for this variant.">
+        –
+      </span>
+    );
+  }
+  const pct = p.share.frequency * 100;
+  return (
+    <span
+      className="gpr-freq"
+      title={`${(p.share.frequency * 100).toFixed(2)}% in ${p.share.population}${p.share.count !== null ? `, from ${fmtInt(p.share.count)} chromosomes` : ''}`}
+    >
+      <span className="gpr-freq-value">{pct < 1 ? pct.toFixed(2) : pct.toFixed(1)}%</span>
+      {p.share.count !== null ? <span className="gpr-sub"> n={fmtInt(p.share.count)}</span> : null}
+      {p.named ? <span className="gpr-sub gpr-block">{p.share.population}</span> : null}
+    </span>
+  );
+}
+
 function sourceLabel(source: VariantSource | null | undefined): string {
   if (!source?.name) return 'manual entry only';
   return source.release ? `${source.name} ${source.release} variants` : `${source.name} variants`;
@@ -191,6 +242,8 @@ export interface VariantPickerProps {
   /** Host-supplied gene search for the region browser; without it the gene track is hidden. */
   genesInRegion?: GenesInRegion;
   sequenceForRegion?: SequenceForRegion;
+  /** Supplies allele frequencies; omitted, there is no frequency column. */
+  alleleFrequencies?: AlleleFrequencies;
   /** Restriction enzymes to consider. Defaults to the bundled panel. */
   enzymes?: ReadonlyArray<RestrictionEnzyme>;
   state: GenotypingState;
@@ -229,6 +282,8 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
   const [shiftableOnly, setShiftableOnly] = useState(false);
   const [capsOnly, setCapsOnly] = useState(false);
   const [enzyme, setEnzyme] = useState('');
+  const [population, setPopulation] = useState('');
+  const [polymorphicOnly, setPolymorphicOnly] = useState(false);
   const lookupCtrl = useRef<AbortController | null>(null);
 
   const window = p.state.window ?? p.defaultWindow ?? null;
@@ -281,6 +336,47 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
             ? 'The reference sequence disagrees with the reported alleles, so restriction sites are not shown. The sequence source and the variant source are probably different releases.'
             : null;
   const enzymes = useMemo(() => [...enzymeCounts(caps.values())].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])), [caps]);
+
+  /**
+   * Frequencies for the listed variants, filled in as the batches land. A
+   * variant is looked up by its first id; one entered by hand has none and
+   * simply carries no figure.
+   */
+  const frequencyIds = useMemo(() => allRows.map((v) => v.ids[0]).filter((id): id is string => !!id), [allRows]);
+  const frequencies = useAlleleFrequencies(p.alleleFrequencies, p.systemName, frequencyIds);
+  const populations = useMemo(() => populationCounts(frequencies.byId), [frequencies.byId]);
+  const activePopulation = populations.some(([name]) => name === population) ? population : '';
+  const rowsOf = (v: VariantEntry) => (v.ids[0] ? frequencies.byId.get(v.ids[0]) : undefined);
+  /**
+   * The alternate allele's share, and which panel reported it.
+   *
+   * The panels barely overlap — EVA variants are called in SAP, BAP and
+   * Lozano, EMS ones only in the mutant panels — so with no panel chosen each
+   * row falls back to the widest panel that has anything to say about it
+   * rather than showing a blank that looks like missing data.
+   */
+  const shareOf = (v: VariantEntry): (AlleleShare & { population: string }) | null => {
+    const rows = rowsOf(v);
+    if (!rows) return null;
+    const allele = variantAllele(v);
+    const wanted = activePopulation ? [activePopulation] : populations.map(([name]) => name);
+    for (const name of wanted) {
+      const share = alleleShare(rows, name, allele);
+      if (share) return { ...share, population: name };
+    }
+    return null;
+  };
+  const mafOf = (v: VariantEntry): number | null => {
+    const rows = rowsOf(v);
+    if (!rows) return null;
+    const wanted = activePopulation ? [activePopulation] : populations.map(([name]) => name);
+    for (const name of wanted) {
+      const maf = minorAlleleFrequency(rows, name);
+      if (maf !== null) return maf;
+    }
+    return null;
+  };
+  const showFrequency = !frequencies.unsupported && populations.length > 0;
   const activeEnzyme = enzymes.some(([e]) => e === enzyme) ? enzyme : '';
 
   /** Facet values come from the listing, so only choices that match something are offered. */
@@ -294,7 +390,7 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
   // A new window can retire the chosen value; fall back to "any" rather than showing nothing.
   const activeConsequence = consequences.some(([c]) => c === consequence) ? consequence : '';
   const activeSource = sources.some(([c]) => c === source) ? source : '';
-  const anyFilter = !!(search || activeConsequence || activeSource || activeEnzyme || designableOnly || multiallelicOnly || shiftableOnly || capsOnly);
+  const anyFilter = !!(search || activeConsequence || activeSource || activeEnzyme || designableOnly || multiallelicOnly || shiftableOnly || capsOnly || polymorphicOnly);
 
   /**
    * A control earns its place only if it would change what the table shows.
@@ -327,6 +423,8 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
   const showMultiallelic = multiallelicOnly || splits((v) => !!v.multiallelic);
   const showShiftable = shiftableOnly || splits((v) => typeof v.shift === 'number' && v.shift > 0);
   const showCaps = capsOnly || (!capsUnknown && splits((v) => caps.get(v.key)?.verdict === 'caps'));
+  const showPolymorphic =
+    polymorphicOnly || (showFrequency && splits((v) => (mafOf(v) ?? -1) >= POLYMORPHIC_MAF));
 
   const rows = useMemo(() => {
     const kept = allRows.filter((v) => {
@@ -336,6 +434,10 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
       if (activeConsequence && v.consequence !== activeConsequence) return false;
       if (activeSource && !v.records.some((r) => r.source === activeSource)) return false;
       if (capsOnly && caps.get(v.key)?.verdict !== 'caps') return false;
+      if (polymorphicOnly) {
+        const maf = mafOf(v);
+        if (maf === null || maf < POLYMORPHIC_MAF) return false;
+      }
       if (activeEnzyme) {
         const a = caps.get(v.key);
         const named = (n: string) => n === activeEnzyme;
@@ -344,9 +446,19 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
       if (!search) return true;
       return v.label.toLowerCase().includes(search) || v.ids.some((i) => i.toLowerCase().includes(search));
     });
-    const cmp = compareVariants(sort.key, caps);
-    return [...kept].sort((a, b) => sort.dir * cmp(a, b));
-  }, [allRows, search, designableOnly, multiallelicOnly, shiftableOnly, capsOnly, activeConsequence, activeSource, activeEnzyme, caps, sort]);
+    const cmp = compareVariants(sort.key, caps, (v) => shareOf(v)?.frequency ?? null);
+    return [...kept].sort((a, b) => {
+      // A row with no figure has nothing to compare, so it goes last whichever
+      // way the column is sorted rather than leading the ascending view.
+      if (sort.key === 'frequency') {
+        const fa = shareOf(a)?.frequency ?? null;
+        const fb = shareOf(b)?.frequency ?? null;
+        if (fa === null && fb !== null) return 1;
+        if (fb === null && fa !== null) return -1;
+      }
+      return sort.dir * cmp(a, b);
+    });
+  }, [allRows, search, designableOnly, multiallelicOnly, shiftableOnly, capsOnly, polymorphicOnly, activeConsequence, activeSource, activeEnzyme, caps, frequencies.byId, activePopulation, sort]);
 
   const clearFilters = () => {
     setConsequence('');
@@ -356,6 +468,8 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
     setShiftableOnly(false);
     setCapsOnly(false);
     setEnzyme('');
+    setPolymorphicOnly(false);
+    setPopulation('');
     p.onFilters({ ...filters, query: undefined });
   };
 
@@ -557,6 +671,17 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
                     onChange={setSource}
                   />
                 ) : null}
+                {populations.length > 1 || activePopulation ? (
+                  <FacetSelect
+                    id={`${idp}-population`}
+                    label="Panel"
+                    anyLabel="Any panel"
+                    value={activePopulation}
+                    options={populations}
+                    disabled={p.disabled}
+                    onChange={setPopulation}
+                  />
+                ) : null}
                 {enzymes.length > 1 || activeEnzyme ? (
                   <FacetSelect
                     id={`${idp}-enzyme`}
@@ -579,6 +704,15 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
                 {showShiftable ? (
                   <CheckboxField id={`${idp}-shiftable`} label="Can slide" checked={shiftableOnly} onChange={setShiftableOnly} />
                 ) : null}
+                {showPolymorphic ? (
+                  <CheckboxField
+                    id={`${idp}-polymorphic`}
+                    label="Polymorphic only"
+                    description={`Hides variants whose minor allele is carried by fewer than ${Math.round(POLYMORPHIC_MAF * 100)}% of the chosen panel, which are too rare to screen for.`}
+                    checked={polymorphicOnly}
+                    onChange={setPolymorphicOnly}
+                  />
+                ) : null}
                 {showCaps ? (
                   <CheckboxField
                     id={`${idp}-caps`}
@@ -598,6 +732,12 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
                 ) : null}
               </div>
               {capsNote ? <p className="gpr-sub gpr-caps-note">{capsNote}</p> : null}
+              {showFrequency && frequencies.capped ? (
+                <p className="gpr-sub gpr-caps-note">
+                  Frequencies were looked up for the first {fmtInt(MAX_ANNOTATED)} variants; narrow the window to cover
+                  the rest.
+                </p>
+              ) : null}
               {rows.length ? (
               <div className="gpr-table-wrap gpr-variant-scroll">
                 <table className="gpr-table gpr-variant-table">
@@ -610,7 +750,7 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
                       <th scope="col" className="gpr-col-check">
                         <span className="gpr-visually-hidden">Select</span>
                       </th>
-                      {VARIANT_COLUMNS.map((c) => (
+                      {VARIANT_COLUMNS.filter((c) => c.key !== 'frequency' || showFrequency).map((c) => (
                         <th key={c.key} scope="col" aria-sort={sort.key === c.key ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined}>
                           <button
                             type="button"
@@ -666,6 +806,11 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
                             </span>
                           </td>
                           <td>{v.consequence ?? <span className="gpr-sub">–</span>}</td>
+                          {showFrequency ? (
+                            <td className="gpr-num">
+                              <FrequencyCell share={shareOf(v)} pending={frequencies.loading && !rowsOf(v)} named={!activePopulation} />
+                            </td>
+                          ) : null}
                           <td>
                             <CapsCell annotation={caps.get(v.key)} />
                           </td>

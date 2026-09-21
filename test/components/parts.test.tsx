@@ -953,6 +953,114 @@ describe('VariantPicker', () => {
     expect(document.querySelector(`label[for="${ems.id}"]`)).not.toHaveAttribute('title');
   });
 
+  describe('allele frequency', () => {
+    const freqCapture = (JSON.parse(readFileSync(pkgPath('test', 'fixtures', 'genotyping', 'capture-ensembl-variation-pops.json'), 'utf8')) as {
+      response: Record<string, { populations: Array<Record<string, unknown>> }>;
+    }).response;
+    /** Answers like the host adapter does, mapping allele_count to count. */
+    const alleleFrequencies = async (q: { ids: string[] }) =>
+      Object.fromEntries(
+        q.ids
+          .filter((id) => freqCapture[id])
+          .map((id) => [
+            id,
+            freqCapture[id]!.populations.map((r) => ({
+              population: String(r.population),
+              allele: String(r.allele),
+              frequency: Number(r.frequency),
+              count: r.allele_count == null ? null : Number(r.allele_count),
+            })),
+          ]),
+      );
+    const withFreq = (over: Record<string, unknown> = {}) => base({ alleleFrequencies, ...over });
+    const freqCell = (position: number) =>
+      within(screen.getByRole('row', { name: new RegExp(String(position)) })).getAllByRole('cell')[5]!;
+
+    it('shows the alternate allele’s share with the panel it came from', async () => {
+      const fake = new FakePrimersClient();
+      fake.onListVariants = () => variantList;
+      render(<VariantPicker client={fake} {...withFreq()} />);
+      await screen.findByRole('table', { name: /variants/ });
+      await waitFor(() => expect(freqCell(11182)).toHaveTextContent('0.82%'));
+      expect(freqCell(11182)).toHaveTextContent('n=6');
+      // With no single panel chosen, each row names the one that answered.
+      expect(freqCell(11182)).toHaveTextContent('BAP');
+      expect(freqCell(11193)).toHaveTextContent('USDA-Lubbock-EMS3');
+    });
+
+    it('reads an indel off its minimal allele, not its VCF one', async () => {
+      // The deletion is CA>C in VCF and A/- minimally; only the second matches
+      // a frequency row, so a figure here proves the join is on `minimal`.
+      const fake = new FakePrimersClient();
+      fake.onListVariants = () => variantList;
+      render(<VariantPicker client={fake} {...withFreq()} />);
+      await screen.findByRole('table', { name: /variants/ });
+      // The row is labelled by its minimal position, 11283, not the VCF 11282.
+      await waitFor(() => expect(freqCell(11283)).toHaveTextContent('7.9%'));
+      expect(freqCell(11283)).toHaveTextContent('n=58');
+    });
+
+    it('narrows to one panel, leaving the rows it says nothing about blank', async () => {
+      const fake = new FakePrimersClient();
+      fake.onListVariants = () => variantList;
+      const user = userEvent.setup();
+      render(<VariantPicker client={fake} {...withFreq()} />);
+      await screen.findByRole('table', { name: /variants/ });
+      await waitFor(() => expect(freqCell(11182)).toHaveTextContent('0.82%'));
+      await user.selectOptions(screen.getByRole('combobox', { name: 'Panel' }), 'USDA-Lubbock-EMS3');
+      expect(freqCell(11193)).toHaveTextContent('0.56%');
+      expect(freqCell(11182)).toHaveTextContent('–');
+      // A chosen panel needs no per-row label.
+      expect(freqCell(11193)).not.toHaveTextContent('USDA-Lubbock-EMS3');
+    });
+
+    it('sorts by frequency and keeps rows without one at the bottom either way', async () => {
+      const fake = new FakePrimersClient();
+      // A variant the frequency source says nothing about.
+      const listing = JSON.parse(JSON.stringify(variantList)) as VariantListResponse;
+      listing.variants[0]!.ids = ['rs-unknown-to-the-source'];
+      fake.onListVariants = () => listing;
+      const user = userEvent.setup();
+      render(<VariantPicker client={fake} {...withFreq()} />);
+      await screen.findByRole('table', { name: /variants/ });
+      await waitFor(() => expect(screen.getByRole('table', { name: /variants/ })).toHaveTextContent('7.9%'));
+
+      const blankLast = () => {
+        const rows = within(screen.getByRole('table', { name: /variants/ })).getAllByRole('row').slice(1);
+        const texts = rows.map((r) => within(r).getAllByRole('cell')[5]!.textContent ?? '');
+        expect(texts[texts.length - 1]).toContain('–');
+      };
+      await user.click(screen.getByRole('button', { name: 'Frequency' }));
+      blankLast();
+      await user.click(screen.getByRole('button', { name: 'Frequency' }));
+      blankLast();
+    });
+
+    it('hides variants whose minor allele is too rare to screen for', async () => {
+      const fake = new FakePrimersClient();
+      fake.onListVariants = () => variantList;
+      const user = userEvent.setup();
+      render(<VariantPicker client={fake} {...withFreq()} />);
+      const table = await screen.findByRole('table', { name: /variants/ });
+      await waitFor(() => expect(table).toHaveTextContent('7.9%'));
+      await user.click(screen.getByRole('checkbox', { name: 'Polymorphic only' }));
+      // Only the deletion at 7.9% clears 5%; the rest sit under 1%.
+      const rows = within(screen.getByRole('table', { name: /cannot be designed/ })).getAllByRole('row').slice(1);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toHaveTextContent('7.9%');
+    });
+
+    it('offers no column and no panel menu when the host has no frequency source', async () => {
+      const fake = new FakePrimersClient();
+      fake.onListVariants = () => variantList;
+      render(<VariantPicker client={fake} {...base()} />);
+      const table = await screen.findByRole('table', { name: /variants/ });
+      expect(within(table).queryByRole('button', { name: 'Frequency' })).toBeNull();
+      expect(screen.queryByRole('combobox', { name: 'Panel' })).toBeNull();
+      expect(screen.queryByRole('checkbox', { name: 'Polymorphic only' })).toBeNull();
+    });
+  });
+
   describe('CAPS annotation', () => {
     // Real bases for the window, cut from the design capture so the two
     // fixtures cannot drift apart.

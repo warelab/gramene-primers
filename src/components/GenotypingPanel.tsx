@@ -3,7 +3,7 @@ import { estimateCheckCpu } from '../cost';
 import { designModeOf } from '../modes';
 import { buildGenotypingCheckRequest, buildGenotypingRequest, CheckRequestError, defaultPangenomeGenomes, GENOTYPING_CHECK_LIMITS } from '../request';
 import { submittedGenotypingSets } from '../results';
-import type { CheckName, GenesInRegion, GenomesResponse, GenotypingSet, GenotypingState, GenotypingTab, PrimerDesignerState, PrimersClient, RestrictionEnzyme, SequenceForRegion } from '../types';
+import type { AlleleFrequencies, CheckName, GenesInRegion, GenomesResponse, GenotypingSet, GenotypingState, GenotypingTab, PrimerDesignerState, PrimersClient, RestrictionEnzyme, SequenceForRegion } from '../types';
 import { AlleleMatrix } from './AlleleMatrix';
 import { AssayOptions } from './AssayOptions';
 import { ErrorBanner } from './ErrorBanner';
@@ -33,6 +33,7 @@ export interface GenotypingPanelProps {
   /** Host-supplied gene search for the variant browser. */
   genesInRegion?: GenesInRegion;
   sequenceForRegion?: SequenceForRegion;
+  alleleFrequencies?: AlleleFrequencies;
   enzymes?: ReadonlyArray<RestrictionEnzyme>;
   pangenomeFeature?: boolean;
   exportFeature?: boolean;
@@ -165,6 +166,7 @@ export function GenotypingPanel(p: GenotypingPanelProps): JSX.Element {
         state={gt}
         genesInRegion={p.genesInRegion}
         sequenceForRegion={p.sequenceForRegion}
+        alleleFrequencies={p.alleleFrequencies}
         enzymes={p.enzymes}
         defaultWindow={p.defaultWindow}
         disabled={p.disabled}

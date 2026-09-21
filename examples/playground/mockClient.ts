@@ -31,6 +31,7 @@ import {
   type GenotypeSetResults,
   type GenotypingDesignRequest,
   type GenotypingDesignResponse,
+  type PopulationFrequency,
   type GrameneGene,
   type OffTarget,
   type PangenomeGenomeResult,
@@ -65,6 +66,7 @@ import kaspDesignCapture from '../../test/fixtures/genotyping/capture-genotyping
 import insertionDesignCapture from '../../test/fixtures/genotyping/capture-genotyping-design-tmp_1_11502_C_CGT.json';
 import deletionDesignCapture from '../../test/fixtures/genotyping/capture-genotyping-design-manual-deletion.json';
 import variantsListCapture from '../../test/fixtures/genotyping/capture-variants-list-1_11180-11290.json';
+import frequencyCapture from '../../test/fixtures/genotyping/capture-ensembl-variation-pops.json';
 import variantsLookupCapture from '../../test/fixtures/genotyping/capture-variants-lookup-tmp_1_11502_C_CGT.json';
 import type { MockVariant } from './pages';
 
@@ -827,4 +829,30 @@ export async function mockSequenceForRegion(
   // Outside the captured span there is nothing honest to return.
   if (from < 0 || to > template.seq.length) return null;
   return template.seq.slice(from, to);
+}
+
+/**
+ * A stand-in for the host's frequency source, replaying a recorded
+ * `POST /variation/{species}?pops=1`. It answers about the ids it was asked
+ * for and stays silent about the rest, as the real one does, and it keeps the
+ * upstream spelling of the count so the mapping the host performs is exercised.
+ */
+export async function mockAlleleFrequencies(
+  query: { system_name: string; ids: string[] },
+  options?: RequestOptions,
+): Promise<Record<string, PopulationFrequency[]>> {
+  await wait(160, options?.signal);
+  const recorded = (frequencyCapture as { response: Record<string, { populations: Array<Record<string, unknown>> }> }).response;
+  const out: Record<string, PopulationFrequency[]> = {};
+  for (const id of query.ids) {
+    const rows = recorded[id]?.populations;
+    if (!rows) continue;
+    out[id] = rows.map((r) => ({
+      population: String(r.population),
+      allele: String(r.allele),
+      frequency: Number(r.frequency),
+      count: r.allele_count === undefined || r.allele_count === null ? null : Number(r.allele_count),
+    }));
+  }
+  return out;
 }
