@@ -5,6 +5,21 @@ All notable changes to this project are documented here. The format follows
 [semantic versioning](https://semver.org/). `0.x` releases are published with
 `--tag next`; `1.0.0` follows once `/primers` is live on data.sorghumbase.org.
 
+## [0.11.0] — 2026-09-21
+
+### Added
+- **Allele frequency in the variant picker.** A sortable **Frequency** column shows the alternate allele's share of a panel with the count behind it, a **Panel** menu chooses which panel to read against, and **Polymorphic only** hides variants whose minor allele is carried by under 5% of it. All three appear only where they could change the table, as every filter has since 0.10.0: without the `alleleFrequencies` callback there is no column at all.
+- **`alleleFrequencies`**, a new optional prop, in the shape of `genesInRegion` and `sequenceForRegion`. The library decides how much to ask for and how often — batches of 200 ids, two in flight, stopping after 600 variants with a note — while the host only makes the request. Answers are kept by variant id, so filtering, sorting and returning to a window already seen cost nothing.
+- Headless exports: `alleleShare`, `minorAlleleFrequency`, `dedupePopulations`, `populationCounts`, `populationsOf`, `variantAllele`, and the `AlleleFrequencies` and `PopulationFrequency` types.
+
+### Notes
+- **An allele must be matched the way the listing's `minimal` block writes it.** A deletion is `-` there and in Ensembl alike, while its VCF form carries an anchor base (`CA>C`) that no frequency row will ever match; matching on `vcf.alt` would silently miss every indel. There is a test for exactly that, against a recorded payload.
+- **The minor-allele frequency is computed, not read.** Ensembl reports `MAF` and `minor_allele` as null for sorghum even where its own population rows carry real frequencies.
+- **Rows arrive repeated** — the same population and allele several times over — and are collapsed.
+- **Panels barely overlap**: EVA variants are called in the association panels and EMS ones only in the mutant panels, so with no panel chosen each row falls back to the widest panel that has anything to say about it, and names which one answered.
+- A frequency without its denominator is not worth much, so the count is shown beside every figure: 0.56% of an EMS panel is one line in a hundred and eighty.
+- About one variant in ten has no frequency reported, and one entered by hand has no id to look up; both read as a dash rather than as zero.
+
 ## [0.10.0] — 2026-09-21
 
 ### Added
