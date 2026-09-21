@@ -157,11 +157,19 @@ export interface CheckboxFieldProps {
   onChange: (checked: boolean) => void;
   disabled?: boolean;
   hint?: ReactNode;
+  /**
+   * An explanation shown on hover and read out by assistive software, without
+   * taking a line of its own. Use `hint` when the words should always be
+   * visible; use this when a row of checkboxes would become unreadable.
+   */
+  description?: string;
   className?: string;
 }
 
 export function CheckboxField(p: CheckboxFieldProps): JSX.Element {
   const hintId = `${p.id}-hint`;
+  const descId = `${p.id}-desc`;
+  const describedBy = cx(p.hint ? hintId : null, p.description ? descId : null) || undefined;
   return (
     <div className={cx('gpr-check-row', p.className)}>
       <input
@@ -170,12 +178,19 @@ export function CheckboxField(p: CheckboxFieldProps): JSX.Element {
         type="checkbox"
         checked={p.checked}
         disabled={p.disabled}
-        aria-describedby={p.hint ? hintId : undefined}
+        aria-describedby={describedBy}
         onChange={(e) => p.onChange(e.target.checked)}
       />
-      <label className="gpr-label gpr-label-inline" htmlFor={p.id}>
+      {/* The title is the tooltip; the hidden copy is what a screen reader
+          reads, since a title alone is not reliably announced. */}
+      <label className="gpr-label gpr-label-inline" htmlFor={p.id} title={p.description}>
         {p.label}
       </label>
+      {p.description ? (
+        <span id={descId} className="gpr-visually-hidden">
+          {p.description}
+        </span>
+      ) : null}
       {p.hint ? (
         <span id={hintId} className="gpr-hint gpr-check-hint">
           {p.hint}

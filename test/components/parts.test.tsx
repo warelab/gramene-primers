@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -712,13 +713,16 @@ describe('VariantPicker', () => {
     expect(within(screen.getByRole('table', { name: /cannot be designed/ })).getAllByRole('row')).toHaveLength(2);
   });
 
-  it('offers no choice when every row shares one consequence', async () => {
+  it('offers no consequence menu when every row shares one consequence', async () => {
     const fake = new FakePrimersClient();
     fake.onListVariants = () => variantList;
     render(<VariantPicker client={fake} {...base()} />);
     await screen.findByRole('table', { name: /variants/ });
     expect(new Set(variantList.variants.map((v) => v.consequence)).size).toBe(1);
-    expect(screen.getByRole('combobox', { name: 'Consequence' })).toBeDisabled();
+    // One option is no choice; the menu is not shown at all.
+    expect(screen.queryByRole('combobox', { name: 'Consequence' })).toBeNull();
+    // Three sources, so that menu is worth showing.
+    expect(screen.getByRole('combobox', { name: 'Source' })).toBeTruthy();
   });
 
   it('filters by the source a variant was reported from', async () => {
@@ -754,12 +758,17 @@ describe('VariantPicker', () => {
     const fake = new FakePrimersClient();
     fake.onListVariants = () => variantList;
     const user = userEvent.setup();
-    render(<VariantPicker client={fake} {...base()} />);
+    // Held state, as a host holds it: the search filter is emitted rather than
+    // kept inside the picker, so a spy would swallow it.
+    function Controlled(): JSX.Element {
+      const [filters, setFilters] = useState<GenotypingState['filters']>(undefined);
+      return <VariantPicker client={fake} {...base({ state: { window, filters } as GenotypingState, onFilters: setFilters })} />;
+    }
+    render(<Controlled />);
     await screen.findByRole('table', { name: /variants/ });
-    // No variant in this window is multi-allelic.
-    expect(variantList.variants.every((v) => !v.multiallelic)).toBe(true);
-
-    await user.click(screen.getByRole('checkbox', { name: 'Multi-allelic only' }));
+    // Search is always offered, unlike a filter that could only ever empty the
+    // table, which is no longer shown at all.
+    await user.type(screen.getByRole('searchbox', { name: 'Search' }), 'nothing matches this');
     expect(screen.queryByRole('table', { name: /variants/ })).toBeNull();
     expect(screen.getByText('No variants match these filters.')).toBeTruthy();
 
@@ -827,6 +836,123 @@ describe('VariantPicker', () => {
     expect(p.onSelect).toHaveBeenCalledWith({ manual: { region: '1', position: 11109, ref: 'C', alt: 'A' } });
   });
 
+  describe('only filters that could change the table', () => {
+    const shown = (role: 'checkbox' | 'combobox', name: string) => screen.queryByRole(role, { name });
+
+    it('offers only the kinds that occur in the region', async () => {
+      const fake = new FakePrimersClient();
+      fake.onListVariants = () => variantList;
+      render(<VariantPicker client={fake} {...base()} />);
+      await screen.findByRole('table', { name: /variants/ });
+      expect(new Set(variantList.variants.map((v) => v.kind))).toEqual(new Set(['snv', 'deletion']));
+      expect(shown('checkbox', 'snv')).toBeTruthy();
+      expect(shown('checkbox', 'deletion')).toBeTruthy();
+      for (const absent of ['mnv', 'insertion', 'complex']) expect(shown('checkbox', absent), absent).toBeNull();
+    });
+
+    it('keeps an unticked kind on screen once its rows are gone', async () => {
+      // The kinds are filtered by the server, so unticking one empties it out
+      // of the listing. Hiding it then would leave no way to tick it back on.
+      const fake = new FakePrimersClient();
+      fake.onListVariants = (q) => ({
+        ...variantList,
+        variants: variantList.variants.filter((v) => !q.types || q.types.includes(v.kind)),
+      });
+      const user = userEvent.setup();
+      function Controlled(): JSX.Element {
+        const [filters, setFilters] = useState<GenotypingState['filters']>(undefined);
+        return <VariantPicker client={fake} {...base({ state: { window, filters } as GenotypingState, onFilters: setFilters })} />;
+      }
+      render(<Controlled />);
+      await screen.findByRole('table', { name: /variants/ });
+
+      await user.click(screen.getByRole('checkbox', { name: 'deletion' }));
+      await waitFor(() => expect(screen.queryByRole('checkbox', { name: 'deletion' })).not.toBeChecked());
+      // Still there, and ticking it brings its rows back.
+      await user.click(screen.getByRole('checkbox', { name: 'deletion' }));
+      await waitFor(() =>
+        expect(within(screen.getByRole('table', { name: /variants/ })).getAllByRole('row')).toHaveLength(variantList.variants.length + 1),
+      );
+    });
+
+    it('hides every kind while the listing cannot be trusted to be complete', async () => {
+      const fake = new FakePrimersClient();
+      fake.onListVariants = () => ({ ...variantList, truncated: true, total: 5000, returned: variantList.variants.length });
+      render(<VariantPicker client={fake} {...base()} />);
+      await screen.findByRole('table', { name: /variants/ });
+      // Truncated: a kind missing from these rows may still be in the region.
+      for (const kind of ['snv', 'mnv', 'insertion', 'deletion', 'complex']) expect(shown('checkbox', kind), kind).toBeTruthy();
+    });
+
+    it('drops toggles that would select everything or nothing', async () => {
+      const fake = new FakePrimersClient();
+      fake.onListVariants = () => variantList;
+      render(<VariantPicker client={fake} {...base()} />);
+      await screen.findByRole('table', { name: /variants/ });
+      // Every row is designable and none is multi-allelic, so neither sorts them.
+      expect(variantList.variants.every((v) => v.designable)).toBe(true);
+      expect(variantList.variants.every((v) => !v.multiallelic)).toBe(true);
+      expect(shown('checkbox', 'Designable only')).toBeNull();
+      expect(shown('checkbox', 'Multi-allelic only')).toBeNull();
+      // One of the four can slide, so that one does.
+      expect(shown('checkbox', 'Can slide')).toBeTruthy();
+    });
+
+    it('keeps a toggle that does sort the rows', async () => {
+      const fake = new FakePrimersClient();
+      const listing = withUndesignable();
+      fake.onListVariants = () => listing;
+      render(<VariantPicker client={fake} {...base()} />);
+      await screen.findByRole('table', { name: /cannot be designed/ });
+      expect(shown('checkbox', 'Designable only')).toBeTruthy();
+    });
+
+    it('offers the EMS switch only where EMS entries are present', async () => {
+      const fake = new FakePrimersClient();
+      fake.onListVariants = () => variantList;
+      const { unmount } = render(<VariantPicker client={fake} {...base()} />);
+      await screen.findByRole('table', { name: /variants/ });
+      expect(variantList.variants.some((v) => v.ems)).toBe(true);
+      expect(screen.queryByRole('checkbox', { name: /Include EMS mutations/ })).toBeTruthy();
+      unmount();
+
+      const plain = new FakePrimersClient();
+      plain.onListVariants = () => ({ ...variantList, variants: variantList.variants.map((v) => ({ ...v, ems: false })) });
+      render(<VariantPicker client={plain} {...base()} />);
+      await screen.findByRole('table', { name: /variants/ });
+      expect(screen.queryByRole('checkbox', { name: /Include EMS mutations/ })).toBeNull();
+    });
+  });
+
+  it('explains each variant kind on hover and to a screen reader', async () => {
+    const fake = new FakePrimersClient();
+    fake.onListVariants = () => variantList;
+    render(<VariantPicker client={fake} {...base()} />);
+    await screen.findByRole('table', { name: /variants/ });
+    for (const [kind, expected] of [
+      ['snv', /one base changed/i],
+      ['deletion', /removed/i],
+    ] as const) {
+      const box = screen.getByRole('checkbox', { name: kind });
+      // Read out by assistive software...
+      expect(box, kind).toHaveAccessibleDescription(expected);
+      // ...and shown as a tooltip on the label the pointer is over.
+      const label = document.querySelector(`label[for="${box.id}"]`) as HTMLElement;
+      expect(label.title, kind).toMatch(expected);
+    }
+  });
+
+  it('leaves a checkbox with no description undescribed rather than empty', async () => {
+    const fake = new FakePrimersClient();
+    fake.onListVariants = () => variantList;
+    render(<VariantPicker client={fake} {...base()} />);
+    await screen.findByRole('table', { name: /variants/ });
+    // The EMS checkbox uses a visible hint, so its description is that hint.
+    const ems = screen.getByRole('checkbox', { name: /Include EMS mutations/ });
+    expect(ems).toHaveAccessibleDescription(/private to one mutant line/);
+    expect(document.querySelector(`label[for="${ems.id}"]`)).not.toHaveAttribute('title');
+  });
+
   describe('CAPS annotation', () => {
     // Real bases for the window, cut from the design capture so the two
     // fixtures cannot drift apart.
@@ -857,7 +983,8 @@ describe('VariantPicker', () => {
       const table = await screen.findByRole('table', { name: /variants/ });
       expect(within(table).getAllByText('Unknown')).toHaveLength(variantList.variants.length);
       expect(screen.getByText(/supplies no reference sequence/)).toBeTruthy();
-      expect(screen.getByRole('checkbox', { name: 'CAPS-able only' })).toBeDisabled();
+      // Without sequence the filter could sort nothing, so it is not offered.
+      expect(screen.queryByRole('checkbox', { name: 'CAPS-able only' })).toBeNull();
     });
 
     it('refuses the whole window when the sequence disagrees with the reported alleles', async () => {
@@ -917,7 +1044,8 @@ describe('VariantPicker', () => {
       const table = await screen.findByRole('table', { name: /variants/ });
       // An empty panel discriminates nothing, but that is "None", not "Unknown".
       await waitFor(() => expect(within(table).getAllByText('None')).toHaveLength(variantList.variants.length));
-      expect(screen.getByRole('combobox', { name: 'Enzyme' })).toBeDisabled();
+      // No enzyme discriminates anything, so the menu is not offered.
+      expect(screen.queryByRole('combobox', { name: 'Enzyme' })).toBeNull();
     });
   });
 });

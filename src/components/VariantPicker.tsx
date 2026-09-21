@@ -14,6 +14,19 @@ import { fmtInt, useIdPrefix } from './util';
 
 const KINDS: ReadonlyArray<VariantKind> = ['snv', 'mnv', 'insertion', 'deletion', 'complex'];
 
+/**
+ * What each kind means, on hover and to a screen reader. The server assigns
+ * the kind; these say what it stands for, in the terms the table then uses to
+ * display the change.
+ */
+const KIND_HELP: Readonly<Record<VariantKind, string>> = Object.freeze({
+  snv: 'Single nucleotide variant: one base changed, such as C/T. The most straightforward kind to tell apart by allele-specific PCR.',
+  mnv: 'Multi-nucleotide variant: several adjacent bases changed together, the same number of them in each allele.',
+  insertion: 'Bases added between two positions, listed at the gap between them: 1:513^514 -/AA.',
+  deletion: 'Bases removed, listed over the bases that go: 1:259-262 CAAA/-.',
+  complex: 'A change that is not a plain substitution, insertion or deletion — usually bases altered and the length changed at once.',
+});
+
 type VariantSortKey = 'position' | 'label' | 'kind' | 'ids' | 'consequence' | 'caps' | 'designable';
 
 const VARIANT_COLUMNS: ReadonlyArray<{ key: VariantSortKey; label: string }> = [
@@ -283,6 +296,38 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
   const activeSource = sources.some(([c]) => c === source) ? source : '';
   const anyFilter = !!(search || activeConsequence || activeSource || activeEnzyme || designableOnly || multiallelicOnly || shiftableOnly || capsOnly);
 
+  /**
+   * A control earns its place only if it would change what the table shows.
+   *
+   * Two rules keep this from trapping anyone. A filter that is *currently* on
+   * always stays, or there would be no way to turn it back off. And when the
+   * listing cannot be trusted to hold everything in the region — truncated, or
+   * replaced by an id lookup — nothing is hidden, since absence from the rows
+   * would not mean absence from the region.
+   */
+  const partial = !!list.data?.truncated || !!lookup;
+  /** True when a property is on some rows and off others, so filtering by it sorts them. */
+  const splits = (pred: (v: VariantEntry) => boolean): boolean => {
+    if (!allRows.length) return false;
+    let n = 0;
+    for (const v of allRows) if (pred(v)) n++;
+    return n > 0 && n < allRows.length;
+  };
+
+  const kindChecked = (kind: VariantKind) => !filters.types || filters.types.includes(kind);
+  /**
+   * The kinds are filtered by the server, so unticking one takes its rows out
+   * of the listing. Such a kind is kept visible by `!kindChecked` — it is the
+   * one the user just switched off, and hiding it would strand them.
+   */
+  const kindsPresent = useMemo(() => new Set(allRows.map((v) => v.kind)), [allRows]);
+  const shownKinds = KINDS.filter((kind) => partial || kindsPresent.has(kind) || !kindChecked(kind));
+  const showEms = partial || filters.includeEms === false || allRows.some((v) => v.ems);
+  const showDesignable = designableOnly || splits((v) => v.designable);
+  const showMultiallelic = multiallelicOnly || splits((v) => !!v.multiallelic);
+  const showShiftable = shiftableOnly || splits((v) => typeof v.shift === 'number' && v.shift > 0);
+  const showCaps = capsOnly || (!capsUnknown && splits((v) => caps.get(v.key)?.verdict === 'caps'));
+
   const rows = useMemo(() => {
     const kept = allRows.filter((v) => {
       if (designableOnly && !v.designable) return false;
@@ -386,27 +431,34 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
             </p>
           </fieldset>
 
-          <fieldset className="gpr-fieldset gpr-variant-filters" disabled={p.disabled}>
-            <legend className="gpr-legend gpr-legend-small">Filters</legend>
-            <div className="gpr-variant-kinds">
-              {KINDS.map((kind) => (
+          {shownKinds.length || showEms ? (
+            <fieldset className="gpr-fieldset gpr-variant-filters" disabled={p.disabled}>
+              <legend className="gpr-legend gpr-legend-small">Filters</legend>
+              {shownKinds.length ? (
+                <div className="gpr-variant-kinds">
+                  {shownKinds.map((kind) => (
+                    <CheckboxField
+                      key={kind}
+                      id={`${idp}-kind-${kind}`}
+                      label={kind}
+                      description={KIND_HELP[kind]}
+                      checked={kindChecked(kind)}
+                      onChange={(on) => toggleKind(kind, on)}
+                    />
+                  ))}
+                </div>
+              ) : null}
+              {showEms ? (
                 <CheckboxField
-                  key={kind}
-                  id={`${idp}-kind-${kind}`}
-                  label={kind}
-                  checked={!filters.types || filters.types.includes(kind)}
-                  onChange={(on) => toggleKind(kind, on)}
+                  id={`${idp}-ems`}
+                  label="Include EMS mutations"
+                  checked={filters.includeEms !== false}
+                  hint="EMS mutations are private to one mutant line."
+                  onChange={(on) => p.onFilters({ ...filters, includeEms: on ? undefined : false })}
                 />
-              ))}
-            </div>
-            <CheckboxField
-              id={`${idp}-ems`}
-              label="Include EMS mutations"
-              checked={filters.includeEms !== false}
-              hint="EMS mutations are private to one mutant line."
-              onChange={(on) => p.onFilters({ ...filters, includeEms: on ? undefined : false })}
-            />
-          </fieldset>
+              ) : null}
+            </fieldset>
+          ) : null}
 
           <div className="gpr-variant-lookup">
             <TextField
@@ -481,45 +533,61 @@ export function VariantPicker(p: VariantPickerProps): JSX.Element {
                   className="gpr-variant-search"
                   onChange={(q) => p.onFilters({ ...filters, query: q || undefined })}
                 />
-                <FacetSelect
-                  id={`${idp}-consequence`}
-                  label="Consequence"
-                  anyLabel="Any consequence"
-                  value={activeConsequence}
-                  options={consequences}
-                  disabled={p.disabled}
-                  onChange={setConsequence}
-                />
-                <FacetSelect
-                  id={`${idp}-source`}
-                  label="Source"
-                  anyLabel="Any source"
-                  value={activeSource}
-                  options={sources}
-                  disabled={p.disabled}
-                  onChange={setSource}
-                />
-                <FacetSelect
-                  id={`${idp}-enzyme`}
-                  label="Enzyme"
-                  anyLabel="Any enzyme"
-                  value={activeEnzyme}
-                  options={enzymes}
-                  disabled={p.disabled || capsUnknown}
-                  onChange={setEnzyme}
-                />
+                {/* One option is no choice at all, so the menu only appears
+                    once there is something to pick between. */}
+                {consequences.length > 1 || activeConsequence ? (
+                  <FacetSelect
+                    id={`${idp}-consequence`}
+                    label="Consequence"
+                    anyLabel="Any consequence"
+                    value={activeConsequence}
+                    options={consequences}
+                    disabled={p.disabled}
+                    onChange={setConsequence}
+                  />
+                ) : null}
+                {sources.length > 1 || activeSource ? (
+                  <FacetSelect
+                    id={`${idp}-source`}
+                    label="Source"
+                    anyLabel="Any source"
+                    value={activeSource}
+                    options={sources}
+                    disabled={p.disabled}
+                    onChange={setSource}
+                  />
+                ) : null}
+                {enzymes.length > 1 || activeEnzyme ? (
+                  <FacetSelect
+                    id={`${idp}-enzyme`}
+                    label="Enzyme"
+                    anyLabel="Any enzyme"
+                    value={activeEnzyme}
+                    options={enzymes}
+                    disabled={p.disabled || capsUnknown}
+                    onChange={setEnzyme}
+                  />
+                ) : null}
               </div>
               <div className="gpr-variant-toolbar">
-                <CheckboxField id={`${idp}-designable`} label="Designable only" checked={designableOnly} onChange={setDesignableOnly} />
-                <CheckboxField id={`${idp}-multiallelic`} label="Multi-allelic only" checked={multiallelicOnly} onChange={setMultiallelicOnly} />
-                <CheckboxField id={`${idp}-shiftable`} label="Can slide" checked={shiftableOnly} onChange={setShiftableOnly} />
-                <CheckboxField
-                  id={`${idp}-caps`}
-                  label="CAPS-able only"
-                  checked={capsOnly}
-                  disabled={p.disabled || capsUnknown}
-                  onChange={setCapsOnly}
-                />
+                {showDesignable ? (
+                  <CheckboxField id={`${idp}-designable`} label="Designable only" checked={designableOnly} onChange={setDesignableOnly} />
+                ) : null}
+                {showMultiallelic ? (
+                  <CheckboxField id={`${idp}-multiallelic`} label="Multi-allelic only" checked={multiallelicOnly} onChange={setMultiallelicOnly} />
+                ) : null}
+                {showShiftable ? (
+                  <CheckboxField id={`${idp}-shiftable`} label="Can slide" checked={shiftableOnly} onChange={setShiftableOnly} />
+                ) : null}
+                {showCaps ? (
+                  <CheckboxField
+                    id={`${idp}-caps`}
+                    label="CAPS-able only"
+                    checked={capsOnly}
+                    disabled={p.disabled || capsUnknown}
+                    onChange={setCapsOnly}
+                  />
+                ) : null}
                 <span className="gpr-sub">
                   {fmtInt(rows.length)} of {fmtInt(allRows.length)} variant{allRows.length === 1 ? '' : 's'}
                 </span>
