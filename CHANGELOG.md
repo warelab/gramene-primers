@@ -5,6 +5,13 @@ All notable changes to this project are documented here. The format follows
 [semantic versioning](https://semver.org/). `0.x` releases are published with
 `--tag next`; `1.0.0` follows once `/primers` is live on data.sorghumbase.org.
 
+## [0.10.0] — 2026-09-21
+
+### Added
+- **Only filters that could change the table are shown.** A variant kind with none of its variants in the region is dropped from the filter row, as is a menu with one option, a property toggle that every row or no row satisfies, and the EMS switch where nothing is an EMS entry. Two rules keep this from trapping anyone: a filter that is currently on always stays, so it can be turned back off — this matters for the kinds, which the server filters, so unticking one empties it out of the listing it is judged by — and nothing is hidden while the listing is truncated or replaced by an id lookup, when absence from the rows would not mean absence from the region.
+- **The variant kind filters say what they mean.** Hovering `snv`, `mnv`, `insertion`, `deletion` or `complex` in the genotyping filter row explains the kind, and the same words are read out by assistive software. The row is unchanged in size: the explanation is a tooltip and a hidden description rather than a line under each checkbox.
+- `CheckboxField` takes a `description`, for when a row of checkboxes would become unreadable with a visible `hint` under each. `hint` is unchanged and still the right choice where the words should always be on screen.
+
 ## [0.9.1] — 2026-09-17
 
 ### Fixed
